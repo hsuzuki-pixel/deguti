@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VideoHub</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #181818;
+      --surface-2: #212121;
+      --text: #f1f1f1;
+      --muted: #aaaaaa;
+      --accent: #ff0000;
+      --border: #2a2a2a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Noto Sans JP", "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: 64px 1fr;
+      grid-template-areas:
+        "header header"
+        "sidebar main";
+      min-height: 100vh;
+    }
+
+    header {
+      grid-area: header;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .left-head,
+    .right-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .menu-btn,
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      letter-spacing: .3px;
+    }
+
+    .logo {
+      width: 34px;
+      height: 24px;
+      border-radius: 7px;
+      background: var(--accent);
+      position: relative;
+    }
+
+    .logo::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-42%, -50%);
+      border-left: 9px solid #fff;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+    }
+
+    .search-wrap {
+      flex: 1;
+      max-width: 720px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .search {
+      flex: 1;
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      background: #121212;
+    }
+
+    .search input {
+      flex: 1;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      padding: 10px 16px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search button {
+      width: 64px;
+      border: 0;
+      border-left: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    aside {
+      grid-area: sidebar;
+      border-right: 1px solid var(--border);
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 6px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-group:last-child {
+      border-bottom: none;
+    }
+
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: var(--text);
+      text-decoration: none;
+      display: block;
+      font-size: 14px;
+    }
+
+    .nav-item:hover,
+    .nav-item.active {
+      background: var(--surface-2);
+    }
+
+    main {
+      grid-area: main;
+      padding: 20px;
+    }
+
+    .chips {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .chip {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      background: #fff;
+      color: #111;
+    }
+
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      display: grid;
+      gap: 10px;
+    }
+
+    .thumb {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      background: linear-gradient(130deg, #2e2e2e, #1b1b1b);
+      border: 1px solid #303030;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .thumb::after {
+      content: attr(data-time);
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      background: rgba(0, 0, 0, .8);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      background: #3a3a3a;
+    }
+
+    .title {
+      font-size: 15px;
+      line-height: 1.35;
+      margin-bottom: 4px;
+    }
+
+    .sub {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 78px 1fr;
+      }
+
+      .nav-item {
+        text-align: center;
+        font-size: 12px;
+        padding: 10px 6px;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "header"
+          "main";
+      }
+
+      aside {
+        display: none;
+      }
+
+      .search-wrap {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header>
+      <div class="left-head">
+        <button class="menu-btn" aria-label="menu">☰</button>
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <span>VideoHub</span>
+        </div>
+      </div>
+
+      <div class="search-wrap">
+        <div class="search">
+          <input type="text" placeholder="検索" />
+          <button aria-label="search">🔍</button>
+        </div>
+        <button class="icon-btn" aria-label="voice">🎤</button>
+      </div>
+
+      <div class="right-head">
+        <button class="icon-btn" aria-label="create">＋</button>
+        <button class="icon-btn" aria-label="notify">🔔</button>
+        <button class="icon-btn" aria-label="account">👤</button>
+      </div>
+    </header>
+
+    <aside>
+      <nav class="nav-group">
+        <a href="#" class="nav-item active">ホーム</a>
+        <a href="#" class="nav-item">ショート</a>
+        <a href="#" class="nav-item">登録チャンネル</a>
+      </nav>
+      <nav class="nav-group">
+        <a href="#" class="nav-item">履歴</a>
+        <a href="#" class="nav-item">高評価動画</a>
+        <a href="#" class="nav-item">後で見る</a>
+      </nav>
+      <nav class="nav-group">
+        <a href="#" class="nav-item">音楽</a>
+        <a href="#" class="nav-item">ゲーム</a>
+        <a href="#" class="nav-item">ライブ</a>
+      </nav>
+    </aside>
+
+    <main>
+      <div class="chips">
+        <button class="chip active">すべて</button>
+        <button class="chip">音楽</button>
+        <button class="chip">プログラミング</button>
+        <button class="chip">ニュース</button>
+        <button class="chip">ライブ配信</button>
+        <button class="chip">ゲーム実況</button>
+      </div>
+
+      <section class="video-grid">
+        <article class="card">
+          <div class="thumb" data-time="12:31"></div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div>
+              <h3 class="title">初学者向けHTML/CSS講座：1時間で作るWebページ</h3>
+              <p class="sub">Code Japan</p>
+              <p class="sub">31万回視聴 ・ 2週間前</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="thumb" data-time="8:46"></div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div>
+              <h3 class="title">作業用Lo-fi BGM - 集中したいときに</h3>
+              <p class="sub">Night Studio</p>
+              <p class="sub">126万回視聴 ・ 3か月前</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="thumb" data-time="22:10"></div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div>
+              <h3 class="title">JavaScriptでTODOアプリを作ってみよう</h3>
+              <p class="sub">Frontend Lab</p>
+              <p class="sub">9.8万回視聴 ・ 5日前</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="thumb" data-time="17:52"></div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div>
+              <h3 class="title">朝活ライブ配信：今日の目標設定</h3>
+              <p class="sub">Morning Talk</p>
+              <p class="sub">ライブ配信中</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="thumb" data-time="35:04"></div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div>
+              <h3 class="title">2026年最新ガジェット5選レビュー</h3>
+              <p class="sub">Tech View</p>
+              <p class="sub">58万回視聴 ・ 1か月前</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="thumb" data-time="14:19"></div>
+          <div class="meta">
+            <div class="avatar"></div>
+            <div>
+              <h3 class="title">ゲーム実況ハイライト：神プレイ集</h3>
+              <p class="sub">Play Ground</p>
+              <p class="sub">77万回視聴 ・ 6日前</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
