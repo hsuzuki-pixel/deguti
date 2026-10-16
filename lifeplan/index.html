@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>幸せ経営コンパス</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 上部に会社名とタブ、下に1カラムのパネル群。数字は表、心は5色の欲求で示す。 */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --surface-2: #eef2f5;
+  --ink: #1a2430;
+  --muted: #5b6878;
+  --line: #d9e0e7;
+  --accent: #0e6b66;
+  --accent-soft: #d6ecea;
+  --good: #2c8a55;
+  --warn: #b97c08;
+  --bad: #be3d36;
+  --n-survival: #3e9356;
+  --n-love: #c9507a;
+  --n-power: #cf7f12;
+  --n-freedom: #2f7fc1;
+  --n-fun: #8259c4;
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --surface: #17202a; --surface-2: #1e2935; --ink: #e5ebf1; --muted: #98a6b5; --line: #2b3745;
+    --accent: #4cbcb3; --accent-soft: #173836; --good: #5cc08a; --warn: #e2ad3f; --bad: #ec7069;
+    --n-survival: #6cc184; --n-love: #ec7fa3; --n-power: #f0a64a; --n-freedom: #6aaee6; --n-fun: #ab8ce6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --surface-2: #1e2935; --ink: #e5ebf1; --muted: #98a6b5; --line: #2b3745;
+  --accent: #4cbcb3; --accent-soft: #173836; --good: #5cc08a; --warn: #e2ad3f; --bad: #ec7069;
+  --n-survival: #6cc184; --n-love: #ec7fa3; --n-power: #f0a64a; --n-freedom: #6aaee6; --n-fun: #ab8ce6;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.6; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: .02em; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.brand { display: grid; gap: 2px; }
+.brand .eyebrow { font-size: .75rem; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+.company-chip { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 500; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+.pill.sample { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.pill.good { color: var(--good); }
+.pill.warn { color: var(--warn); }
+.pill.bad { color: var(--bad); }
+
+nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+nav.tabs button { appearance: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 500; padding: 10px 14px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
+nav.tabs button:hover { color: var(--ink); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 14px; min-width: 0; align-content: start; }
+.panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+.grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.kpi .label { font-size: .78rem; color: var(--muted); letter-spacing: .04em; }
+.kpi .value { font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kpi .sub { font-size: .8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.kpi.good { border-top: 3px solid var(--good); }
+.kpi.warn { border-top: 3px solid var(--warn); }
+.kpi.bad { border-top: 3px solid var(--bad); }
+
+.table-scroll { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { text-align: left; font-weight: 500; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+thead th { position: sticky; top: 0; background: var(--surface); }
+tr.total td { font-weight: 700; border-top: 2px solid var(--ink); }
+tr.link td { background: var(--accent-soft); }
+td.pos { color: var(--good); }
+td.neg { color: var(--bad); }
+
+input, select, textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; width: 100%; min-width: 80px; }
+textarea { width: 100%; resize: vertical; min-height: 56px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+label.field { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
+label.field > input, label.field > select, label.field > textarea { color: var(--ink); font-size: .92rem; }
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr)); gap: 12px; }
+
+.btn { appearance: none; font: inherit; font-weight: 500; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.btn.ghost { border-color: transparent; color: var(--muted); padding: 4px 8px; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.member-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.member-tab { display: grid; text-align: left; gap: 0; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font: inherit; color: var(--ink); }
+.member-tab small { color: var(--muted); font-size: .75rem; }
+.member-tab[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.need-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.need-card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; border-left-width: 4px; }
+.need-card header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.need-card header strong { font-family: var(--font-display); font-size: 1.05rem; }
+
+.member-card { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.member-card .idx { font-size: 1.8rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.member-card .meta { display: grid; gap: 6px; min-width: 0; }
+@media (max-width: 420px) { .member-card { grid-template-columns: 1fr; justify-items: start; } }
+
+.bar { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.bar > span { display: block; height: 100%; border-radius: 4px; }
+
+.alerts { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.alerts li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); }
+.alerts li .sev { font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.sev.bad { color: var(--bad); } .sev.warn { color: var(--warn); } .sev.info { color: var(--accent); } .sev.good { color: var(--good); }
+
+.slider-row { display: grid; grid-template-columns: 110px 1fr 70px; gap: 10px; align-items: center; }
+.slider-row input[type="range"] { width: 100%; accent-color: var(--accent); padding: 0; border: 0; background: none; }
+.slider-row .score { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+
+.wdep { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.wdep .field b { color: var(--accent); font-size: .9rem; margin-right: 4px; }
+
+svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
+svg .grid-line { stroke: var(--line); stroke-width: 1; fill: none; }
+svg .axis-label { fill: var(--ink); font-size: 12px; font-weight: 500; }
+.chart { width: 100%; height: auto; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .8rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 14px; height: 8px; border-radius: 2px; }
+
+.toast { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.hint { font-size: .8rem; color: var(--muted); background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
+.empty { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <span class="eyebrow">ライフプラン × 経営計画 × 選択理論</span>
+      <h1>幸せ経営コンパス</h1>
+    </div>
+    <div class="company-chip" id="companyChip"></div>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main id="view" style="display:grid; gap:20px; min-width:0;"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+
+const STORE_KEY = 'shiawase-keiei-v1';
+const NEEDS = [
+  { key: 'survival', label: '生存', desc: '健康・お金・安心', color: 'var(--n-survival)' },
+  { key: 'love',     label: '愛・所属', desc: '家族・仲間・つながり', color: 'var(--n-love)' },
+  { key: 'power',    label: '力', desc: '達成・承認・成長・貢献', color: 'var(--n-power)' },
+  { key: 'freedom',  label: '自由', desc: '時間・選択・裁量', color: 'var(--n-freedom)' },
+  { key: 'fun',      label: '楽しみ', desc: '学び・趣味・好奇心', color: 'var(--n-fun)' },
+];
+const NEED = Object.fromEntries(NEEDS.map(n => [n.key, n]));
+const TABS = [
+  ['dash', 'ダッシュボード'], ['life', 'ライフプラン'], ['plan', '経営計画と連動'],
+  ['monthly', '月次予実'], ['checkin', '幸せ面談'], ['data', 'データ'],
+];
+
+// ---------- helpers ----------
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const n0 = v => (v === '' || v == null || isNaN(+v)) ? 0 : +v;
+const man = v => Math.round(n0(v)).toLocaleString('ja-JP');
+const manU = v => man(v) + '万円';
+const pct = v => (isFinite(v) ? v.toFixed(1) : '—') + '%';
+const uid = () => Math.random().toString(36).slice(2, 9);
+const today = new Date();
+const thisYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+const prevYm = (() => { const d = new Date(today.getFullYear(), today.getMonth() - 1, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+const ymLabel = ym => { const [y, m] = ym.split('-'); return `${y}年${+m}月`; };
+
+function fyMonths(fy, start) {
+  const s = start || n0(state.company.fyStartMonth) || 4;
+  return Array.from({ length: 12 }, (_, i) => {
+    const mm = ((s - 1 + i) % 12) + 1;
+    const yy = fy + Math.floor((s - 1 + i) / 12);
+    return { m: mm, ym: `${yy}-${String(mm).padStart(2, '0')}` };
+  });
+}
+function fyOf(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const s = n0(state.company.fyStartMonth) || 4;
+  return m >= s ? y : y - 1;
+}
+
+// ---------- sample data ----------
+function sampleState() {
+  const fy = 2026;
+  const members = [
+    {
+      id: 'm1', name: '山田 太郎', role: '代表取締役社長', birthYear: 1968, currentComp: 1800, livingCost: 900, savingGoal: 300,
+      vision: {
+        survival: { text: '70歳まで現場に顔を出せる体。引退後30年分の生活資金と退職金を確保する。', metric: '人間ドックA判定・老後資金1.5億円', target: 8 },
+        love: { text: '妻と年2回の旅行。社員と家族を招く感謝祭を毎年続ける。', metric: '夫婦旅行 年2回', target: 8 },
+        power: { text: '地域で一番信頼される施工会社にして、会社価値10億円で息子に承継する。', metric: '株価評価10億円・無事故', target: 9 },
+        freedom: { text: '2028年から週休3日。日常の決裁は専務に任せる。', metric: '月の休日12日', target: 7 },
+        fun: { text: 'ゴルフと陶芸を本気で楽しむ。', metric: 'ゴルフ月2回', target: 7 },
+      },
+      events: [
+        { id: uid(), year: 2027, title: '長女の結婚', need: 'love', cost: 200, fund: 'comp' },
+        { id: uid(), year: 2028, title: '自宅リフォーム', need: 'survival', cost: 800, fund: 'comp' },
+        { id: uid(), year: 2029, title: '夫婦で欧州旅行', need: 'fun', cost: 150, fund: 'comp' },
+        { id: uid(), year: 2030, title: '代表交代・会長就任', need: 'power', cost: 0, fund: 'comp' },
+        { id: uid(), year: 2033, title: '役員退職金の受取（引退）', need: 'freedom', cost: 0, fund: 'savings' },
+      ],
+    },
+    {
+      id: 'm2', name: '山田 健一', role: '専務取締役（後継者）', birthYear: 1992, currentComp: 900, livingCost: 600, savingGoal: 200,
+      vision: {
+        survival: { text: '家族が安心して暮らせる家と、借入に頼らない家計。', metric: '住宅取得・生活防衛資金500万円', target: 7 },
+        love: { text: '子どもの行事には必ず出る。若手社員から本音で相談される存在になる。', metric: '若手面談 月4回', target: 8 },
+        power: { text: '社長就任までに銀行・取引先から「次はこの人」と認められる。', metric: '主要取引先の単独訪問 月6社', target: 8 },
+        freedom: { text: '自分の判断で新規事業（リフォーム部門）を立ち上げる。', metric: '新規事業の決裁権限', target: 7 },
+        fun: { text: '経営塾で学び、仲間と学び合う。', metric: '読書 月3冊', target: 7 },
+      },
+      events: [
+        { id: uid(), year: 2027, title: '第二子誕生', need: 'love', cost: 100, fund: 'comp' },
+        { id: uid(), year: 2028, title: '住宅購入（頭金）', need: 'survival', cost: 1000, fund: 'savings' },
+        { id: uid(), year: 2029, title: '経営塾・MBA受講', need: 'power', cost: 300, fund: 'comp' },
+        { id: uid(), year: 2030, title: '代表取締役就任', need: 'power', cost: 0, fund: 'comp' },
+      ],
+    },
+    {
+      id: 'm3', name: '佐藤 誠', role: '取締役 工事部長', birthYear: 1980, currentComp: 750, livingCost: 550, savingGoal: 150,
+      vision: {
+        survival: { text: '定年後も技術顧問として働ける健康と資格。', metric: '体重−5kg', target: 7 },
+        love: { text: '部下が辞めない現場をつくる。家族と週1回は夕食を囲む。', metric: '工事部の離職ゼロ', target: 7 },
+        power: { text: '1級建築施工管理技士を取り、大型案件の統括を任される。', metric: '資格合格・3億円案件の統括', target: 8 },
+        freedom: { text: '残業を減らし、自分で段取りを組める働き方。', metric: '残業 月20時間以内', target: 6 },
+        fun: { text: '息子と釣りに行く。', metric: '釣り 月1回', target: 6 },
+      },
+      events: [
+        { id: uid(), year: 2027, title: '長男 大学入学', need: 'love', cost: 250, fund: 'comp' },
+        { id: uid(), year: 2027, title: '1級建築施工管理技士 受験', need: 'power', cost: 30, fund: 'comp' },
+        { id: uid(), year: 2029, title: '次男 大学入学', need: 'love', cost: 250, fund: 'comp' },
+      ],
+    },
+  ];
+  const plans = [
+    { year: 2026, sales: 80000, grossRate: 28, sga: 15000, execComp: 3450, theme: '原価管理の徹底と若手の定着' },
+    { year: 2027, sales: 86000, grossRate: 28.5, sga: 15800, execComp: 3600, theme: 'リフォーム部門の立ち上げ' },
+    { year: 2028, sales: 93000, grossRate: 29, sga: 16700, execComp: 3800, theme: '社長の週休3日と権限移譲' },
+    { year: 2029, sales: 100000, grossRate: 29.5, sga: 17600, execComp: 4000, theme: '売上10億円・後継体制の完成' },
+    { year: 2030, sales: 108000, grossRate: 30, sga: 18500, execComp: 4200, theme: '代表交代と会社価値10億円' },
+  ];
+  const weights = [6, 7, 7, 8, 7, 8, 8, 8, 9, 8, 9, 15];
+  const actualSales = [4520, 5810, 5240, 6150, 5480, 6620];
+  const actualGpRate = [27.2, 28.4, 26.8, 27.9, 28.6, 28.1];
+  const actualFixed = [1560, 1540, 1580, 1550, 1530, 1560];
+  const p0 = plans[0];
+  const fixedM = (p0.sga + p0.execComp) / 12;
+  const monthly = {
+    [fy]: weights.map((w, i) => {
+      const sb = Math.round(p0.sales * w / 100);
+      const gb = Math.round(sb * p0.grossRate / 100);
+      const row = { sb, gb, ob: Math.round(gb - fixedM), sa: null, ga: null, oa: null };
+      if (i < actualSales.length) {
+        row.sa = actualSales[i];
+        row.ga = Math.round(actualSales[i] * actualGpRate[i] / 100);
+        row.oa = row.ga - actualFixed[i];
+      }
+      return row;
+    }),
+  };
+  const scoreSeries = {
+    m1: [[7, 6, 8, 4, 5], [7, 6, 8, 4, 6], [6, 5, 7, 3, 5], [7, 6, 8, 4, 5], [7, 7, 7, 5, 7], [6, 6, 8, 3, 5]],
+    m2: [[6, 7, 6, 5, 6], [6, 7, 7, 5, 6], [6, 8, 7, 5, 6], [5, 7, 6, 4, 5], [6, 8, 7, 6, 7], [6, 8, 8, 5, 6]],
+    m3: [[7, 6, 5, 6, 6], [7, 6, 5, 6, 6], [7, 5, 4, 5, 5], [6, 5, 4, 5, 5], [7, 6, 5, 6, 6], [7, 6, 4, 6, 6]],
+  };
+  const latestNotes = {
+    m1: { want: '決裁を手放して、週1日は会社に行かない日をつくりたい。', doing: '結局、見積の最終確認を全部自分でやっている。', evaluation: '効果的ではない。専務の成長機会も奪っている。', plan: '1,000万円未満の見積決裁を10月から専務に移す。毎週水曜は出社しない。' },
+    m2: { want: '銀行から後継者として信頼されたい。', doing: '月次の銀行報告に同席し、試算表の説明を担当。', evaluation: '効果的。支店長から直接電話が来るようになった。', plan: '11月の決算説明は自分が主担当で行う。' },
+    m3: { want: '大型案件を任され、部下に背中を見せたい。', doing: '現場対応に追われ、資格の勉強が進んでいない。', evaluation: '効果的ではない。段取りを部下に渡せていない。', plan: '朝礼の進行を主任に任せ、毎朝30分を学習時間にする。' },
+  };
+  const checkins = [];
+  fyMonths(fy, 4).slice(0, 6).forEach((mo, i) => {
+    members.forEach(m => {
+      const s = scoreSeries[m.id][i];
+      const notes = i === 5 ? latestNotes[m.id] : { want: '', doing: '', evaluation: '', plan: '' };
+      checkins.push({ memberId: m.id, ym: mo.ym, scores: Object.fromEntries(NEEDS.map((n, k) => [n.key, s[k]])), ...notes });
+    });
+  });
+  return {
+    sample: true,
+    company: { name: 'サンプル建設株式会社', fyStartMonth: 4, currentFY: fy, takeHomeRate: 70, mission: '地域の暮らしを守る施工で、社員と家族の誇りをつくる' },
+    members, plans, monthly, checkins,
+  };
+}
+
+// ---------- state ----------
+function load() {
+  try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+  return null;
+}
+let state = load() || sampleState();
+let ui = Object.assign({ tab: 'dash', lifeMember: null, ciMember: null, ciYm: null, fy: null, armed: null }, (() => { try { return JSON.parse(localStorage.getItem(STORE_KEY + '-ui')) || {}; } catch (e) { return {}; } })());
+ui.armed = null;
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+function saveUi() {
+  try { localStorage.setItem(STORE_KEY + '-ui', JSON.stringify({ ...ui, armed: null })); } catch (e) {}
+}
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+function getPath(obj, path) { return path.split('.').reduce((o, k) => o == null ? o : o[k], obj); }
+function setPath(obj, path, val) {
+  const keys = path.split('.'); const last = keys.pop();
+  const target = keys.reduce((o, k) => (o[k] ??= {}), obj);
+  target[last] = val;
+}
+
+// ---------- calculations ----------
+const takeRate = () => (n0(state.company.takeHomeRate) || 70) / 100;
+const member = id => state.members.find(m => m.id === id);
+const eventsIn = (m, y) => (m.events || []).filter(e => n0(e.year) === y);
+const compEventCost = (m, y) => eventsIn(m, y).filter(e => e.fund !== 'savings').reduce((s, e) => s + n0(e.cost), 0);
+const needTakeHome = (m, y) => n0(m.livingCost) + n0(m.savingGoal) + compEventCost(m, y);
+const reqComp = (m, y) => Math.round(needTakeHome(m, y) / takeRate());
+const planFor = y => state.plans.find(p => n0(p.year) === y);
+function planCalc(p) {
+  const gp = n0(p.sales) * n0(p.grossRate) / 100;
+  const op = gp - n0(p.sga) - n0(p.execComp);
+  return { gp, op, opRate: n0(p.sales) ? op / n0(p.sales) * 100 : NaN };
+}
+function linkCalc(p) {
+  const y = n0(p.year);
+  const req = state.members.reduce((s, m) => s + reqComp(m, y), 0);
+  const c = planCalc(p);
+  const gr = n0(p.grossRate) / 100;
+  const reqSales = gr > 0 ? (c.op + n0(p.sga) + req) / gr : NaN;
+  return { req, compGap: n0(p.execComp) - req, reqSales, salesGap: n0(p.sales) - reqSales };
+}
+function monthlyRows(fy) {
+  if (!state.monthly[fy]) state.monthly[fy] = Array.from({ length: 12 }, () => ({ sb: null, sa: null, gb: null, ga: null, ob: null, oa: null }));
+  return state.monthly[fy];
+}
+function ytd(fy) {
+  const rows = state.monthly[fy] || [];
+  let sb = 0, sa = 0, gb = 0, ga = 0, ob = 0, oa = 0, n = 0;
+  rows.forEach(r => {
+    if (r.sa == null || r.sa === '') return;
+    n++; sb += n0(r.sb); sa += n0(r.sa); gb += n0(r.gb); ga += n0(r.ga); ob += n0(r.ob); oa += n0(r.oa);
+  });
+  return { n, sb, sa, gb, ga, ob, oa, sRate: sb ? sa / sb * 100 : NaN, gRate: gb ? ga / gb * 100 : NaN };
+}
+const happy = scores => scores ? NEEDS.reduce((s, n) => s + n0(scores[n.key]), 0) / NEEDS.length * 10 : NaN;
+const checkinsOf = id => state.checkins.filter(c => c.memberId === id).sort((a, b) => a.ym.localeCompare(b.ym));
+const latestCheckin = id => { const l = checkinsOf(id); return l[l.length - 1]; };
+const targetsOf = m => Object.fromEntries(NEEDS.map(n => [n.key, n0(m.vision?.[n.key]?.target) || 7]));
+const ageIn = (m, y) => m.birthYear ? y - n0(m.birthYear) : '';
+const tone = rate => !isFinite(rate) ? '' : rate >= 100 ? 'good' : rate >= 95 ? 'warn' : 'bad';
+
+function buildAlerts() {
+  const out = [];
+  const fy = n0(state.company.currentFY);
+  const y = ytd(fy);
+  if (y.n) {
+    if (y.sRate < 95) out.push(['bad', `売上の累計達成率が ${pct(y.sRate)}（${y.n}か月）。差額 ${manU(y.sa - y.sb)}。役員報酬の原資に直結します。`]);
+    else if (y.sRate < 100) out.push(['warn', `売上の累計達成率が ${pct(y.sRate)}。年度後半の挽回策を確認しましょう。`]);
+    if (y.oa < y.ob) out.push(['warn', `営業利益の累計が予算を ${manU(y.ob - y.oa)} 下回っています。`]);
+  }
+  const p = planFor(fy);
+  if (p) {
+    const l = linkCalc(p);
+    if (l.compGap < 0) out.push(['bad', `${fy}年度：ライフプランに必要な役員報酬が計画を ${manU(-l.compGap)} 上回っています。必要売上は ${manU(l.reqSales)}。`]);
+  }
+  state.members.forEach(m => {
+    const c = latestCheckin(m.id);
+    if (!c) { out.push(['warn', `${m.name}：まだ幸せ面談の記録がありません。`]); return; }
+    if (c.ym < prevYm) out.push(['warn', `${m.name}：最後の面談が ${ymLabel(c.ym)}。今月の面談を設定しましょう。`]);
+    const t = targetsOf(m);
+    NEEDS.forEach(n => {
+      const gap = t[n.key] - n0(c.scores[n.key]);
+      if (gap >= 3) out.push(['bad', `${m.name}：「${n.label}」が目標 ${t[n.key]} に対して ${n0(c.scores[n.key])}。${esc(m.vision?.[n.key]?.metric || '')}`]);
+    });
+    (m.events || []).forEach(e => {
+      const dy = n0(e.year) - fy;
+      if (dy >= 0 && dy <= 2 && n0(e.cost) >= 300) out.push(['info', `${m.name}：${e.year}年「${esc(e.title)}」${manU(e.cost)}（${e.fund === 'savings' ? '貯蓄' : '報酬'}で準備）。`]);
+    });
+  });
+  return out;
+}
+
+// ---------- charts (SVG) ----------
+function niceStep(raw) {
+  const p = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+function radarSvg(scores, targets, size = 220) {
+  const pad = 46, r = size / 2 - pad, cx = size / 2, cy = size / 2;
+  const pt = (i, v) => { const a = (-90 + i * 72) * Math.PI / 180; return [cx + Math.cos(a) * r * v / 10, cy + Math.sin(a) * r * v / 10]; };
+  let s = `<svg class="chart" viewBox="0 0 ${size} ${size}" role="img" aria-label="5つの欲求の充足度">`;
+  [2, 4, 6, 8, 10].forEach(v => { s += `<polygon class="grid-line" points="${NEEDS.map((_, i) => pt(i, v).join(',')).join(' ')}"/>`; });
+  NEEDS.forEach((n, i) => {
+    const [x, y] = pt(i, 10); s += `<line class="grid-line" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/>`;
+    const la = (-90 + i * 72) * Math.PI / 180, lx = cx + Math.cos(la) * (r + 18), ly = cy + Math.sin(la) * (r + 14);
+    s += `<text class="axis-label" x="${lx}" y="${ly + 4}" text-anchor="middle" style="fill:${n.color}">${n.label}</text>`;
+  });
+  if (targets) s += `<polygon points="${NEEDS.map((n, i) => pt(i, targets[n.key]).join(',')).join(' ')}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if (scores) {
+    s += `<polygon points="${NEEDS.map((n, i) => pt(i, n0(scores[n.key])).join(',')).join(' ')}" fill="var(--accent)" fill-opacity=".18" stroke="var(--accent)" stroke-width="2"/>`;
+    NEEDS.forEach((n, i) => { const [x, y] = pt(i, n0(scores[n.key])); s += `<circle cx="${x}" cy="${y}" r="3.5" fill="${n.color}"/>`; });
+  }
+  return s + '</svg>';
+}
+function barChartSvg(labels, budget, actual) {
+  const W = 640, H = 240, L = 52, R = 10, T = 12, B = 28;
+  const max = Math.max(1, ...budget.map(n0), ...actual.map(n0));
+  const step = niceStep(max / 4); const top = Math.ceil(max / step) * step;
+  const y = v => T + (H - T - B) * (1 - n0(v) / top);
+  const bw = (W - L - R) / labels.length;
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="月次の予算と実績">`;
+  for (let v = 0; v <= top + 1e-9; v += step) s += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${man(v)}</text>`;
+  labels.forEach((lab, i) => {
+    const x0 = L + i * bw;
+    s += `<rect x="${x0 + bw * .14}" y="${y(budget[i])}" width="${bw * .34}" height="${Math.max(0, y(0) - y(budget[i]))}" fill="var(--line)" rx="2"/>`;
+    if (actual[i] != null && actual[i] !== '') {
+      const good = n0(actual[i]) >= n0(budget[i]);
+      s += `<rect x="${x0 + bw * .5}" y="${y(actual[i])}" width="${bw * .34}" height="${Math.max(0, y(0) - y(actual[i]))}" fill="${good ? 'var(--accent)' : 'var(--warn)'}" rx="2"/>`;
+    }
+    s += `<text x="${x0 + bw / 2}" y="${H - 8}" text-anchor="middle">${lab}</text>`;
+  });
+  return s + '</svg>';
+}
+function trendSvg(list, targets) {
+  const W = 640, H = 220, L = 30, R = 14, T = 12, B = 28;
+  if (!list.length) return '<div class="empty">面談を記録すると推移が表示されます。</div>';
+  const xs = i => list.length === 1 ? (L + W - R) / 2 : L + (W - L - R) * i / (list.length - 1);
+  const y = v => T + (H - T - B) * (1 - v / 10);
+  let s = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="欲求ごとの充足度の推移">`;
+  [0, 2, 4, 6, 8, 10].forEach(v => { s += `<line class="grid-line" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`; });
+  NEEDS.forEach(n => {
+    const pts = list.map((c, i) => `${xs(i)},${y(n0(c.scores[n.key]))}`).join(' ');
+    s += `<polyline points="${pts}" fill="none" stroke="${n.color}" stroke-width="2"/>`;
+    const last = list[list.length - 1];
+    s += `<circle cx="${xs(list.length - 1)}" cy="${y(n0(last.scores[n.key]))}" r="4" fill="${n.color}"/>`;
+  });
+  list.forEach((c, i) => { s += `<text x="${xs(i)}" y="${H - 8}" text-anchor="middle">${+c.ym.split('-')[1]}月</text>`; });
+  return s + '</svg>';
+}
+const needLegend = () => `<div class="legend">${NEEDS.map(n => `<span><i style="background:${n.color}"></i>${n.label}</span>`).join('')}</div>`;
+
+// ---------- views ----------
+function renderHeader() {
+  $('#companyChip').innerHTML = `
+    <span class="pill">${esc(state.company.name || '会社名未設定')}</span>
+    <span class="pill">${n0(state.company.currentFY)}年度（${n0(state.company.fyStartMonth)}月期首）</span>
+    ${state.sample ? '<span class="pill sample">サンプルデータ表示中</span>' : ''}`;
+  $('#tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" aria-selected="${ui.tab === k}" data-action="tab" data-tab="${k}">${l}</button>`).join('');
+}
+
+function viewDash() {
+  const fy = n0(state.company.currentFY);
+  const y = ytd(fy);
+  const p = planFor(fy);
+  const l = p ? linkCalc(p) : null;
+  const latest = state.members.map(m => latestCheckin(m.id)).filter(Boolean);
+  const avgHappy = latest.length ? latest.reduce((s, c) => s + happy(c.scores), 0) / latest.length : NaN;
+  const rows = monthlyRows(fy);
+  const months = fyMonths(fy);
+  const alerts = buildAlerts();
+
+  return `
+  ${state.company.mission ? `<p class="muted">経営理念：<strong style="color:var(--ink)">${esc(state.company.mission)}</strong></p>` : ''}
+  <section class="kpis">
+    <div class="kpi ${tone(y.sRate)}"><span class="label">売上 累計達成率（${y.n}か月）</span><span class="value">${y.n ? pct(y.sRate) : '—'}</span><span class="sub">実績 ${manU(y.sa)} ／ 予算 ${manU(y.sb)}</span></div>
+    <div class="kpi ${y.n ? (y.oa >= y.ob ? 'good' : 'bad') : ''}"><span class="label">営業利益 累計</span><span class="value">${y.n ? manU(y.oa) : '—'}</span><span class="sub">予算 ${manU(y.ob)}（差 ${y.oa - y.ob >= 0 ? '+' : ''}${man(y.oa - y.ob)}）</span></div>
+    <div class="kpi ${isFinite(avgHappy) ? (avgHappy >= 65 ? 'good' : avgHappy >= 55 ? 'warn' : 'bad') : ''}"><span class="label">経営陣の幸福指数（最新の平均）</span><span class="value">${isFinite(avgHappy) ? avgHappy.toFixed(0) : '—'}<small class="muted" style="font-size:.9rem"> / 100</small></span><span class="sub">5つの欲求の充足度 × 10</span></div>
+    <div class="kpi ${l ? (l.compGap >= 0 ? 'good' : 'bad') : ''}"><span class="label">役員報酬：計画 − ライフプラン必要額</span><span class="value">${l ? (l.compGap >= 0 ? '+' : '') + man(l.compGap) : '—'}<small class="muted" style="font-size:.9rem"> 万円</small></span><span class="sub">${l ? `必要 ${manU(l.req)} ／ 計画 ${manU(p.execComp)}` : '経営計画を入力してください'}</span></div>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><h2>今、手を打つこと</h2><span class="muted small">${alerts.length}件</span></div>
+      ${alerts.length ? `<ul class="alerts">${alerts.map(([s, t]) => `<li><span class="sev ${s}">${{ bad: '要対応', warn: '注意', info: '準備', good: '順調' }[s]}</span><span>${t}</span></li>`).join('')}</ul>` : '<div class="empty">気になる点はありません。</div>'}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h2>${fy}年度 売上の予実（万円）</h2>
+        <div class="legend"><span><i style="background:var(--line)"></i>予算</span><span><i style="background:var(--accent)"></i>実績（達成）</span><span><i style="background:var(--warn)"></i>実績（未達）</span></div></div>
+      ${barChartSvg(months.map(m => m.m + '月'), rows.map(r => r.sb), rows.map(r => r.sa))}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>経営陣の幸せ状態</h2>${needLegend()}</div>
+    <div class="grid-3">
+      ${state.members.map(m => {
+        const c = latestCheckin(m.id); const t = targetsOf(m);
+        const h = c ? happy(c.scores) : NaN;
+        const low = c ? NEEDS.map(n => ({ n, gap: t[n.key] - n0(c.scores[n.key]) })).sort((a, b) => b.gap - a.gap)[0] : null;
+        return `<div class="member-card">
+          <div>${radarSvg(c?.scores, t, 150)}</div>
+          <div class="meta">
+            <div><strong>${esc(m.name)}</strong><br><span class="muted small">${esc(m.role)}・${ageIn(m, today.getFullYear())}歳</span></div>
+            <div><span class="idx">${isFinite(h) ? h.toFixed(0) : '—'}</span> <span class="muted small">幸福指数${c ? `（${ymLabel(c.ym)}）` : ''}</span></div>
+            ${low && low.gap > 0 ? `<div><span class="pill ${low.gap >= 3 ? 'bad' : 'warn'}"><span class="need-dot" style="background:${low.n.color}"></span>${low.n.label} あと${low.gap}</span></div>` : c ? '<div><span class="pill good">目標を充足</span></div>' : ''}
+            ${c?.plan ? `<p class="small muted">次の行動：${esc(c.plan)}</p>` : ''}
+          </div>
+        </div>`;
+      }).join('') || '<div class="empty">ライフプランタブでメンバーを追加してください。</div>'}
+    </div>
+    <p class="small muted">実線は最新の面談スコア、点線はライフプランで決めた目標。</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>ライフプランが求める経営計画</h2><span class="muted small">単位：万円／手取り率 ${n0(state.company.takeHomeRate)}%</span></div>
+    ${linkTable()}
+  </section>`;
+}
+
+function linkTable() {
+  if (!state.plans.length) return '<div class="empty">経営計画タブで年度計画を追加してください。</div>';
+  const ps = [...state.plans].sort((a, b) => n0(a.year) - n0(b.year));
+  return `<div class="table-scroll"><table>
+    <thead><tr><th>年度</th>${ps.map(p => `<th class="num">${p.year}</th>`).join('')}</tr></thead>
+    <tbody>
+      <tr><th>重点テーマ</th>${ps.map(p => `<td class="small">${esc(p.theme || '')}</td>`).join('')}</tr>
+      ${state.members.map(m => `<tr><th>${esc(m.name)}（${esc(m.role.split('（')[0])}）</th>${ps.map(p => {
+        const ev = eventsIn(m, n0(p.year));
+        return `<td class="num">${man(reqComp(m, n0(p.year)))}<div class="small muted" style="white-space:normal;text-align:right">${ageIn(m, n0(p.year))}歳${ev.length ? '・' + ev.map(e => esc(e.title)).join('、') : ''}</div></td>`;
+      }).join('')}</tr>`).join('')}
+      <tr class="total"><td>必要な役員報酬 合計</td>${ps.map(p => `<td class="num">${man(linkCalc(p).req)}</td>`).join('')}</tr>
+      <tr><th>計画上の役員報酬</th>${ps.map(p => `<td class="num">${man(p.execComp)}</td>`).join('')}</tr>
+      <tr><th>過不足</th>${ps.map(p => { const g = linkCalc(p).compGap; return `<td class="num ${g >= 0 ? 'pos' : 'neg'}">${g >= 0 ? '+' : ''}${man(g)}</td>`; }).join('')}</tr>
+      <tr class="link"><th>ライフプランを叶える必要売上</th>${ps.map(p => `<td class="num"><strong>${man(linkCalc(p).reqSales)}</strong></td>`).join('')}</tr>
+      <tr><th>計画売上</th>${ps.map(p => `<td class="num">${man(p.sales)}</td>`).join('')}</tr>
+      <tr><th>売上の余力</th>${ps.map(p => { const g = linkCalc(p).salesGap; return `<td class="num ${g >= 0 ? 'pos' : 'neg'}">${g >= 0 ? '+' : ''}${man(g)}</td>`; }).join('')}</tr>
+    </tbody></table></div>
+    <p class="small muted">必要売上 =（計画営業利益 + 販管費 + ライフプラン必要報酬）÷ 粗利率。営業利益を守ったまま、経営陣の人生計画を叶えるための売上ラインです。</p>`;
+}
+
+function viewLife() {
+  if (!ui.lifeMember || !member(ui.lifeMember)) ui.lifeMember = state.members[0]?.id || null;
+  const idx = state.members.findIndex(m => m.id === ui.lifeMember);
+  const m = state.members[idx];
+  const tabs = `<div class="member-tabs">${state.members.map(x => `<button class="member-tab" data-action="life-member" data-id="${x.id}" aria-pressed="${x.id === ui.lifeMember}"><strong>${esc(x.name || '（名前未入力）')}</strong><small>${esc(x.role)}</small></button>`).join('')}
+    <button class="btn" data-action="add-member">＋ メンバーを追加</button></div>`;
+  if (!m) return `<section class="panel"><h2>ライフプラン</h2>${tabs}<div class="empty">社長・幹部を追加して、人生の計画から書き始めましょう。</div></section>`;
+  const base = `members.${idx}`;
+  const fy = n0(state.company.currentFY);
+  const years = Array.from({ length: 10 }, (_, i) => fy + i);
+  const c = latestCheckin(m.id);
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>誰の人生を描くか</h2><span class="muted small">社長だけでなく、幹部一人ひとりのライフプランが経営計画の土台です。</span></div>
+    ${tabs}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>基本情報とお金の前提</h2>
+      <button class="btn danger ${ui.armed === 'del-' + m.id ? 'armed' : ''}" data-action="del-member" data-id="${m.id}">${ui.armed === 'del-' + m.id ? 'もう一度押すと削除' : 'このメンバーを削除'}</button></div>
+    <div class="form-row">
+      <label class="field">氏名<input id="m-name" data-bind="${base}.name" value="${esc(m.name)}"></label>
+      <label class="field">役職<input id="m-role" data-bind="${base}.role" value="${esc(m.role)}"></label>
+      <label class="field">生まれ年<input id="m-birth" type="number" data-num data-bind="${base}.birthYear" value="${esc(m.birthYear)}"></label>
+      <label class="field">現在の役員報酬（年・万円）<input id="m-comp" type="number" data-num data-bind="${base}.currentComp" value="${esc(m.currentComp)}"></label>
+      <label class="field">年間の生活費（万円）<input id="m-living" type="number" data-num data-bind="${base}.livingCost" value="${esc(m.livingCost)}"></label>
+      <label class="field">年間の貯蓄目標（万円）<input id="m-saving" type="number" data-num data-bind="${base}.savingGoal" value="${esc(m.savingGoal)}"></label>
+    </div>
+    <p class="hint">今年の必要手取り ${manU(needTakeHome(m, fy))} ÷ 手取り率 ${n0(state.company.takeHomeRate)}% ＝ 必要な役員報酬 <strong>${manU(reqComp(m, fy))}</strong>（現在 ${manU(m.currentComp)}、差 ${n0(m.currentComp) - reqComp(m, fy) >= 0 ? '+' : ''}${man(n0(m.currentComp) - reqComp(m, fy))}万円）</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>5つの欲求で描く「ありたい姿」</h2><span class="muted small">お金は手段。満たしたいのは基本的欲求です。目標スコアは10点満点。</span></div>
+    <div class="grid-2">
+      <div class="grid-3" style="grid-template-columns:1fr">
+        ${NEEDS.map(n => {
+          const v = m.vision?.[n.key] || {};
+          return `<div class="need-card" style="border-left-color:${n.color}">
+            <header><span class="need-dot" style="background:${n.color}"></span><strong>${n.label}</strong><span class="muted small">${n.desc}</span></header>
+            <label class="field">ありたい姿<textarea id="v-${n.key}-text" data-bind="${base}.vision.${n.key}.text" rows="2">${esc(v.text)}</textarea></label>
+            <div class="form-row">
+              <label class="field">測る指標<input id="v-${n.key}-metric" data-bind="${base}.vision.${n.key}.metric" value="${esc(v.metric)}"></label>
+              <label class="field">目標スコア（0〜10）<input id="v-${n.key}-target" type="number" min="0" max="10" data-num data-bind="${base}.vision.${n.key}.target" value="${esc(v.target ?? 7)}"></label>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:grid; gap:10px; align-content:start; position:sticky; top:12px">
+        <h3>目標と現在地</h3>
+        ${radarSvg(c?.scores, targetsOf(m), 300)}
+        <p class="small muted">点線が目標、実線が${c ? `${ymLabel(c.ym)}の面談スコア` : '面談スコア（未記録）'}。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>ライフイベントと必要資金</h2><button class="btn" data-action="add-event">＋ イベントを追加</button></div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>年</th><th>年齢</th><th>内容</th><th>満たす欲求</th><th class="num">金額（万円）</th><th>資金の出どころ</th><th></th></tr></thead>
+      <tbody>
+      ${(m.events || []).map((e, j) => ({ e, j })).sort((a, b) => n0(a.e.year) - n0(b.e.year)).map(({ e, j }) => `<tr>
+        <td><input id="e-${e.id}-y" type="number" data-num data-bind="${base}.events.${j}.year" value="${esc(e.year)}" style="width:84px"></td>
+        <td class="num">${ageIn(m, n0(e.year))}</td>
+        <td><input id="e-${e.id}-t" data-bind="${base}.events.${j}.title" value="${esc(e.title)}" style="width:100%;min-width:160px"></td>
+        <td><select id="e-${e.id}-n" data-bind="${base}.events.${j}.need">${NEEDS.map(n => `<option value="${n.key}" ${e.need === n.key ? 'selected' : ''}>${n.label}</option>`).join('')}</select></td>
+        <td><input id="e-${e.id}-c" type="number" data-num data-bind="${base}.events.${j}.cost" value="${esc(e.cost)}"></td>
+        <td><select id="e-${e.id}-f" data-bind="${base}.events.${j}.fund"><option value="comp" ${e.fund !== 'savings' ? 'selected' : ''}>その年の報酬</option><option value="savings" ${e.fund === 'savings' ? 'selected' : ''}>貯蓄・退職金</option></select></td>
+        <td><button class="btn ghost" data-action="del-event" data-j="${j}" aria-label="削除">削除</button></td>
+      </tr>`).join('') || '<tr><td colspan="7" class="muted">結婚・出産・進学・住宅・旅行・承継・引退など、人生の節目を入れてください。</td></tr>'}
+      </tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>10年の人生と必要な役員報酬</h2><span class="muted small">単位：万円</span></div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>年</th>${years.map(y => `<th class="num">${y}</th>`).join('')}</tr></thead>
+      <tbody>
+        <tr><th>年齢</th>${years.map(y => `<td class="num">${ageIn(m, y)}</td>`).join('')}</tr>
+        <tr><th>イベント</th>${years.map(y => `<td class="small">${eventsIn(m, y).map(e => `<span style="display:inline-flex;gap:4px;align-items:center"><span class="need-dot" style="background:${NEED[e.need]?.color}"></span>${esc(e.title)}</span>`).join('<br>')}</td>`).join('')}</tr>
+        <tr><th>必要手取り</th>${years.map(y => `<td class="num">${man(needTakeHome(m, y))}</td>`).join('')}</tr>
+        <tr class="link"><th>必要な役員報酬</th>${years.map(y => `<td class="num"><strong>${man(reqComp(m, y))}</strong></td>`).join('')}</tr>
+      </tbody></table></div>
+  </section>`;
+}
+
+function viewPlan() {
+  const ps = state.plans.map((p, i) => ({ p, i })).sort((a, b) => n0(a.p.year) - n0(b.p.year));
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>会社の前提</h2></div>
+    <div class="form-row">
+      <label class="field">会社名<input id="c-name" data-bind="company.name" value="${esc(state.company.name)}"></label>
+      <label class="field">期首月<input id="c-fys" type="number" min="1" max="12" data-num data-bind="company.fyStartMonth" value="${esc(state.company.fyStartMonth)}"></label>
+      <label class="field">当期（年度）<input id="c-fy" type="number" data-num data-bind="company.currentFY" value="${esc(state.company.currentFY)}"></label>
+      <label class="field">役員報酬の手取り率（%）<input id="c-take" type="number" min="1" max="100" data-num data-bind="company.takeHomeRate" value="${esc(state.company.takeHomeRate)}"></label>
+    </div>
+    <label class="field">経営理念<input id="c-mission" data-bind="company.mission" value="${esc(state.company.mission)}"></label>
+    <p class="small muted">手取り率は所得税・住民税・社会保険料を差し引いた後の目安です。報酬水準に合わせて調整してください。</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>中期経営計画</h2><button class="btn" data-action="add-plan">＋ 年度を追加</button></div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>年度</th><th>重点テーマ</th><th class="num">売上</th><th class="num">粗利率%</th><th class="num">粗利</th><th class="num">販管費<br>（役員報酬除く）</th><th class="num">役員報酬</th><th class="num">営業利益</th><th class="num">利益率</th><th></th></tr></thead>
+      <tbody>
+      ${ps.map(({ p, i }) => { const c = planCalc(p); return `<tr>
+        <td><input id="p-${i}-y" type="number" data-num data-bind="plans.${i}.year" value="${esc(p.year)}" style="width:84px"></td>
+        <td><input id="p-${i}-t" data-bind="plans.${i}.theme" value="${esc(p.theme)}" style="min-width:180px;width:100%"></td>
+        <td><input id="p-${i}-s" type="number" data-num data-bind="plans.${i}.sales" value="${esc(p.sales)}"></td>
+        <td><input id="p-${i}-g" type="number" step="0.1" data-num data-bind="plans.${i}.grossRate" value="${esc(p.grossRate)}" style="min-width:64px"></td>
+        <td class="num">${man(c.gp)}</td>
+        <td><input id="p-${i}-a" type="number" data-num data-bind="plans.${i}.sga" value="${esc(p.sga)}"></td>
+        <td><input id="p-${i}-c" type="number" data-num data-bind="plans.${i}.execComp" value="${esc(p.execComp)}"></td>
+        <td class="num ${c.op >= 0 ? '' : 'neg'}"><strong>${man(c.op)}</strong></td>
+        <td class="num">${pct(c.opRate)}</td>
+        <td><button class="btn ghost" data-action="del-plan" data-i="${i}">削除</button></td>
+      </tr>`; }).join('')}
+      </tbody></table></div>
+    <p class="small muted">単位：万円。営業利益 = 売上 × 粗利率 − 販管費 − 役員報酬。</p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>ライフプランとの連動</h2><span class="muted small">経営陣の人生計画から逆算した報酬と売上</span></div>
+    ${linkTable()}
+  </section>`;
+}
+
+function viewMonthly() {
+  const fys = [...new Set([...state.plans.map(p => n0(p.year)), ...Object.keys(state.monthly).map(Number)])].sort();
+  if (!ui.fy || !fys.includes(ui.fy)) ui.fy = fys.includes(n0(state.company.currentFY)) ? n0(state.company.currentFY) : fys[0] || n0(state.company.currentFY);
+  const fy = ui.fy;
+  const rows = monthlyRows(fy);
+  const months = fyMonths(fy);
+  const p = planFor(fy);
+  const y = ytd(fy);
+  const tot = k => rows.reduce((s, r) => s + n0(r[k]), 0);
+  const cell = (i, k) => `<td><input id="mo-${fy}-${i}-${k}" type="number" data-num data-bind="monthly.${fy}.${i}.${k}" value="${rows[i][k] ?? ''}" ${k.endsWith('a') ? 'placeholder="実績"' : ''}></td>`;
+  const rate = (a, b) => (a == null || a === '' || !n0(b)) ? '<td class="num muted">—</td>' : `<td class="num ${n0(a) >= n0(b) ? 'pos' : 'neg'}">${pct(n0(a) / n0(b) * 100)}</td>`;
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>月次予実</h2>
+      <div class="btn-row">
+        <label class="field" style="grid-auto-flow:column;align-items:center">年度
+          <select id="mo-fy" data-ui="fy">${fys.map(f => `<option value="${f}" ${f === fy ? 'selected' : ''}>${f}年度</option>`).join('')}</select></label>
+        <button class="btn ${ui.armed === 'spread' ? 'armed danger' : ''}" data-action="spread" ${p ? '' : 'disabled'}>${ui.armed === 'spread' ? '上書きしてよければもう一度' : '年間計画から予算を均等按分'}</button>
+      </div></div>
+    <div class="kpis">
+      <div class="kpi ${tone(y.sRate)}"><span class="label">売上 累計達成率</span><span class="value">${y.n ? pct(y.sRate) : '—'}</span><span class="sub">${y.n}か月 実績 ${manU(y.sa)}</span></div>
+      <div class="kpi ${tone(y.gRate)}"><span class="label">粗利 累計達成率</span><span class="value">${y.n ? pct(y.gRate) : '—'}</span><span class="sub">粗利率 ${y.sa ? pct(y.ga / y.sa * 100) : '—'}</span></div>
+      <div class="kpi ${y.n ? (y.oa >= y.ob ? 'good' : 'bad') : ''}"><span class="label">営業利益 累計</span><span class="value">${y.n ? manU(y.oa) : '—'}</span><span class="sub">予算 ${manU(y.ob)}</span></div>
+      <div class="kpi"><span class="label">年間予算 合計</span><span class="value">${manU(tot('sb'))}</span><span class="sub">計画 ${p ? manU(p.sales) : '—'}</span></div>
+    </div>
+    ${barChartSvg(months.map(m => m.m + '月'), rows.map(r => r.sb), rows.map(r => r.sa))}
+    <div class="table-scroll"><table>
+      <thead><tr><th rowspan="2">月</th><th colspan="3" style="text-align:center">売上</th><th colspan="3" style="text-align:center">粗利</th><th colspan="3" style="text-align:center">営業利益</th></tr>
+      <tr><th>予算</th><th>実績</th><th class="num">達成率</th><th>予算</th><th>実績</th><th class="num">達成率</th><th>予算</th><th>実績</th><th class="num">差異</th></tr></thead>
+      <tbody>
+      ${months.map((mo, i) => { const r = rows[i]; return `<tr>
+        <th>${mo.m}月</th>${cell(i, 'sb')}${cell(i, 'sa')}${rate(r.sa, r.sb)}${cell(i, 'gb')}${cell(i, 'ga')}${rate(r.ga, r.gb)}${cell(i, 'ob')}${cell(i, 'oa')}
+        ${r.oa == null || r.oa === '' ? '<td class="num muted">—</td>' : `<td class="num ${n0(r.oa) >= n0(r.ob) ? 'pos' : 'neg'}">${n0(r.oa) - n0(r.ob) >= 0 ? '+' : ''}${man(n0(r.oa) - n0(r.ob))}</td>`}
+      </tr>`; }).join('')}
+      <tr class="total"><td>年計</td><td class="num">${man(tot('sb'))}</td><td class="num">${man(tot('sa'))}</td><td></td><td class="num">${man(tot('gb'))}</td><td class="num">${man(tot('ga'))}</td><td></td><td class="num">${man(tot('ob'))}</td><td class="num">${man(tot('oa'))}</td><td></td></tr>
+      </tbody></table></div>
+    <p class="small muted">単位：万円。実績が入った月だけで累計達成率を計算します。試算表の数字を毎月入れてください。</p>
+  </section>`;
+}
+
+function viewCheckin() {
+  if (!ui.ciMember || !member(ui.ciMember)) ui.ciMember = state.members[0]?.id || null;
+  if (!ui.ciYm) ui.ciYm = thisYm;
+  const m = member(ui.ciMember);
+  if (!m) return '<section class="panel"><h2>幸せ面談</h2><div class="empty">ライフプランタブでメンバーを追加してください。</div></section>';
+  const t = targetsOf(m);
+  const existing = state.checkins.find(c => c.memberId === m.id && c.ym === ui.ciYm);
+  const prev = checkinsOf(m.id).filter(c => c.ym < ui.ciYm).pop();
+  const c = existing || { scores: prev ? { ...prev.scores } : Object.fromEntries(NEEDS.map(n => [n.key, 5])), want: '', doing: '', evaluation: '', plan: '' };
+  const list = checkinsOf(m.id);
+  const fy = fyOf(ui.ciYm);
+  const mi = fyMonths(fy).findIndex(x => x.ym === ui.ciYm);
+  const mr = mi >= 0 ? state.monthly[fy]?.[mi] : null;
+  const salesNote = mr && mr.sa != null && mr.sa !== '' && n0(mr.sb) ? `この月の売上達成率 ${pct(n0(mr.sa) / n0(mr.sb) * 100)}（実績 ${manU(mr.sa)}）` : 'この月の売上実績は未入力';
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>幸せ面談</h2><span class="muted small">月1回、数字と心を同じテーブルで振り返る</span></div>
+    <div class="form-row">
+      <label class="field">面談する人<select id="ci-member" data-ui="ciMember">${state.members.map(x => `<option value="${x.id}" ${x.id === m.id ? 'selected' : ''}>${esc(x.name)}（${esc(x.role)}）</option>`).join('')}</select></label>
+      <label class="field">対象月<input id="ci-ym" type="month" data-ui="ciYm" value="${ui.ciYm}"></label>
+      <div class="field" style="align-content:end"><span class="pill ${existing ? 'good' : ''}">${existing ? '記録済み・変更は自動保存' : prev ? '新規（前回のスコアを表示中）' : '新規'}</span></div>
+    </div>
+    <p class="hint">${salesNote}。数字の結果と、5つの欲求の満たされ方を並べて見ます。</p>
+  </section>
+
+  <section class="grid-2">
+    <div class="panel">
+      <h2>5つの欲求の充足度</h2>
+      <div style="display:grid; gap:10px">
+        ${NEEDS.map(n => `<div class="slider-row">
+          <span style="display:inline-flex;gap:6px;align-items:center"><span class="need-dot" style="background:${n.color}"></span><strong>${n.label}</strong></span>
+          <input id="ci-s-${n.key}" type="range" min="0" max="10" step="1" value="${n0(c.scores[n.key])}" data-score="${n.key}" aria-label="${n.label}の充足度">
+          <span class="score"><span id="sv-${n.key}">${n0(c.scores[n.key])}</span><small class="muted"> / 目標${t[n.key]}</small></span>
+        </div>
+        <p class="small muted" style="margin-top:-6px">${esc(m.vision?.[n.key]?.metric || n.desc)}</p>`).join('')}
+      </div>
+      <p>幸福指数 <strong style="font-size:1.3rem" id="ci-index">${happy(c.scores).toFixed(0)}</strong> <span class="muted">/ 100</span></p>
+    </div>
+    <div class="panel">
+      <h2>目標とのギャップ</h2>
+      <div id="ci-radar">${radarSvg(c.scores, t, 300)}</div>
+      <p class="small muted">点線＝ライフプランの目標スコア。いちばん凹んでいる欲求から、来月の行動を決めます。</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>WDEPで振り返る</h2><span class="muted small">選択理論のリアリティセラピーの問い</span></div>
+    <div class="wdep">
+      <label class="field"><span><b>W</b>本当に望んでいることは？</span><textarea id="ci-want" data-ci="want" rows="3">${esc(c.want)}</textarea></label>
+      <label class="field"><span><b>D</b>そのために今、何をしている？</span><textarea id="ci-doing" data-ci="doing" rows="3">${esc(c.doing)}</textarea></label>
+      <label class="field"><span><b>E</b>その行動は望みに近づく効果的なもの？</span><textarea id="ci-eval" data-ci="evaluation" rows="3">${esc(c.evaluation)}</textarea></label>
+      <label class="field"><span><b>P</b>来月、具体的に何をする？</span><textarea id="ci-plan" data-ci="plan" rows="3">${esc(c.plan)}</textarea></label>
+    </div>
+    <div class="btn-row"><button class="btn primary" data-action="save-checkin">この内容で面談を記録</button>
+      ${existing ? `<button class="btn danger ${ui.armed === 'del-ci' ? 'armed' : ''}" data-action="del-checkin">${ui.armed === 'del-ci' ? 'もう一度押すと削除' : 'この月の記録を削除'}</button>` : ''}</div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>${esc(m.name)} の推移</h2>${needLegend()}</div>
+    ${trendSvg(list, t)}
+    ${list.length ? `<div class="table-scroll"><table>
+      <thead><tr><th>月</th>${NEEDS.map(n => `<th class="num">${n.label}</th>`).join('')}<th class="num">幸福指数</th><th>来月の行動（P）</th></tr></thead>
+      <tbody>${[...list].reverse().map(x => `<tr>
+        <td><button class="btn ghost" data-action="open-ci" data-ym="${x.ym}">${ymLabel(x.ym)}</button></td>
+        ${NEEDS.map(n => { const g = t[n.key] - n0(x.scores[n.key]); return `<td class="num ${g >= 3 ? 'neg' : g <= 0 ? 'pos' : ''}">${n0(x.scores[n.key])}</td>`; }).join('')}
+        <td class="num"><strong>${happy(x.scores).toFixed(0)}</strong></td><td class="small">${esc(x.plan)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+  </section>`;
+}
+
+function viewData() {
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>データの保存と移行</h2></div>
+    <p>入力内容はこのブラウザに自動保存されます。別のパソコンへ移す、顧問先ごとに保管する場合は、下のデータをコピーして保存してください。</p>
+    <div class="btn-row"><button class="btn primary" data-action="export">現在のデータを表示</button><button class="btn" data-action="copy">コピー</button></div>
+    <textarea id="io-text" rows="8" placeholder="ここに書き出したデータが表示されます。保存しておいたデータを貼り付けて「読み込む」こともできます。" style="font-family:ui-monospace,monospace;font-size:.8rem"></textarea>
+    <div class="btn-row"><button class="btn" data-action="import">貼り付けたデータを読み込む</button>
+      <label class="btn" for="io-file" style="cursor:pointer">ファイルから読み込む</label><input id="io-file" type="file" accept="application/json,.json,.txt" hidden></div>
+  </section>
+  <section class="panel">
+    <div class="panel-head"><h2>はじめから作る</h2></div>
+    <p class="muted">実際の顧問先で使うときは、空の状態から入力してください。サンプルはいつでも戻せます。</p>
+    <div class="btn-row">
+      <button class="btn danger ${ui.armed === 'blank' ? 'armed' : ''}" data-action="blank">${ui.armed === 'blank' ? 'すべて消えます。もう一度押す' : '空の状態から始める'}</button>
+      <button class="btn ${ui.armed === 'sample' ? 'armed danger' : ''}" data-action="sample">${ui.armed === 'sample' ? '上書きします。もう一度押す' : 'サンプルデータに戻す'}</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>このソフトの考え方</h2>
+    <div class="grid-2">
+      <p>中小企業の経営計画は、社長と幹部の人生計画と切り離せません。子どもの進学、住宅、承継、引退。そのすべてを支える役員報酬は、会社の売上と利益から生まれます。ライフプランから必要報酬を逆算し、経営計画の売上ラインに落とし込みます。</p>
+      <p>ただし、人を幸せにするのはお金そのものではありません。選択理論では、人は生存・愛と所属・力・自由・楽しみの5つの基本的欲求を満たそうと行動すると考えます。毎月の面談で欲求の充足度とWDEPの問いを記録し、数字の予実と一緒に伴走します。</p>
+    </div>
+  </section>`;
+}
+
+function blankState() {
+  const y = today.getMonth() + 1 >= 4 ? today.getFullYear() : today.getFullYear() - 1;
+  return { sample: false, company: { name: '', fyStartMonth: 4, currentFY: y, takeHomeRate: 70, mission: '' }, members: [], plans: Array.from({ length: 5 }, (_, i) => ({ year: y + i, sales: 0, grossRate: 30, sga: 0, execComp: 0, theme: '' })), monthly: {}, checkins: [] };
+}
+function newMember() {
+  return { id: uid(), name: '新しいメンバー', role: '取締役', birthYear: 1980, currentComp: 600, livingCost: 500, savingGoal: 100,
+    vision: Object.fromEntries(NEEDS.map(n => [n.key, { text: '', metric: '', target: 7 }])), events: [] };
+}
+
+// ---------- render & events ----------
+function render() {
+  renderHeader();
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, data: viewData }[ui.tab] || viewDash;
+  $('#view').innerHTML = v();
+  saveUi();
+}
+function commit(msg) { save(); render(); if (msg) toast(msg); }
+
+function upsertCheckin() {
+  const m = member(ui.ciMember); if (!m) return null;
+  let c = state.checkins.find(x => x.memberId === m.id && x.ym === ui.ciYm);
+  if (!c) {
+    c = { memberId: m.id, ym: ui.ciYm, scores: {}, want: '', doing: '', evaluation: '', plan: '' };
+    NEEDS.forEach(n => { c.scores[n.key] = n0(document.getElementById('ci-s-' + n.key)?.value ?? 5); });
+    ['want', 'doing', 'evaluation', 'plan'].forEach(k => { const el = document.querySelector(`[data-ci="${k}"]`); if (el) c[k] = el.value; });
+    state.checkins.push(c);
+  }
+  return c;
+}
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.score) {
+    $('#sv-' + t.dataset.score).textContent = t.value;
+    const scores = Object.fromEntries(NEEDS.map(n => [n.key, n0(document.getElementById('ci-s-' + n.key).value)]));
+    $('#ci-index').textContent = happy(scores).toFixed(0);
+    $('#ci-radar').innerHTML = radarSvg(scores, targetsOf(member(ui.ciMember)), 300);
+  }
+});
+
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.bind) {
+    const v = t.hasAttribute('data-num') ? (t.value === '' ? null : +t.value) : t.value;
+    setPath(state, t.dataset.bind, v);
+    commit();
+  } else if (t.dataset.ui) {
+    const k = t.dataset.ui;
+    ui[k] = k === 'fy' ? +t.value : t.value;
+    if (k === 'ciYm' && !t.value) ui.ciYm = thisYm;
+    render();
+  } else if (t.dataset.score) {
+    const c = upsertCheckin(); if (c) { c.scores[t.dataset.score] = +t.value; commit('保存しました'); }
+  } else if (t.dataset.ci) {
+    const c = upsertCheckin(); if (c) { c[t.dataset.ci] = t.value; commit('保存しました'); }
+  } else if (t.id === 'io-file' && t.files?.[0]) {
+    const r = new FileReader();
+    r.onload = () => { $('#io-text').value = r.result; importText(r.result); };
+    r.readAsText(t.files[0]);
+  }
+});
+
+function importText(txt) {
+  try {
+    const d = JSON.parse(txt);
+    if (!d || !d.company || !Array.isArray(d.members) || !Array.isArray(d.plans)) throw new Error('形式が違います');
+    d.monthly ??= {}; d.checkins ??= [];
+    state = d; commit('データを読み込みました');
+  } catch (err) {
+    toast('読み込めませんでした。書き出したデータ全体を貼り付けてください');
+  }
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-action]'); if (!b) return;
+  const a = b.dataset.action;
+  const armed = ui.armed; ui.armed = null;
+  const arm = key => { if (armed === key) return true; ui.armed = key; render(); return false; };
+  switch (a) {
+    case 'tab': ui.tab = b.dataset.tab; render(); window.scrollTo(0, 0); break;
+    case 'life-member': ui.lifeMember = b.dataset.id; render(); break;
+    case 'add-member': { const m = newMember(); state.members.push(m); ui.lifeMember = m.id; commit('メンバーを追加しました'); break; }
+    case 'del-member': {
+      const id = b.dataset.id;
+      if (!arm('del-' + id)) return;
+      state.members = state.members.filter(m => m.id !== id);
+      state.checkins = state.checkins.filter(c => c.memberId !== id);
+      ui.lifeMember = null; commit('削除しました'); break;
+    }
+    case 'add-event': {
+      const m = member(ui.lifeMember); if (!m) return;
+      (m.events ??= []).push({ id: uid(), year: n0(state.company.currentFY) + 1, title: '', need: 'love', cost: 0, fund: 'comp' });
+      commit(); break;
+    }
+    case 'del-event': { const m = member(ui.lifeMember); m.events.splice(+b.dataset.j, 1); commit('削除しました'); break; }
+    case 'add-plan': {
+      const last = [...state.plans].sort((x, y) => n0(y.year) - n0(x.year))[0];
+      state.plans.push(last ? { ...last, year: n0(last.year) + 1, theme: '' } : { year: n0(state.company.currentFY), sales: 0, grossRate: 30, sga: 0, execComp: 0, theme: '' });
+      commit(); break;
+    }
+    case 'del-plan': state.plans.splice(+b.dataset.i, 1); commit('削除しました'); break;
+    case 'spread': {
+      if (!arm('spread')) return;
+      const p = planFor(ui.fy); if (!p) return;
+      const rows = monthlyRows(ui.fy);
+      const sb = n0(p.sales) / 12, gb = sb * n0(p.grossRate) / 100, ob = gb - (n0(p.sga) + n0(p.execComp)) / 12;
+      rows.forEach(r => { r.sb = Math.round(sb); r.gb = Math.round(gb); r.ob = Math.round(ob); });
+      commit('予算を按分しました'); break;
+    }
+    case 'save-checkin': {
+      const m = member(ui.ciMember); if (!m) return;
+      const c = upsertCheckin();
+      NEEDS.forEach(n => { c.scores[n.key] = n0(document.getElementById('ci-s-' + n.key).value); });
+      ['want', 'doing', 'evaluation', 'plan'].forEach(k => { c[k] = document.querySelector(`[data-ci="${k}"]`).value; });
+      commit(`${ymLabel(ui.ciYm)}の面談を記録しました`); break;
+    }
+    case 'del-checkin': {
+      if (!arm('del-ci')) return;
+      state.checkins = state.checkins.filter(c => !(c.memberId === ui.ciMember && c.ym === ui.ciYm));
+      commit('削除しました'); break;
+    }
+    case 'open-ci': ui.ciYm = b.dataset.ym; render(); window.scrollTo(0, 0); break;
+    case 'export': $('#io-text').value = JSON.stringify(state, null, 1); toast('書き出しました。コピーして保存してください'); break;
+    case 'copy': {
+      const ta = $('#io-text'); if (!ta.value) ta.value = JSON.stringify(state, null, 1);
+      navigator.clipboard?.writeText(ta.value).then(() => toast('コピーしました'), () => { ta.select(); toast('選択しました。Ctrl+C でコピーしてください'); })
+        ?? (ta.select(), toast('選択しました。Ctrl+C でコピーしてください'));
+      break;
+    }
+    case 'import': importText($('#io-text').value); break;
+    case 'blank': if (!arm('blank')) return; state = blankState(); ui.lifeMember = ui.ciMember = null; commit('空の状態にしました'); break;
+    case 'sample': if (!arm('sample')) return; state = sampleState(); ui.lifeMember = ui.ciMember = null; commit('サンプルデータに戻しました'); break;
+  }
+});
+
+render();
+})();
+</script>
+</body>
+</html>
