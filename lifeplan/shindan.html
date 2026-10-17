@@ -225,7 +225,8 @@ function result() {
   <details class="card"><summary>事務所の設定（診断を使う側が入力）</summary>
     <div class="grid2"><label class="f">事務所名<input id="of-name" data-of="name" value="${esc(office.name)}"></label><label class="f">担当者名<input id="of-person" data-of="person" value="${esc(office.person)}"></label></div>
     <label class="f">連絡先（電話・メールなど、表示用）<textarea id="of-contact" data-of="contact" rows="2">${esc(office.contact)}</textarea></label>
-    <p class="small muted">ここで入れた内容は、結果画面と保存するレポートの最後に表示されます。このブラウザにだけ保存されます。</p></details>
+    <p class="small muted">ここで入れた内容は、結果画面と保存するレポートの最後に表示されます。このブラウザにだけ保存されます。</p>
+    <p class="small muted">保存した結果ファイルは、幸せ経営コンパスの「データ」画面にある「無料診断の結果を取り込む」から、そのまま新しい顧問先として登録できます。</p></details>
   <p class="small muted">計算の前提：役員報酬の手取りは7割、引退後の生活費は今の7割で90歳まで、財務の点数は自己資本比率・借入を返す年数・手元資金・営業利益率の4項目、企業価値は「純資産＋営業利益×3年」の簡易計算です。</p>`;
 }
 
@@ -248,7 +249,9 @@ document.addEventListener('focusin', e => { if (e.target.dataset && (e.target.da
 
 async function saveReport() {
   const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
-  const doc = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>幸せ経営診断の結果</title><style>${css}</style></head><body><div class="wrap"><div><span class="eyebrow">幸せ経営診断の結果</span><h1>${esc(d.company || '')}</h1><p class="muted small">${new Date().toLocaleDateString('ja-JP')}</p></div>${result().replace(/<details[\s\S]*?<\/details>/, '').replace(/<div class="btns">[\s\S]*?<\/div>/g, '').replace(/<div class="banner">[\s\S]*?<\/div>/, '')}</div></body></html>`;
+  // 幸せ経営コンパスの「データ」画面がこのJSONを読んで顧問先を作る
+  const data = JSON.stringify({ kind: 'shiawase-shindan', v: 1, date: new Date().toISOString(), ...d }).replace(/</g, '\\u003c');
+  const doc = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>幸せ経営診断の結果</title><style>${css}</style></head><body><div class="wrap"><div><span class="eyebrow">幸せ経営診断の結果</span><h1>${esc(d.company || '')}</h1><p class="muted small">${new Date().toLocaleDateString('ja-JP')}</p></div>${result().replace(/<details[\s\S]*?<\/details>/, '').replace(/<div class="btns">[\s\S]*?<\/div>/g, '').replace(/<div class="banner">[\s\S]*?<\/div>/, '')}</div><script type="application/json" id="shindan-data">${data}<\/script></body></html>`;
   const name = `幸せ経営診断_${(d.company || '結果').replace(/\s/g, '')}.html`;
   let dl = null;
   try { dl = window.claude?.use ? await window.claude.use('downloads') : null; } catch (er) {}

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>幸せ経営コンパス</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -291,6 +291,7 @@ svg .axis-label { fill: var(--ink); font-size: 12px; font-weight: 500; }
 .hint { font-size: .8rem; color: var(--muted); background: var(--surface-2); border-radius: 8px; padding: 10px 12px; }
 .empty { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+.sd-preview th { min-width: 8.5em; }
 </style>
 </head>
 <body>
@@ -880,6 +881,7 @@ function renderCloudBar() {
       <details ${ui.armed === 'del-client' ? 'open' : ''}><summary>顧問先の追加・削除</summary>
         <input id="new-client-name" placeholder="新しい顧問先の会社名">
         <button class="btn" data-action="new-client">＋ 新規作成</button>
+        <button class="btn ghost" data-action="tab" data-tab="data">無料診断から作成</button>
         ${cur ? `<button class="btn danger ${ui.armed === 'del-client' ? 'armed' : ''}" data-action="del-client">${ui.armed === 'del-client' ? '全スタッフから消えます。もう一度' : '共有から削除'}</button>` : ''}
       </details>`}
     ${cloud.msg ? `<span class="small" style="color:var(--warn)">${esc(cloud.msg)}</span>` : ''}`;
@@ -3157,7 +3159,7 @@ function viewCheckin() {
 }
 
 function viewData() {
-  return `
+  return `${shindanPanel()}
   <section class="panel">
     <div class="panel-head"><h2>データの保存と移行</h2></div>
     <p>上の「顧問先」欄で共有保存すると、この画面を開ける事務所のスタッフ全員が同じ顧問先のデータを見て、編集できます。共有しない場合はこのブラウザだけに保存されます。バックアップや別環境への移行には、下のデータをコピーして保存してください。</p>
@@ -3918,6 +3920,10 @@ document.addEventListener('change', e => {
     render();
   } else if (t.id === 'imp-file' && t.files?.length) {
     loadImportFiles([...t.files]);
+  } else if (t.id === 'sd-file' && t.files?.[0]) {
+    const r = new FileReader();
+    r.onload = () => { try { sdPending = parseShindan(r.result); render(); document.getElementById('sd-panel')?.scrollIntoView({ block: 'start' }); } catch (err) { sdPending = null; toast('幸せ経営診断の結果ファイルではないようです'); } };
+    r.readAsText(t.files[0]);
   } else if (t.id === 'io-file' && t.files?.[0]) {
     const r = new FileReader();
     r.onload = () => { $('#io-text').value = r.result; importText(r.result); };
@@ -3934,6 +3940,59 @@ function importText(txt) {
   } catch (err) {
     toast('読み込めませんでした。書き出したデータ全体を貼り付けてください');
   }
+}
+
+// ---------- 無料診断（幸せ経営診断）の取り込み ----------
+let sdPending = null;
+function parseShindan(txt) {
+  const m = String(txt).match(/<script[^>]*id="shindan-data"[^>]*>([\s\S]*?)<\/script>/);
+  const d = JSON.parse(m ? m[1] : txt);
+  if (!d || d.kind !== 'shiawase-shindan' || !d.needs) throw new Error('形式が違います');
+  return d;
+}
+function stateFromShindan(d) {
+  const s = blankState(), fy = n0(s.company.currentFY), y = today.getFullYear();
+  const age = n0(d.age) || 60, retire = Math.max(age + 1, n0(d.retire) || 70), work = retire - age;
+  const sales = n0(d.sales), op = n0(d.op), comp = n0(d.comp), cash = n0(d.cash), debt = n0(d.debt), eq = n0(d.equity), assets = n0(d.assets) || cash + debt + eq;
+  const when = d.date ? new Date(d.date).toLocaleDateString('ja-JP') : '';
+  s.company.name = (d.company || '').trim() || '無料診断の会社';
+  s.company.industry = d.industry || 'その他';
+  s.plans.forEach(p => { p.sales = sales; p.execComp = comp; p.sga = Math.max(0, Math.round(sales * p.grossRate / 100 - op - comp)); });
+  // 診断では内訳を聞いていないので、現預金以外の資産と借入以外の負債はまとめて「その他」に置く
+  s.bs.actual = { label: `無料診断${when ? `（${when}）` : ''}`, sales, op, cash, otherCurrent: Math.max(0, assets - cash), longDebt: debt, otherFixedLiab: Math.max(0, assets - eq - debt) };
+  const oldGap = Math.max(0, (n0(d.living) * 0.7 - n0(d.pension)) * Math.max(0, 90 - retire) - n0(d.savings));
+  const m = newMember();
+  Object.assign(m, { name: '社長', role: '代表取締役社長', birthYear: y - age, currentComp: comp, livingCost: n0(d.living), savingGoal: Math.round(oldGap / work) });
+  m.ins.savings = n0(d.savings);
+  m.events.push({ id: uid(), year: y + work, title: '引退（社長交代）', need: 'freedom', cost: 0, fund: 'savings' });
+  s.members.push(m);
+  const scores = Object.fromEntries(NEEDS.map(n => [n.key, Math.max(0, Math.min(10, n0(d.needs[n.key])))]));
+  s.checkins.push({ memberId: m.id, ym: `${y}-${String(today.getMonth() + 1).padStart(2, '0')}`, scores, want: '', doing: '', evaluation: '', plan: '', advisorNote: '無料診断の自己採点' });
+  s.hearing.successor = ['あり', '未定', 'なし'].includes(d.successor) ? d.successor : '未定';
+  s.hearing.memo = `無料診断${when ? `（${when}）` : ''}から取り込み。社長は${retire}歳まで続けたい意向。`;
+  s.exit.targetYear = fy + work;
+  return migrate(s);
+}
+function shindanPanel() {
+  const d = sdPending, local = !cloud.db, ro = cloud.db && cloud.readOnly;
+  const preview = d ? `
+    <div class="table-scroll sd-preview"><table class="wrap-th"><tbody>
+      <tr><th>会社名</th><td>${esc(d.company || '（未入力）')}・${esc(d.industry || '')}</td></tr>
+      <tr><th>年商／営業利益</th><td class="num">${manU(d.sales)} ／ ${manU(d.op)}</td></tr>
+      <tr><th>現預金／借入金／純資産</th><td class="num">${manU(d.cash)} ／ ${manU(d.debt)} ／ ${manU(d.equity)}</td></tr>
+      <tr><th>社長</th><td>${n0(d.age)}歳・${n0(d.retire)}歳まで続けたい・報酬 ${manU(d.comp)}・後継者 ${esc(d.successor || '')}</td></tr>
+      <tr><th>5つの欲求</th><td>${NEEDS.map(n => `${n.label} ${n0(d.needs[n.key])}`).join('・')}</td></tr>
+    </tbody></table></div>
+    <div class="btn-row">${ro ? '<span class="muted small">閲覧のみの権限では登録できません。</span>' : `<button class="btn primary ${ui.armed === 'sd-import' ? 'armed' : ''}" data-action="sd-import">${local ? (ui.armed === 'sd-import' ? '今のデータは上書きされます。もう一度押す' : 'このブラウザのデータとして取り込む') : '新しい顧問先として登録'}</button>`}
+      <button class="btn ghost" data-action="sd-cancel">やめる</button></div>
+    ${local ? '<p class="small muted">このブラウザだけで使っているため、今のデータと入れ替わります。必要なら先に下の「現在のデータを表示」で控えてください。</p>' : ''}` : '';
+  return `
+  <section class="panel" id="sd-panel">
+    <div class="panel-head"><h2>無料診断の結果を取り込む</h2></div>
+    <p>「幸せ経営診断」で保存した結果ファイル（HTML）を選ぶと、会社の数字・社長のライフプラン・5つの欲求の自己採点を${cloud.db ? '新しい顧問先として登録' : '取り込み'}します。損益は5年分とも診断時の数字で仮置きし、BSの内訳は「その他」にまとめて入ります。登録後は入力チェックシートで足りない項目を埋めてください。</p>
+    <div class="btn-row"><label class="btn ${d ? '' : 'primary'}" for="sd-file" style="cursor:pointer">診断結果ファイルを選ぶ</label><input id="sd-file" type="file" accept=".html,.htm,.json,text/html,application/json" hidden></div>
+    ${preview}
+  </section>`;
 }
 
 document.addEventListener('click', e => {
@@ -4048,6 +4107,15 @@ document.addEventListener('click', e => {
     case 'add-policy': state.policies.push({ id: uid(), memberId: ui.insMember, owner: 'corp', type: '定期保険', death: 0, premium: 0, cashValue: 0, note: '' }); commit(); break;
     case 'del-policy': state.policies.splice(+b.dataset.j, 1); commit('削除しました'); break;
     case 'share-current': shareCurrent(); break;
+    case 'sd-cancel': sdPending = null; render(); break;
+    case 'sd-import': {
+      if (!sdPending || (cloud.db && cloud.readOnly)) return;
+      if (!cloud.db && !arm('sd-import')) return;
+      state = stateFromShindan(sdPending); sdPending = null;
+      ui.lifeMember = ui.ciMember = ui.insMember = null; ui.tab = 'check';
+      if (cloud.db) { save(); shareCurrent(state.company.name); } else commit(`「${state.company.name}」を取り込みました`);
+      window.scrollTo(0, 0); break;
+    }
     case 'new-client': {
       const name = ($('#new-client-name')?.value || '').trim();
       if (!name) { toast('新しい顧問先の会社名を入れてください'); $('#new-client-name')?.focus(); return; }
