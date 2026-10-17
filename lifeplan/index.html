@@ -292,6 +292,38 @@ svg .axis-label { fill: var(--ink); font-size: 12px; font-weight: 500; }
 .empty { padding: 24px; text-align: center; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 .sd-preview th { min-width: 8.5em; }
+/* 組織図 */
+.org-scroll { overflow-x: auto; min-width: 0; padding-bottom: 6px; }
+.org-tree { width: max-content; min-width: 100%; }
+.org-tree ul { display: flex; justify-content: center; margin: 0; padding: 18px 0 0; position: relative; }
+.org-tree > ul { padding-top: 0; }
+.org-tree li { list-style: none; position: relative; padding: 18px 6px 0; display: flex; flex-direction: column; align-items: center; }
+.org-tree > ul > li { padding-top: 0; }
+.org-tree li::before, .org-tree li::after { content: ''; position: absolute; top: 0; right: 50%; width: 50%; height: 18px; border-top: 1.5px solid var(--line); }
+.org-tree li::after { right: auto; left: 50%; border-left: 1.5px solid var(--line); }
+.org-tree li:only-child::before, .org-tree li:only-child::after { border-top: 0; }
+.org-tree li:only-child::before { display: none; }
+.org-tree li:first-child::before, .org-tree li:last-child::after { border: 0; }
+.org-tree li:last-child::before { border-right: 1.5px solid var(--line); border-radius: 0 6px 0 0; }
+.org-tree li:first-child::after { border-radius: 6px 0 0 0; }
+.org-tree > ul > li::before, .org-tree > ul > li::after { display: none; }
+.org-tree ul ul::before { content: ''; position: absolute; top: 0; left: 50%; height: 18px; border-left: 1.5px solid var(--line); }
+.org-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; min-width: 128px; max-width: 190px; display: grid; gap: 2px; justify-items: center; text-align: center; }
+.org-card.is-member { border-top: 3px solid var(--accent); }
+.org-card.is-plan { border-style: dashed; border-width: 1.5px; }
+.org-card.is-plan.promote { border-color: var(--accent); }
+.org-card.is-plan.hire { border-color: var(--warn); }
+.oc-title { font-size: .74rem; color: var(--muted); }
+.oc-name { font-size: .92rem; }
+.oc-meta { font-size: .74rem; color: var(--muted); }
+.org-legend { display: flex; flex-wrap: wrap; gap: 14px; }
+.org-legend span { display: inline-flex; gap: 6px; align-items: center; }
+.lg { display: inline-block; width: 18px; height: 12px; border-radius: 3px; border: 1px solid var(--line); }
+.lg.member { border-top: 3px solid var(--accent); }
+.lg.promote { border: 1.5px dashed var(--accent); }
+.lg.hire { border: 1.5px dashed var(--warn); }
+.org-edit select, .org-edit input { min-width: 0; }
+
 </style>
 </head>
 <body>
@@ -337,7 +369,7 @@ const TABS = [
   ['monthly', '月次予実・着地予測'], ['analysis', '財務分析'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['proposal', '提案・出口'], ['exit', 'M&A・企業価値'], ['acct', '会計データ連携'], ['data', 'データ'],
 ];
 TABS.unshift(['check', '入力チェック']);
-TABS.push(['actions', '宿題・年間計画'], ['results', '伴走の成果'], ['president', '社長ページ'], ['bank', '銀行提出資料'], ['keishin', '経審シミュレーション']);
+TABS.push(['actions', '宿題・年間計画'], ['results', '伴走の成果'], ['president', '社長ページ'], ['bank', '銀行提出資料'], ['keishin', '経審シミュレーション'], ['org', '組織図と年収計画']);
 const OFFICE_TABS = [['portfolio', '顧問先ポートフォリオ'], ['office', '事務所経営']];
 
 // ---------- helpers ----------
@@ -534,6 +566,7 @@ function sampleState() {
       { id: 'a8', title: 'B銀行へ半期の業績報告（試算表・資金繰り表）', owner: '事務所', due: '2026-10-20', status: '未着手', from: '2026-09', memo: '' },
     ],
     guarantee: { separation: true, disclosure: true },
+    org: sampleOrg(fy),
     keishin: { x1: 850, x2: 740, z: 790, w: 980, capital: 1000, recvInt: 5 },
     loans: [
       { id: 'l1', bank: 'A信用金庫', name: '運転資金（保証協会付き）', kind: '証書貸付', balance: 4000, asOf: '2026-03', rate: 1.4, method: '元金均等', monthlyPrincipal: null, graceUntil: '', maturity: '2030-03', guarantee: '信用保証協会', collateral: '', rollover: false },
@@ -987,6 +1020,7 @@ function migrate(s) {
   if (smp) { ['contract', 'baseline', 'results', 'actions', 'guarantee', 'keishin'].forEach(k => { s[k] ??= smp[k]; }); if (!s.program) s.program = programTemplate(n0(s.company.currentFY), n0(s.company.fyStartMonth) || 4); }
   s.ifa ??= defaultIfa(); s.structure ??= defaultStructure(); s.tax ??= defaultTaxCfg(); s.ai ??= {};
   if (smp && !Object.values(s.monthly).some(rows => rows.some(r => r.cash != null))) Object.entries(smp.monthly).forEach(([fy, rows]) => rows.forEach((r, i) => { if (s.monthly[fy]?.[i]) s.monthly[fy][i].cash ??= r.cash; }));
+  s.org ??= smp ? smp.org : defaultOrg(n0(s.company.currentFY)); s.org.comp ??= {}; s.org.current ??= []; s.org.ideal ??= [];
   s.members.forEach(m => { m.ins ??= (smp && smp.members.find(x => x.id === m.id)?.ins) || defaultIns(); });
   return s;
 }
@@ -2497,7 +2531,7 @@ function planCalc(p) {
 }
 function linkCalc(p) {
   const y = n0(p.year);
-  const req = state.members.reduce((s, m) => s + reqComp(m, y), 0);
+  const req = state.members.filter(m => m.compKind !== 'salary').reduce((s, m) => s + reqComp(m, y), 0);
   const c = planCalc(p);
   const gr = n0(p.grossRate) / 100;
   const reqSales = gr > 0 ? (c.op + n0(p.sga) + req) / gr : NaN;
@@ -2636,6 +2670,7 @@ const needLegend = () => `<div class="legend">${NEEDS.map(n => `<span><i style="
 
 // ---------- views ----------
 const ICONS = {
+  org: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
   dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   analysis: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   actions: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
@@ -2662,7 +2697,7 @@ const ICONS = {
 };
 const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.dash}</svg>`;
 const NAV_GROUPS = [
-  ['全体像', ['dash', 'check', 'analysis']], ['伴走プログラム', ['actions', 'results', 'president']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin', 'bank', 'keishin']], ['人と人生', ['life', 'checkin', 'ins']],
+  ['全体像', ['dash', 'check', 'analysis']], ['伴走プログラム', ['actions', 'results', 'president']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin', 'bank', 'keishin']], ['人と人生', ['life', 'org', 'checkin', 'ins']],
   ['提案と出口', ['proposal', 'exit']], ['データ', ['acct', 'data']], ['事務所全体', ['portfolio', 'office']],
 ];
 const tabLabel = k => ([...TABS, ...OFFICE_TABS].find(t => t[0] === k) || [k, ''])[1];
@@ -3851,11 +3886,177 @@ function newMember() {
     vision: Object.fromEntries(NEEDS.map(n => [n.key, { text: '', metric: '', target: 7 }])), events: [], ins: defaultIns() };
 }
 
+// ---------- 組織図と幹部の年収計画 ----------
+const defaultOrg = fy => ({ idealYear: fy + 4, current: [], ideal: [], comp: {} });
+function sampleOrg(fy) {
+  const n = (id, title, o = {}) => ({ id, title, name: '', memberId: '', parent: '', people: 1, comp: null, status: '在任', year: null, ...o });
+  return {
+    idealYear: fy + 4,
+    current: [
+      n('c1', '代表取締役社長', { memberId: 'm1' }),
+      n('c2', '専務取締役', { memberId: 'm2', parent: 'c1' }),
+      n('c3', '取締役 工事部長', { memberId: 'm3', parent: 'c1' }),
+      n('c4', '営業部', { parent: 'c1', people: 3, comp: 520 }),
+      n('c5', '工事部', { parent: 'c3', people: 14, comp: 480 }),
+      n('c6', '総務・経理', { parent: 'c1', people: 4, comp: 400 }),
+    ],
+    ideal: [
+      n('i1', '代表取締役会長', { memberId: 'm1' }),
+      n('i2', '代表取締役社長', { memberId: 'm2', parent: 'i1', status: '登用予定', year: fy + 4 }),
+      n('i3', '取締役 工事本部長', { memberId: 'm3', parent: 'i2' }),
+      n('i4', '工事部', { parent: 'i3', people: 16, comp: 490 }),
+      n('i5', '営業部長', { name: '外部から採用', parent: 'i2', comp: 700, status: '採用予定', year: fy + 1 }),
+      n('i6', '営業部', { parent: 'i5', people: 4, comp: 520 }),
+      n('i7', '管理部長', { name: '総務から登用', parent: 'i2', comp: 650, status: '登用予定', year: fy + 2 }),
+      n('i8', '総務・経理', { parent: 'i7', people: 3, comp: 400 }),
+      n('i9', 'リフォーム事業部', { parent: 'i3', people: 5, comp: 450, status: '採用予定', year: fy + 1 }),
+    ],
+    comp: {
+      m1: { [fy]: 1800, [fy + 1]: 1800, [fy + 2]: 1800, [fy + 3]: 1800, [fy + 4]: 1200 },
+      m2: { [fy]: 900, [fy + 1]: 1000, [fy + 2]: 1100, [fy + 3]: 1300, [fy + 4]: 1800 },
+      m3: { [fy]: 750, [fy + 1]: 800, [fy + 2]: 850, [fy + 3]: 900, [fy + 4]: 950 },
+    },
+  };
+}
+const ORG_STATUS = ['在任', '登用予定', '採用予定'];
+const plannedComp = (m, y) => { const v = state.org?.comp?.[m.id]?.[y]; return v == null || v === '' ? n0(m.currentComp) : n0(v); };
+const lastScores = id => [...state.checkins].filter(c => c.memberId === id).sort((a, b) => a.ym < b.ym ? -1 : 1).at(-1)?.scores;
+function orgRoots(nodes) {
+  const ids = new Set(nodes.map(n => n.id));
+  return nodes.filter(n => !n.parent || !ids.has(n.parent) || n.parent === n.id);
+}
+const orgKids = (nodes, id) => nodes.filter(n => n.parent === id && n.id !== id);
+function orgDesc(nodes, id, seen = new Set()) {
+  orgKids(nodes, id).forEach(k => { if (!seen.has(k.id)) { seen.add(k.id); orgDesc(nodes, k.id, seen); } });
+  return seen;
+}
+function orgPresident(nodes) {
+  return nodes.find(n => /社長/.test(n.title || '') && !/副社長/.test(n.title || '')) || orgRoots(nodes)[0];
+}
+function orgCalc() {
+  const o = state.org, fy = n0(state.company.currentFY), Y = Math.max(fy, n0(o.idealYear) || fy + 4);
+  const staffCost = nodes => nodes.reduce((s, n) => s + (n.memberId ? 0 : n0(n.people) * n0(n.comp)), 0);
+  const heads = nodes => nodes.reduce((s, n) => s + (n.memberId ? 1 : n0(n.people)), 0);
+  const memberCost = (nodes, y) => nodes.filter(n => n.memberId && member(n.memberId)).reduce((s, n) => s + plannedComp(member(n.memberId), y), 0);
+  const staffCur = staffCost(o.current), staffIdeal = staffCost(o.ideal);
+  // 採用・登用の年度が決まっているポジションはその年度から、残りの差は目標年度に向けて均等に積み上げる
+  const timed = o.ideal.filter(n => !n.memberId && n.status !== '在任' && n0(n.year));
+  const timedCost = y => timed.filter(n => y >= n0(n.year)).reduce((s, n) => s + n0(n.people) * n0(n.comp), 0);
+  const base = staffIdeal - timed.reduce((s, n) => s + n0(n.people) * n0(n.comp), 0) - staffCur;
+  const ramp = y => (Y > fy ? base * Math.max(0, Math.min(1, (y - fy) / (Y - fy))) : (y >= Y ? base : 0)) + timedCost(y);
+  const execs = state.members.filter(m => m.compKind !== 'salary'), salaried = state.members.filter(m => m.compKind === 'salary');
+  const execSum = y => execs.reduce((s, m) => s + plannedComp(m, y), 0);
+  const raise = y => salaried.reduce((s, m) => s + plannedComp(m, y) - n0(m.currentComp), 0);
+  const adj = y => Math.round(ramp(y) + raise(y));
+  const direct = nodes => { const p = orgPresident(nodes); return p ? orgKids(nodes, p.id).length : 0; };
+  return { fy, Y, staffCur, staffIdeal, ramp, execSum, raise, adj, direct, heads, memberCost };
+}
+
+function orgCard(n, mode, year) {
+  const m = n.memberId ? member(n.memberId) : null;
+  const name = n.name || m?.name || '';
+  const comp = m ? plannedComp(m, year) : n0(n.comp);
+  const sc = m ? lastScores(m.id) : null, h = sc ? happy(sc) : NaN;
+  const low = sc ? NEEDS.reduce((a, b) => n0(sc[a.key]) <= n0(sc[b.key]) ? a : b) : null;
+  const plan = mode === 'ideal' && n.status !== '在任';
+  return `<div class="org-card ${m ? 'is-member' : ''} ${plan ? 'is-plan ' + (n.status === '採用予定' ? 'hire' : 'promote') : ''}">
+    <span class="oc-title">${esc(n.title || '（役職・部署名）')}</span>
+    ${name ? `<strong class="oc-name">${esc(name)}</strong>` : ''}
+    <span class="oc-meta">${m || n0(n.people) === 1 ? '' : `${n0(n.people)}名・1人`}${comp ? `年収 ${man(comp)}万円` : '年収 未入力'}</span>
+    ${m && m.compKind !== 'salary' && comp < reqComp(m, year) ? `<span class="oc-meta" style="color:var(--bad)">人生に必要な年収まで あと${man(reqComp(m, year) - comp)}万円</span>` : ''}
+    ${isFinite(h) ? `<span class="oc-meta">幸福指数 ${h.toFixed(0)}${low && n0(sc[low.key]) <= 5 ? `・${low.label}が${n0(sc[low.key])}点` : ''}</span>` : ''}
+    ${plan ? `<span class="pill ${n.status === '採用予定' ? 'warn' : ''}">${esc(n.status)}${n.year ? ` ${n0(n.year)}年度` : ''}</span>` : ''}
+  </div>`;
+}
+function orgTreeHtml(nodes, mode, year) {
+  if (!nodes.length) return `<p class="muted small">まだ${mode === 'ideal' ? '理想の' : ''}組織図がありません。下の表でポジションを追加してください。</p>`;
+  const seen = new Set();
+  const li = n => { if (seen.has(n.id)) return ''; seen.add(n.id); const kids = orgKids(nodes, n.id).filter(k => !seen.has(k.id)); return `<li>${orgCard(n, mode, year)}${kids.length ? `<ul>${kids.map(li).join('')}</ul>` : ''}</li>`; };
+  let roots = orgRoots(nodes), html = roots.map(li).join('');
+  nodes.filter(n => !seen.has(n.id)).forEach(n => { html += li(n); });
+  return `<div class="org-scroll"><div class="org-tree"><ul>${html}</ul></div></div>`;
+}
+function orgEditTable(key) {
+  const nodes = state.org[key], ideal = key === 'ideal';
+  const opts = (n, i) => { const bad = orgDesc(nodes, n.id); bad.add(n.id); return `<option value="">（最上位）</option>${nodes.filter(x => !bad.has(x.id)).map(x => `<option value="${esc(x.id)}" ${x.id === n.parent ? 'selected' : ''}>${esc(x.title || '（無題）')}${x.name || member(x.memberId)?.name ? `・${esc(x.name || member(x.memberId).name)}` : ''}</option>`).join('')}`; };
+  return `<div class="table-scroll"><table class="org-edit">
+    <thead><tr><th>役職・部署名</th><th>上位</th><th>経営陣（ライフプラン）</th><th>氏名・メモ</th><th class="num">人数</th><th class="num">1人あたり年収</th>${ideal ? '<th>状態</th><th class="num">いつから</th>' : ''}<th></th></tr></thead>
+    <tbody>${nodes.map((n, i) => { const b = `org.${key}.${i}`; return `<tr>
+      <td><input id="og-${key}-${i}-t" data-bind="${b}.title" value="${esc(n.title)}" style="min-width:140px"></td>
+      <td><select id="og-${key}-${i}-p" data-bind="${b}.parent" style="min-width:140px">${opts(n, i)}</select></td>
+      <td><select id="og-${key}-${i}-m" data-bind="${b}.memberId"><option value="">—</option>${state.members.map(m => `<option value="${esc(m.id)}" ${m.id === n.memberId ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></td>
+      <td><input id="og-${key}-${i}-n" data-bind="${b}.name" value="${esc(n.name)}" placeholder="${n.memberId ? esc(member(n.memberId)?.name || '') : ''}" style="min-width:110px"></td>
+      <td>${n.memberId ? '<span class="muted small">1</span>' : `<input id="og-${key}-${i}-h" type="number" min="0" data-num data-bind="${b}.people" value="${esc(n.people)}" style="width:72px">`}</td>
+      <td>${n.memberId ? '<span class="muted small">年収計画</span>' : `<input id="og-${key}-${i}-c" type="number" data-num data-bind="${b}.comp" value="${esc(n.comp ?? '')}" style="width:96px">`}</td>
+      ${ideal ? `<td><select id="og-${key}-${i}-s" data-bind="${b}.status">${ORG_STATUS.map(v => `<option ${v === (n.status || '在任') ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+      <td><input id="og-${key}-${i}-y" type="number" data-num data-bind="${b}.year" value="${esc(n.year ?? '')}" style="width:84px" placeholder="年度"></td>` : ''}
+      <td><button class="btn ghost" data-action="org-del" data-key="${key}" data-i="${i}">削除</button></td></tr>`; }).join('')}</tbody></table></div>
+    <div class="btn-row"><button class="btn" data-action="org-add" data-key="${key}">＋ ポジションを追加</button>
+    ${ideal ? `<button class="btn ${ui.armed === 'org-copy' ? 'armed danger' : 'ghost'}" data-action="org-copy">${ui.armed === 'org-copy' ? '理想の組織図が置き換わります。もう一度押す' : '現状の組織図をコピーして作る'}</button>` : ''}</div>`;
+}
+
+function viewOrg() {
+  state.org ??= defaultOrg(n0(state.company.currentFY));
+  const o = state.org, c = orgCalc(), mode = ui.orgView === 'ideal' ? 'ideal' : 'current';
+  const years = [...state.plans].map(p => n0(p.year)).sort((a, b) => a - b);
+  const fyR = years.includes(c.fy) ? c.fy : years[0];
+  const ok = state.members.filter(m => plannedComp(m, fyR) >= reqComp(m, fyR)).length;
+  const dCur = c.direct(o.current), dIdeal = c.direct(o.ideal);
+  const costCur = c.staffCur + c.memberCost(o.current, c.fy), costIdeal = c.staffIdeal + c.memberCost(o.ideal, c.Y);
+  const gaps = state.plans.filter(p => Math.abs(c.execSum(n0(p.year)) - n0(p.execComp)) >= 1 || Math.abs(c.adj(n0(p.year)) - n0(p.orgSgaAdj)) >= 1).length;
+  const notes = [];
+  if (dCur >= 4) notes.push(`いまは社長の直下に${dCur}つの部署・役職がぶら下がっています。社長が全部を見る形では、承継の準備や新しい仕事に時間を使えません。`);
+  if (o.ideal.length && dIdeal < dCur) notes.push(`理想の組織では社長直轄を${dIdeal}つに減らします。間に入る幹部の育成と登用が、計画の要になります。`);
+  const hires = o.ideal.filter(n => n.status !== '在任');
+  if (hires.length) notes.push(`理想の組織までに、採用・登用が${hires.length}ポジション（${hires.map(n => `${esc(n.title)}${n.year ? ` ${n0(n.year)}年度` : ''}`).join('、')}）あります。`);
+  state.members.forEach(m => { const g = plannedComp(m, fyR) - reqComp(m, fyR); if (g < 0) notes.push(`${esc(m.name)}：${fyR}年度の年収計画が、ライフプランに必要な年収より ${man(-g)}万円 少なくなっています。`); });
+  const rowTd = (fn, cls) => years.map(y => { const v = fn(y); return `<td class="num ${cls ? cls(v, y) : ''}">${man(v)}</td>`; }).join('');
+  return `
+  <section class="kpis">
+    <div class="kpi ${ok === state.members.length ? 'good' : 'warn'}"><span class="label">人生に必要な年収を満たす幹部（${fyR}年度）</span><span class="value">${ok}<small class="muted" style="font-size:.9rem"> / ${state.members.length}人</small></span><span class="sub">ライフプランから逆算した年収と、年収計画の比較</span></div>
+    <div class="kpi ${dCur >= 4 ? 'warn' : ''}"><span class="label">社長の直下にある部署・役職</span><span class="value">${dCur}${o.ideal.length ? ` → ${dIdeal}` : ''}</span><span class="sub">現状${o.ideal.length ? ` → 理想（${c.Y}年度）` : ''}</span></div>
+    <div class="kpi"><span class="label">人件費（幹部＋部署）</span><span class="value">${man(costCur)}${o.ideal.length ? ` → ${man(costIdeal)}` : ''}</span><span class="sub">万円・人数 ${c.heads(o.current)}名${o.ideal.length ? ` → ${c.heads(o.ideal)}名` : ''}</span></div>
+    <div class="kpi ${gaps ? 'warn' : 'good'}"><span class="label">経営計画への反映</span><span class="value">${gaps ? `${gaps}年度 未反映` : '反映済み'}</span><span class="sub">年収計画・人件費の増加と経営計画の差</span></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>組織図</h2>
+      <div class="btn-row"><button class="btn ${mode === 'current' ? 'primary' : 'ghost'}" data-action="org-view" data-v="current">現状</button><button class="btn ${mode === 'ideal' ? 'primary' : 'ghost'}" data-action="org-view" data-v="ideal">理想（${c.Y}年度）</button>
+      ${mode === 'ideal' ? `<label class="field" style="flex-direction:row;align-items:center;gap:6px">目標年度<input id="org-year" type="number" data-num data-bind="org.idealYear" value="${esc(o.idealYear)}" style="width:90px"></label>` : ''}</div></div>
+    ${orgTreeHtml(o[mode], mode, mode === 'ideal' ? c.Y : c.fy)}
+    <div class="org-legend small muted"><span><i class="lg member"></i>経営陣（ライフプランあり）</span><span><i class="lg promote"></i>登用予定</span><span><i class="lg hire"></i>採用予定</span></div>
+    ${notes.length ? `<div class="hint">${notes.map(t => `<div>${t}</div>`).join('')}</div>` : ''}
+    <details data-orgedit ${ui.orgEdit || !o[mode].length ? 'open' : ''}><summary class="small">${mode === 'ideal' ? '理想' : '現状'}の組織図を編集する</summary>${orgEditTable(mode)}
+      <p class="small muted">単位：万円。経営陣をつなぐと、年収は下の年収計画の値になり、幸福指数も表示されます。部署は「人数 × 1人あたり年収」を人件費として数えます。</p></details>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>幹部の年収計画とライフプランの連動</h2>
+      <div class="btn-row"><button class="btn ${ui.armed === 'org-fill' ? 'armed danger' : 'ghost'}" data-action="org-fill">${ui.armed === 'org-fill' ? '入力済みの年収計画が上書きされます。もう一度押す' : '人生に必要な年収で埋める'}</button>
+      <button class="btn primary ${ui.armed === 'org-apply' ? 'armed' : ''}" data-action="org-apply">${ui.armed === 'org-apply' ? '経営計画の役員報酬・販管費を書き換えます。もう一度押す' : '経営計画に反映'}</button></div></div>
+    ${state.members.length ? `<div class="table-scroll"><table class="wrap-th">
+      <thead><tr><th>幹部</th><th>支払い方</th>${years.map(y => `<th class="num">${y}年度</th>`).join('')}</tr></thead>
+      <tbody>${state.members.map((m, i) => `<tr><th style="min-width:8em">${esc(m.name)}<br><span class="muted small">${esc(m.role)}</span></th>
+        <td><select id="org-kind-${i}" data-bind="members.${i}.compKind"><option value="exec" ${m.compKind !== 'salary' ? 'selected' : ''}>役員報酬</option><option value="salary" ${m.compKind === 'salary' ? 'selected' : ''}>給与（販管費）</option></select></td>
+        ${years.map(y => { const r = reqComp(m, y), v = plannedComp(m, y); return `<td><input id="org-comp-${i}-${y}" type="number" data-num data-bind="org.comp.${m.id}.${y}" value="${v}" style="width:92px;${v < r ? 'border-color:var(--bad)' : ''}"><div class="small ${v < r ? 'neg' : 'muted'}" style="text-align:right;${v < r ? 'color:var(--bad)' : ''}">必要 ${man(r)}</div></td>`; }).join('')}</tr>`).join('')}
+        <tr class="link"><th colspan="2">役員報酬の合計（年収計画）</th>${rowTd(c.execSum)}</tr>
+        <tr><th colspan="2">いまの経営計画の役員報酬</th>${years.map(y => { const p = planFor(y), d = c.execSum(y) - n0(p?.execComp); return `<td class="num">${man(p?.execComp)}${Math.abs(d) >= 1 ? `<div class="small" style="color:var(--warn)">差 ${d > 0 ? '+' : ''}${man(d)}</div>` : ''}</td>`; }).join('')}</tr>
+        <tr><th colspan="2">給与で払う幹部の昇給</th>${rowTd(c.raise)}</tr>
+        <tr><th colspan="2">理想の組織に向けた人件費の増加</th>${rowTd(y => Math.round(c.ramp(y)))}</tr>
+        <tr class="link"><th colspan="2">販管費に上乗せする額</th>${years.map(y => { const p = planFor(y), d = c.adj(y) - n0(p?.orgSgaAdj); return `<td class="num"><strong>${man(c.adj(y))}</strong>${Math.abs(d) >= 1 ? `<div class="small" style="color:var(--warn)">反映済み ${man(p?.orgSgaAdj)}</div>` : ''}</td>`; }).join('')}</tr>
+        <tr class="link"><th colspan="2">年収と人件費の増加を粗利で賄うのに必要な売上</th>${years.map(y => { const p = planFor(y); if (!p) return '<td></td>'; const gr = n0(p.grossRate) / 100, need = gr > 0 ? n0(p.sales) + (c.adj(y) + c.execSum(y) - n0(p.execComp)) / gr : NaN; return `<td class="num"><strong>${man(need)}</strong><div class="small ${need > n0(p.sales) ? '' : 'muted'}" style="${need > n0(p.sales) ? 'color:var(--warn)' : ''}">計画 ${man(p.sales)}</div></td>`; }).join('')}</tr>
+        <tr><th colspan="2">反映後の営業利益</th>${years.map(y => { const p = planFor(y); if (!p) return '<td></td>'; const op = planCalc(p).op - (c.execSum(y) - n0(p.execComp)) - (c.adj(y) - n0(p.orgSgaAdj)); return `<td class="num ${op < 0 ? 'neg' : ''}"><strong>${man(op)}</strong><div class="small muted">${pct(n0(p.sales) ? op / n0(p.sales) * 100 : NaN)}</div></td>`; }).join('')}</tr>
+      </tbody></table></div>` : '<p class="muted">ライフプランに経営陣を登録すると、年収計画を立てられます。</p>'}
+    <p class="small muted">「必要」は各幹部のライフプラン（生活費・貯蓄目標・その年のイベント）を手取り率で割り戻した年収です。人件費の増加は、採用・登用の年度が入ったポジションはその年度から、残りの差は目標年度に向けて均等に積み上げています。「経営計画に反映」を押すと、各年度の役員報酬を年収計画の合計に置き換え、販管費には上乗せ額の差分だけを足し引きします（何度押しても二重に足されません）。</p>
+  </section>`;
+}
+
 // ---------- render & events ----------
 function render() {
   renderHeader();
-  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, actions: viewActions, results: viewResults, president: viewPresident, bank: viewBank, keishin: viewKeishin, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, actions: viewActions, results: viewResults, president: viewPresident, bank: viewBank, keishin: viewKeishin, org: viewOrg, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
   $('#view').innerHTML = v();
+  document.querySelectorAll('.org-scroll').forEach(el => { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; });
   saveUi();
 }
 function commit(msg) { stateRev++; save(); scheduleCloud(); render(); if (msg) toast(msg); }
@@ -3872,6 +4073,7 @@ function upsertCheckin() {
   return c;
 }
 
+document.addEventListener('toggle', e => { if (e.target.matches?.('[data-orgedit]')) ui.orgEdit = e.target.open; }, true);
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.dataset.score) {
@@ -4107,6 +4309,34 @@ document.addEventListener('click', e => {
     case 'add-policy': state.policies.push({ id: uid(), memberId: ui.insMember, owner: 'corp', type: '定期保険', death: 0, premium: 0, cashValue: 0, note: '' }); commit(); break;
     case 'del-policy': state.policies.splice(+b.dataset.j, 1); commit('削除しました'); break;
     case 'share-current': shareCurrent(); break;
+    case 'org-view': ui.orgView = b.dataset.v; render(); break;
+    case 'org-add': {
+      const key = b.dataset.key, nodes = state.org[key], top = orgPresident(nodes);
+      nodes.push({ id: uid(), title: '', name: '', memberId: '', parent: top ? top.id : '', people: 1, comp: null, status: key === 'ideal' ? '採用予定' : '在任', year: key === 'ideal' ? n0(state.company.currentFY) + 1 : null });
+      commit(); break;
+    }
+    case 'org-del': {
+      const nodes = state.org[b.dataset.key], gone = nodes[+b.dataset.i];
+      nodes.forEach(n => { if (n.parent === gone.id) n.parent = gone.parent || ''; });
+      nodes.splice(+b.dataset.i, 1); commit('削除しました'); break;
+    }
+    case 'org-copy': {
+      if (state.org.ideal.length && !arm('org-copy')) return;
+      const map = Object.fromEntries(state.org.current.map(n => [n.id, uid()]));
+      state.org.ideal = state.org.current.map(n => ({ ...n, id: map[n.id], parent: map[n.parent] || '', status: '在任', year: null }));
+      ui.orgView = 'ideal'; commit('現状の組織図をコピーしました'); break;
+    }
+    case 'org-fill': {
+      if (!arm('org-fill')) return;
+      state.members.forEach(m => { state.plans.forEach(p => { setPath(state, `org.comp.${m.id}.${n0(p.year)}`, reqComp(m, n0(p.year))); }); });
+      commit('人生に必要な年収で埋めました'); break;
+    }
+    case 'org-apply': {
+      if (!arm('org-apply')) return;
+      const c = orgCalc();
+      state.plans.forEach(p => { const y = n0(p.year), a = c.adj(y); p.execComp = c.execSum(y); p.sga = Math.round(n0(p.sga) - n0(p.orgSgaAdj) + a); p.orgSgaAdj = a; });
+      commit('経営計画に反映しました'); break;
+    }
     case 'sd-cancel': sdPending = null; render(); break;
     case 'sd-import': {
       if (!sdPending || (cloud.db && cloud.readOnly)) return;
