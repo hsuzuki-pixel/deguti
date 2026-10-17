@@ -28,6 +28,9 @@
   --n-freedom: #2f7fc1;
   --n-fun: #8259c4;
   --c0: #9aa6b2;
+  --hero1: #0e6b66;
+  --hero2: #0b4a5a;
+  --on-hero: #ffffff;
   --c1: #008f80;
   --c2: #d0790a;
   --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
@@ -39,7 +42,7 @@
     --bg: #0f151b; --surface: #17202a; --surface-2: #1e2935; --ink: #e5ebf1; --muted: #98a6b5; --line: #2b3745;
     --accent: #4cbcb3; --accent-soft: #173836; --good: #5cc08a; --warn: #e2ad3f; --bad: #ec7069;
     --n-survival: #6cc184; --n-love: #ec7fa3; --n-power: #f0a64a; --n-freedom: #6aaee6; --n-fun: #ab8ce6;
-    --c0: #5d6b7a; --c1: #26a197; --c2: #c2731c;
+    --c0: #5d6b7a; --c1: #26a197; --c2: #c2731c; --hero1: #145a55; --hero2: #10384a; --on-hero: #f2f7f7;
     color-scheme: dark;
   }
 }
@@ -47,12 +50,61 @@
   --bg: #0f151b; --surface: #17202a; --surface-2: #1e2935; --ink: #e5ebf1; --muted: #98a6b5; --line: #2b3745;
   --accent: #4cbcb3; --accent-soft: #173836; --good: #5cc08a; --warn: #e2ad3f; --bad: #ec7069;
   --n-survival: #6cc184; --n-love: #ec7fa3; --n-power: #f0a64a; --n-freedom: #6aaee6; --n-fun: #ab8ce6;
-  --c0: #5d6b7a; --c1: #26a197; --c2: #c2731c;
+  --c0: #5d6b7a; --c1: #26a197; --c2: #c2731c; --hero1: #145a55; --hero2: #10384a; --on-hero: #f2f7f7;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.6; }
-.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; display: grid; gap: 20px; }
+.app { display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: 100vh; }
+.main { min-width: 0; padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px)); padding-block: 0 56px; display: grid; gap: 20px; align-content: start; max-width: 1240px; width: 100%; }
+#view { display: grid; gap: 20px; min-width: 0; }
+.sidenav { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px; padding: 18px 14px 24px; }
+.sn-brand { display: flex; align-items: center; gap: 10px; padding: 2px 6px 8px; }
+.sn-mark { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: linear-gradient(135deg, var(--hero1), var(--hero2)); color: var(--on-hero); flex: none; }
+.sn-mark svg { width: 22px; height: 22px; }
+.sn-name { display: grid; font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; line-height: 1.25; }
+.sn-name small { font-family: var(--font-body); font-size: .58rem; letter-spacing: 0; white-space: nowrap; color: var(--accent); font-weight: 700; }
+.sn-client { display: grid; gap: 8px; background: var(--surface-2); border-radius: 12px; padding: 10px; font-size: .85rem; }
+.sn-client select { width: 100%; }
+.sn-client .sn-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sn-client details summary { cursor: pointer; color: var(--muted); font-size: .78rem; }
+.sn-client details[open] { display: grid; gap: 6px; }
+.sn-nav { display: grid; gap: 14px; }
+.sn-group { display: grid; gap: 2px; }
+.sn-group > span { font-size: .68rem; letter-spacing: .1em; color: var(--muted); font-weight: 700; padding: 0 10px 4px; }
+.sn-item { appearance: none; border: 0; background: none; font: inherit; color: var(--muted); display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; cursor: pointer; text-align: left; font-size: .9rem; }
+.sn-item svg { width: 18px; height: 18px; flex: none; }
+.sn-item:hover { background: var(--surface-2); color: var(--ink); }
+.sn-item[aria-current="page"] { background: var(--accent-soft); color: var(--ink); font-weight: 700; }
+.sn-item[aria-current="page"] svg { color: var(--accent); }
+.icon-btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 40px; height: 40px; border-radius: 10px; display: inline-grid; place-items: center; cursor: pointer; flex: none; }
+.icon-btn svg { width: 20px; height: 20px; fill: none; }
+.sn-close, .menu-btn { display: none; }
+.sn-close { margin-left: auto; }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; align-items: center; gap: 12px; padding-block: 16px 12px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.tb-title { display: grid; min-width: 0; flex: 1; }
+.tb-eyebrow { font-size: .76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-title h1 { font-size: 1.45rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 25; background: var(--bg); }
+.scrim { position: fixed; inset: 0; background: rgba(10, 16, 22, .45); z-index: 40; }
+.bottomnav { display: none; }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidenav { position: fixed; inset: 0 auto 0 0; z-index: 50; width: min(86vw, 320px); height: 100%; transform: translateX(-105%); transition: transform .22s ease; box-shadow: 0 0 40px rgba(0, 0, 0, .2); padding-top: calc(18px + env(safe-area-inset-top, 0px)); padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); padding-left: max(14px, env(safe-area-inset-left, 0px)); }
+  .sidenav.open { transform: none; }
+  .sn-close, .menu-btn { display: inline-grid; }
+  .main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); gap: 16px; }
+  #view { gap: 16px; }
+  .topbar { padding-block: 10px; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+  .tb-title h1 { font-size: 1.15rem; }
+  .topbar .company-chip { display: none; }
+  .bottomnav { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface); border-top: 1px solid var(--line); padding: 6px max(8px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px)); }
+  .bottomnav button { appearance: none; border: 0; background: none; font: inherit; font-size: .66rem; color: var(--muted); display: grid; justify-items: center; gap: 3px; padding: 6px 2px; border-radius: 10px; cursor: pointer; }
+  .bottomnav button svg { width: 22px; height: 22px; }
+  .bottomnav button[aria-current="page"] { color: var(--accent); font-weight: 700; }
+  .panel { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .sidenav { transition: none; } }
 h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: .02em; }
 h1 { font-size: 1.6rem; }
 h2 { font-size: 1.2rem; }
@@ -62,9 +114,6 @@ p { margin: 0; }
 .small { font-size: .85rem; }
 .num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 
-.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
-.brand { display: grid; gap: 2px; }
-.brand .eyebrow { font-size: .75rem; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
 .company-chip { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: .78rem; font-weight: 500; background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
 .pill.sample { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
@@ -72,10 +121,6 @@ p { margin: 0; }
 .pill.warn { color: var(--warn); }
 .pill.bad { color: var(--bad); }
 
-nav.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
-nav.tabs button { appearance: none; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 500; padding: 10px 14px; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -1px; }
-nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 700; }
-nav.tabs button:hover { color: var(--ink); }
 
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: grid; gap: 14px; min-width: 0; align-content: start; }
 .panel-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -126,17 +171,22 @@ label.field > input, label.field > select, label.field > textarea { color: var(-
 .need-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px; align-items: stretch; }
 @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
-.hero-main { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; gap: 10px; align-content: start; }
-.hero-main .eyebrow { font-size: .78rem; color: var(--muted); letter-spacing: .04em; }
+.hero-main { background: linear-gradient(140deg, var(--hero1), var(--hero2)); color: var(--on-hero); border-radius: 16px; padding: 22px; display: grid; gap: 12px; align-content: start; position: relative; overflow: hidden; }
+.hero-main::after { content: ""; position: absolute; right: -60px; top: -60px; width: 200px; height: 200px; border-radius: 50%; border: 28px solid currentColor; opacity: .06; pointer-events: none; }
+.hero-main .meter { background: rgba(255, 255, 255, .18); }
+.hero .hero-main .meter > span { background: var(--on-hero); }
+.hero-chip { justify-self: start; font-size: .74rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .16); }
+.hero-main .eyebrow { font-size: .78rem; opacity: .8; letter-spacing: .04em; }
 .hero-num { font-size: clamp(2.6rem, 6vw, 3.4rem); font-weight: 700; line-height: 1; letter-spacing: -.01em; }
-.hero-num small { font-size: 1rem; font-weight: 500; color: var(--muted); margin-left: 4px; }
-.hero-sub { font-size: .88rem; color: var(--muted); }
-.hero-sub strong { color: var(--ink); }
-.hero-mission { font-size: .8rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.hero-num small { font-size: 1rem; font-weight: 500; opacity: .75; margin-left: 4px; }
+.hero-sub { font-size: .86rem; opacity: .85; }
+.hero-sub strong { opacity: 1; }
+.hero-mission { font-size: .78rem; opacity: .75; border-top: 1px solid rgba(255, 255, 255, .2); padding-top: 10px; }
 .meter { height: 10px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
 .meter > span { display: block; height: 100%; border-radius: 5px; background: var(--good); }
 .meter.warn > span { background: var(--warn); } .meter.bad > span { background: var(--bad); }
 .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; }
+@media (max-width: 560px) { .status-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .status-tile { padding: 10px 11px; } .st-value { font-size: 1.25rem; } .st-word { display: none; } .spark { width: 100%; } .hero-main { padding: 18px; } }
 .status-tile { appearance: none; font: inherit; color: inherit; text-align: left; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; align-content: start; border-top: 4px solid var(--line); transition: transform .12s, box-shadow .12s; }
 .status-tile:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0, 0, 0, .08); }
 .status-tile.good { border-top-color: var(--good); } .status-tile.warn { border-top-color: var(--warn); } .status-tile.bad { border-top-color: var(--bad); }
@@ -216,17 +266,26 @@ svg .axis-label { fill: var(--ink); font-size: 12px; font-weight: 500; }
 </head>
 <body>
 
-<div class="wrap">
-  <div class="top">
-    <div class="brand">
-      <span class="eyebrow">ライフプラン × 経営計画 × 選択理論</span>
-      <h1>幸せ経営コンパス</h1>
+<div class="app">
+  <aside class="sidenav" id="sidenav" aria-label="メニュー">
+    <div class="sn-brand">
+      <span class="sn-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z" fill="currentColor"/></svg></span>
+      <span class="sn-name"><small>ライフプラン×経営計画×選択理論</small>幸せ経営コンパス</span>
+      <button class="icon-btn sn-close" data-action="nav-close" aria-label="メニューを閉じる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
     </div>
-    <div class="company-chip" id="companyChip"></div>
+    <div class="sn-client" id="cloudBar"></div>
+    <nav class="sn-nav" id="tabs"></nav>
+  </aside>
+  <div class="scrim" id="scrim" data-action="nav-close" hidden></div>
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" data-action="nav-open" aria-label="メニューを開く"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <div class="tb-title"><span class="tb-eyebrow" id="tbEyebrow"></span><h1 id="pageTitle"></h1></div>
+      <div class="company-chip" id="companyChip"></div>
+    </header>
+    <main id="view"></main>
   </div>
-  <div class="btn-row" id="cloudBar" style="background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px"></div>
-  <nav class="tabs" id="tabs" role="tablist"></nav>
-  <main id="view" style="display:grid; gap:20px; min-width:0;"></main>
+  <nav class="bottomnav" id="bottomnav" aria-label="よく使う画面"></nav>
 </div>
 <div class="toast" id="toast" role="status"></div>
 
@@ -753,22 +812,24 @@ async function shareCurrent(name) {
 }
 function renderCloudBar() {
   const el = $('#cloudBar'); if (!el) return;
-  if (!cloud.db) { el.innerHTML = `<span class="pill">このブラウザに保存中</span><span class="muted small">共有保存は claude.ai で開いたときに使えます。</span>`; return; }
+  if (!cloud.db) { el.innerHTML = `<div class="sn-row"><span class="pill">このブラウザに保存中</span></div><span class="muted small">事務所内の共有保存は claude.ai で開いたときに使えます。</span>`; return; }
   const cur = cloud.clients.find(c => c.id === ui.clientId);
   const when = cur ? new Date(n0(cur.updatedAt)) : null;
   el.innerHTML = `
-    <label class="field" style="grid-auto-flow:column;align-items:center;gap:8px;color:var(--ink)">顧問先
+    <label class="field">顧問先
       <select id="client-select" data-client>
         <option value="">${cloud.loaded ? (cloud.clients.length ? '— 選んでください —' : '（まだ共有された顧問先はありません）') : '読み込み中…'}</option>
         ${cloud.clients.map(c => `<option value="${esc(c.id)}" ${c.id === ui.clientId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
       </select></label>
-    ${cur ? `<span class="pill ${cloud.pending ? 'warn' : 'good'}">${cloud.pending ? '保存待ち' : '共有保存済み'}</span><span class="muted small">最終更新 ${when.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${cloud.names[cur.updatedBy] ? `・${esc(cloud.names[cur.updatedBy])}` : ''}</span>`
-      : `<span class="pill warn">未共有（このブラウザだけ）</span>`}
-    ${cloud.readOnly ? '<span class="pill">閲覧のみ</span>' : `
+    <div class="sn-row">${cur ? `<span class="pill ${cloud.pending ? 'warn' : 'good'}">${cloud.pending ? '保存待ち' : '共有保存済み'}</span><span class="muted small">${when.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}${cloud.names[cur.updatedBy] ? `・${esc(cloud.names[cur.updatedBy])}` : ''}</span>`
+      : `<span class="pill warn">未共有（このブラウザだけ）</span>`}${cloud.readOnly ? '<span class="pill">閲覧のみ</span>' : ''}</div>
+    ${cloud.readOnly ? '' : `
       ${cur ? '' : `<button class="btn primary" data-action="share-current">今のデータを共有保存</button>`}
-      <input id="new-client-name" placeholder="新しい顧問先の会社名" style="max-width:200px">
-      <button class="btn" data-action="new-client">＋ 新規作成</button>
-      ${cur ? `<button class="btn danger ${ui.armed === 'del-client' ? 'armed' : ''}" data-action="del-client">${ui.armed === 'del-client' ? '全スタッフから消えます。もう一度' : '共有から削除'}</button>` : ''}`}
+      <details ${ui.armed === 'del-client' ? 'open' : ''}><summary>顧問先の追加・削除</summary>
+        <input id="new-client-name" placeholder="新しい顧問先の会社名">
+        <button class="btn" data-action="new-client">＋ 新規作成</button>
+        ${cur ? `<button class="btn danger ${ui.armed === 'del-client' ? 'armed' : ''}" data-action="del-client">${ui.armed === 'del-client' ? '全スタッフから消えます。もう一度' : '共有から削除'}</button>` : ''}
+      </details>`}
     ${cloud.msg ? `<span class="small" style="color:var(--warn)">${esc(cloud.msg)}</span>` : ''}`;
 }
 
@@ -2060,15 +2121,40 @@ function trendSvg(list, targets) {
 const needLegend = () => `<div class="legend">${NEEDS.map(n => `<span><i style="background:${n.color}"></i>${n.label}</span>`).join('')}</div>`;
 
 // ---------- views ----------
+const ICONS = {
+  dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  analysis: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  plan: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>',
+  budget: '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
+  loans: '<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
+  monthly: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  fin: '<path d="M12 4v16M5 8h14M5 8l-3 7h6zM19 8l-3 7h6z"/>',
+  life: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  checkin: '<path d="M4 5h16v11H9l-5 4z"/>',
+  ins: '<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/>',
+  proposal: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>',
+  exit: '<path d="M5 21V4h11l-2 4 2 4H5"/>',
+  acct: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  data: '<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  portfolio: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.7-3.5 3.3-5.5 6.5-5.5s5.8 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2 .8 3.2 2.6 3.6 5.2"/>',
+  office: '<path d="M4 21V5l8-2v18M12 8h8v13M8 8h.01M8 12h.01M8 16h.01M16 12h.01M16 16h.01M2 21h20"/>',
+  menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+};
+const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.dash}</svg>`;
+const NAV_GROUPS = [
+  ['全体像', ['dash', 'analysis']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin']], ['人と人生', ['life', 'checkin', 'ins']],
+  ['提案と出口', ['proposal', 'exit']], ['データ', ['acct', 'data']], ['事務所全体', ['portfolio', 'office']],
+];
+const tabLabel = k => ([...TABS, ...OFFICE_TABS].find(t => t[0] === k) || [k, ''])[1];
 function renderHeader() {
-  $('#companyChip').innerHTML = `
-    <span class="pill">${esc(state.company.name || '会社名未設定')}</span>
-    <span class="pill">${n0(state.company.currentFY)}年度（${n0(state.company.fyStartMonth)}月期首）</span>
-    ${state.sample ? '<span class="pill sample">サンプルデータ表示中</span>' : ''}`;
+  $('#pageTitle').textContent = tabLabel(ui.tab);
+  $('#tbEyebrow').textContent = ['portfolio', 'office'].includes(ui.tab) ? '事務所全体' : `${state.company.name || '会社名未設定'}・${n0(state.company.currentFY)}年度（${n0(state.company.fyStartMonth)}月期首）`;
+  $('#companyChip').innerHTML = state.sample ? '<span class="pill sample">サンプルデータ</span>' : '';
   renderCloudBar();
-  const tb = ([k, l]) => `<button role="tab" aria-selected="${ui.tab === k}" data-action="tab" data-tab="${k}">${l}</button>`;
-  $('#tabs').innerHTML = `<span class="tab-group">この顧問先</span>${TABS.map(tb).join('')}<span class="tab-group">事務所全体</span>${OFFICE_TABS.map(tb).join('')}`;
+  $('#tabs').innerHTML = NAV_GROUPS.map(([g, keys]) => `<div class="sn-group"><span>${g}</span>${keys.map(k => `<button class="sn-item" data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${tabLabel(k)}</button>`).join('')}</div>`).join('');
+  $('#bottomnav').innerHTML = [['dash', 'ホーム'], ['monthly', '月次'], ['analysis', '分析'], ['checkin', '面談']].map(([k, l]) => `<button data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${l}</button>`).join('') + `<button data-action="nav-open">${icon('menu')}メニュー</button>`;
 }
+function setNav(open) { $('#sidenav').classList.toggle('open', open); $('#scrim').hidden = !open; }
 
 // ---------- ダッシュボード用のチャート部品（ホバーで数値を表示） ----------
 const tipAttr = (title, rows) => esc([title, ...rows.map(([k, v, c]) => `${k}\u001f${v}\u001f${c || ''}`)].join('\u001e'));
@@ -2175,7 +2261,7 @@ function viewDash() {
     <div class="hero-main">
       <span class="eyebrow">${fy}年度 営業利益の着地見込み（今のペース）</span>
       <span class="hero-num">${man(Lt.op)}<small>万円</small></span>
-      ${isFinite(opRate) ? `${meterHtml(opRate, t(opRate, 100, 90))}<span class="hero-sub">計画 ${manU(planOp)} に対して <strong>${pct(opRate)}</strong>・売上の着地 ${manU(Lt.sales)}${p ? `（計画比 ${pct(Lt.sales / n0(p.sales) * 100)}）` : ''}</span>` : '<span class="hero-sub">経営計画を入力すると、計画との比較が出ます。</span>'}
+      ${isFinite(opRate) ? `<span class="hero-chip">計画比 ${pct(opRate)}・${{ good: '計画どおり', warn: 'やや未達', bad: '要対策' }[t(opRate, 100, 90)]}</span>${meterHtml(opRate, t(opRate, 100, 90))}<span class="hero-sub">計画 ${manU(planOp)} に対して <strong>${pct(opRate)}</strong>・売上の着地 ${manU(Lt.sales)}${p ? `（計画比 ${pct(Lt.sales / n0(p.sales) * 100)}）` : ''}</span>` : '<span class="hero-sub">経営計画を入力すると、計画との比較が出ます。</span>'}
       ${state.company.mission ? `<span class="hero-mission">経営理念：${esc(state.company.mission)}</span>` : ''}
     </div>
     <div class="status-grid">
@@ -3334,7 +3420,9 @@ document.addEventListener('click', e => {
   const armed = ui.armed; ui.armed = null;
   const arm = key => { if (armed === key) return true; ui.armed = key; render(); return false; };
   switch (a) {
-    case 'tab': ui.tab = b.dataset.tab; render(); window.scrollTo(0, 0); break;
+    case 'tab': ui.tab = b.dataset.tab; setNav(false); render(); window.scrollTo(0, 0); break;
+    case 'nav-open': setNav(true); break;
+    case 'nav-close': setNav(false); break;
     case 'an': ui.an = b.dataset.an; ai.err = ''; render(); break;
     case 'loan-add': {
       const last = state.loans?.[state.loans.length - 1];
