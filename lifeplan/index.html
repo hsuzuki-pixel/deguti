@@ -188,7 +188,7 @@ const NEEDS = [
 const NEED = Object.fromEntries(NEEDS.map(n => [n.key, n]));
 const TABS = [
   ['dash', 'ダッシュボード'], ['life', 'ライフプラン'], ['plan', '経営計画と連動'], ['budget', '予算3案・資金繰り'],
-  ['monthly', '月次予実・着地予測'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['exit', 'M&A出口'], ['data', 'データ'],
+  ['monthly', '月次予実・着地予測'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['exit', 'M&A出口'], ['acct', '会計データ連携'], ['data', 'データ'],
 ];
 
 // ---------- helpers ----------
@@ -1683,6 +1683,300 @@ function varianceAndLanding(fy) {
   </section>`;
 }
 
+// ---------- 会計データ連携（弥生会計・マネーフォワードの試算表CSV） ----------
+let importDraft = null, importUndo = null;
+const normName = s => String(s ?? '').normalize('NFKC').replace(/[\s・\[\]【】<>「」"]/g, '');
+function parseCsv(text, delim) {
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === delim) { row.push(f); f = ''; }
+    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
+    else if (c !== '\r') f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+function decodeBytes(buf) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf).replace(/^﻿/, ''); }
+  catch (e) { return new TextDecoder('shift_jis').decode(buf); }
+}
+function parseNum(v) {
+  let s = String(v ?? '').normalize('NFKC').trim();
+  if (!s || s === '-') return null;
+  let neg = false;
+  if (/^[△▲-]/.test(s)) { neg = true; s = s.replace(/^[△▲-]\s*/, ''); }
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  s = s.replace(/[,¥\\円\s]/g, '');
+  if (!/^\d+(\.\d+)?$/.test(s)) return null;
+  return (neg ? -1 : 1) * parseFloat(s);
+}
+function monthLabel(c) {
+  const s = String(c ?? '').normalize('NFKC').trim().replace(/\s/g, '');
+  let m;
+  if ((m = s.match(/^(\d{4})[\/\-.年](\d{1,2})月?分?$/))) return +m[2] >= 1 && +m[2] <= 12 ? { y: +m[1], m: +m[2] } : null;
+  if ((m = s.match(/^(?:令和|R)(\d{1,2})[\/\-.年](\d{1,2})月?$/))) return +m[2] >= 1 && +m[2] <= 12 ? { y: 2018 + +m[1], m: +m[2] } : null;
+  if ((m = s.match(/^(\d{1,2})月[度分]?$/))) return +m[1] >= 1 && +m[1] <= 12 ? { m: +m[1] } : null;
+  return null;
+}
+function parseTable(text, fileName) {
+  const head = text.split('\n').slice(0, 15).join('\n');
+  const delim = (head.match(/\t/g) || []).length > (head.match(/,/g) || []).length ? '\t' : ',';
+  const rows = parseCsv(text, delim);
+  let hi = -1, monthCols = [], kind = 'transition', valueCol = -1;
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const mc = rows[i].map((c, j) => ({ j, ml: monthLabel(c) })).filter(x => x.ml);
+    if (mc.length >= 2) { hi = i; monthCols = mc; break; }
+  }
+  if (hi < 0) {
+    kind = 'balance';
+    hi = rows.slice(0, 40).findIndex(r => r.some(c => /科目/.test(c)));
+    if (hi < 0) throw new Error('「勘定科目」の見出し行が見つかりません');
+    const h = rows[hi].map(c => String(c).normalize('NFKC').replace(/\s/g, ''));
+    valueCol = h.reduce((a, c, j) => /残高/.test(c) && !/繰越|前月|前期|期首/.test(c) ? j : a, -1);
+    if (valueCol < 0) throw new Error('月の列も「残高」の列も見つかりません。推移試算表か残高試算表のCSVを選んでください');
+  }
+  const h = rows[hi].map(c => String(c).normalize('NFKC').replace(/\s/g, ''));
+  let acct = h.findIndex(c => /勘定科目|科目名/.test(c));
+  if (acct < 0) acct = h.findIndex(c => /科目/.test(c));
+  if (acct < 0) acct = 0;
+  const sub = h.findIndex((c, j) => j !== acct && /補助/.test(c));
+  const accounts = {};
+  for (let i = hi + 1; i < rows.length; i++) {
+    const r = rows[i], name = normName(r[acct]);
+    if (!name || (sub >= 0 && String(r[sub] ?? '').trim())) continue;
+    const vals = kind === 'transition' ? monthCols.map(x => parseNum(r[x.j])) : [parseNum(r[valueCol])];
+    if (vals.every(v => v == null)) continue;
+    accounts[name] ??= { label: String(r[acct]).trim(), vals };
+  }
+  if (!Object.keys(accounts).length) throw new Error('金額の入った勘定科目が見つかりません');
+  const source = /弥生/.test(head) ? '弥生会計' : /マネーフォワード|Money\s?Forward/i.test(head) || sub >= 0 ? 'マネーフォワード' : '会計ソフト';
+  return { fileName, kind, months: monthCols.map(x => x.ml), accounts, source };
+}
+const IMPORT_FIELDS = [
+  { key: 'sales', label: '売上高', syn: ['売上高合計', '売上高計', '純売上高', '売上高', '完成工事高', '売上合計'] },
+  { key: 'cogs', label: '売上原価', syn: ['売上原価合計', '売上原価計', '売上原価', '完成工事原価'] },
+  { key: 'gp', label: '売上総利益', syn: ['売上総利益', '売上総損益金額', '売上総利益金額', '売上総損益', '完成工事総利益'] },
+  { key: 'sga', label: '販売費及び一般管理費', syn: ['販売費及び一般管理費合計', '販売費及び一般管理費計', '販売費及び一般管理費', '販管費合計'] },
+  { key: 'op', label: '営業利益', syn: ['営業利益', '営業損益金額', '営業利益金額', '営業損益'] },
+  { key: 'dep', label: '減価償却費', syn: ['減価償却費'] },
+  { key: 'interest', label: '支払利息', syn: ['支払利息', '支払利息割引料', '支払利息及び割引料'] },
+  { key: 'cash', label: '現金及び預金', syn: ['現金及び預金合計', '現金及び預金', '現金預金合計', '現金預金'] },
+  { key: 'receivables', label: '売上債権', sum: true, syn: ['受取手形', '売掛金', '完成工事未収入金', '電子記録債権'] },
+  { key: 'inventory', label: '棚卸資産', sum: true, syn: ['商品', '製品', '仕掛品', '原材料', '貯蔵品', '未成工事支出金', '販売用不動産'] },
+  { key: 'caTotal', label: '流動資産合計', syn: ['流動資産合計', '流動資産計'] },
+  { key: 'faTotal', label: '固定資産合計', syn: ['固定資産合計', '固定資産計'] },
+  { key: 'defTotal', label: '繰延資産合計', syn: ['繰延資産合計', '繰延資産計'] },
+  { key: 'payables', label: '仕入債務', sum: true, syn: ['支払手形', '買掛金', '工事未払金', '電子記録債務'] },
+  { key: 'shortDebt', label: '短期借入金', sum: true, syn: ['短期借入金', '1年以内返済予定長期借入金', '1年内返済長期借入金', '1年以内返済長期借入金', '一年以内返済長期借入金'] },
+  { key: 'clTotal', label: '流動負債合計', syn: ['流動負債合計', '流動負債計'] },
+  { key: 'longDebt', label: '長期借入金・社債', sum: true, syn: ['長期借入金', '社債'] },
+  { key: 'flTotal', label: '固定負債合計', syn: ['固定負債合計', '固定負債計'] },
+  { key: 'naTotal', label: '純資産合計', syn: ['純資産の部合計', '純資産合計', '純資産計', '資本の部合計'] },
+];
+function toFiscal(file, fy) {
+  const fm = fyMonths(fy);
+  const idx = file.months.map(ml => fm.findIndex(x => ml.y ? x.ym === `${ml.y}-${String(ml.m).padStart(2, '0')}` : x.m === ml.m));
+  const out = {};
+  Object.entries(file.accounts).forEach(([k, a]) => {
+    if (file.kind === 'balance') { out[k] = { label: a.label, end: a.vals[0] }; return; }
+    const m = Array(12).fill(null);
+    a.vals.forEach((v, i) => { if (idx[i] >= 0 && v != null) m[idx[i]] = v; });
+    out[k] = { label: a.label, m };
+  });
+  return out;
+}
+function buildImport(files, fy, unit, overrides) {
+  const kind = files.some(f => f.kind === 'transition') ? 'transition' : 'balance';
+  const accs = {};
+  files.forEach(f => Object.entries(toFiscal(f, fy)).forEach(([k, a]) => { accs[k] ??= a; }));
+  const slots = kind === 'transition' ? 12 : 1;
+  const get = a => a ? (kind === 'transition' ? (a.m || Array(12).fill(a.end ?? null)) : [a.end ?? (a.m ? a.m.filter(v => v != null).pop() ?? null : null)]) : Array(slots).fill(null);
+  const src = {}, ser = {};
+  IMPORT_FIELDS.forEach(f => {
+    let names = [];
+    const ov = overrides[f.key];
+    if (ov !== undefined) names = ov ? [ov] : [];
+    else if (f.sum) names = f.syn.map(normName).filter(n => accs[n]);
+    else {
+      const ex = f.syn.map(normName).find(n => accs[n]);
+      if (ex) names = [ex];
+      else { const sw = Object.keys(accs).find(k => f.syn.some(s => k.startsWith(normName(s)) && k.length - normName(s).length <= 4)); if (sw) names = [sw]; }
+    }
+    src[f.key] = names;
+    ser[f.key] = names.length ? Array.from({ length: slots }, (_, i) => names.reduce((s, n) => { const v = get(accs[n])[i]; return v == null ? s : (s ?? 0) + v; }, null)) : Array(slots).fill(null);
+  });
+  const d = unit || 10000;
+  const v = (k, i) => ser[k][i];
+  const recs = Array.from({ length: slots }, (_, i) => {
+    const sales = v('sales', i), gp = v('gp', i) ?? (sales != null && v('cogs', i) != null ? sales - v('cogs', i) : null);
+    const op = v('op', i) ?? (gp != null && v('sga', i) != null ? gp - v('sga', i) : null);
+    const z = k => v(k, i) ?? 0;
+    const hasBs = v('cash', i) != null || v('caTotal', i) != null;
+    const r = { sales, gp, op, dep: v('dep', i), interest: v('interest', i), cash: v('cash', i) };
+    if (hasBs) Object.assign(r, {
+      receivables: z('receivables'), inventory: z('inventory'),
+      otherCurrent: v('caTotal', i) != null ? v('caTotal', i) - z('cash') - z('receivables') - z('inventory') : 0,
+      fixed: z('faTotal') + z('defTotal'), payables: z('payables'), shortDebt: z('shortDebt'),
+      otherCurrentLiab: v('clTotal', i) != null ? v('clTotal', i) - z('payables') - z('shortDebt') : 0,
+      longDebt: z('longDebt'), otherFixedLiab: v('flTotal', i) != null ? v('flTotal', i) - z('longDebt') : 0,
+    });
+    if (hasBs) {
+      const assets = z('cash') + r.receivables + r.inventory + r.otherCurrent + r.fixed;
+      const liab = r.payables + r.shortDebt + r.otherCurrentLiab + r.longDebt + r.otherFixedLiab;
+      r.equity = assets - liab; r.check = v('naTotal', i) != null ? r.equity - v('naTotal', i) : null;
+    }
+    Object.keys(r).forEach(k => { if (r[k] != null && k !== 'check') r[k] = r[k] / d; });
+    if (r.check != null) r.check = r.check / d;
+    return r;
+  });
+  const isData = r => r.sales != null && (r.sales || r.gp || r.op);
+  let dataIdx = recs.map((r, i) => isData(r) ? i : -1).filter(i => i >= 0);
+  if (!dataIdx.length) dataIdx = recs.map((r, i) => r.cash != null ? i : -1).filter(i => i >= 0);
+  return { kind, recs, src, dataIdx, accountNames: Object.entries(accs).map(([k, a]) => [k, a.label]) };
+}
+function sampleCsv(kind) {
+  const fy = n0(state.company.currentFY), rows = monthlyRows(fy), fm = fyMonths(fy), a = state.bs.actual;
+  const has = rows.map(r => r.sa != null && r.sa !== '');
+  const yen = x => Math.round(n0(x) * 10000);
+  const cashOf = r => r.cash != null && r.cash !== '' ? n0(r.cash) : n0(a.cash);
+  const ca = r => cashOf(r) + n0(a.receivables) + n0(a.inventory) + n0(a.otherCurrent);
+  const liab = n0(a.payables) + n0(a.shortDebt) + n0(a.otherCurrentLiab) + n0(a.longDebt) + n0(a.otherFixedLiab);
+  const lines = [
+    ['売上高合計', r => r.sa], ['売上原価合計', r => n0(r.sa) - n0(r.ga)], ['売上総利益', r => r.ga], ['減価償却費', () => n0(a.dep) / 12],
+    ['販売費及び一般管理費合計', r => n0(r.ga) - n0(r.oa)], ['営業利益', r => r.oa], ['支払利息', () => n0(a.interest) / 12], ['経常利益', r => n0(r.oa) - n0(a.interest) / 12],
+    ['現金及び預金合計', cashOf], ['受取手形', () => n0(a.receivables) * 0.2], ['完成工事未収入金', () => n0(a.receivables) * 0.8], ['未成工事支出金', () => a.inventory],
+    ['流動資産合計', ca], ['固定資産合計', () => a.fixed], ['工事未払金', () => a.payables], ['短期借入金', () => a.shortDebt],
+    ['流動負債合計', () => n0(a.payables) + n0(a.shortDebt) + n0(a.otherCurrentLiab)], ['長期借入金', () => a.longDebt], ['固定負債合計', () => n0(a.longDebt) + n0(a.otherFixedLiab)],
+    ['純資産の部合計', r => ca(r) + n0(a.fixed) - liab],
+  ];
+  const cell = (i, fn) => has[i] ? yen(fn(rows[i])) : 0;
+  if (kind === 'yayoi') {
+    const out = ['"推移試算表","弥生会計"', `"${state.company.name}"`, `"自 ${fy}年${fm[0].m}月1日 至 ${fy + 1}年${fm[11].m === 12 ? 12 : fm[11].m}月末日","(単位:円)"`, '', ['"勘定科目"', ...fm.map(m => `"${m.m}月"`), '"合計"'].join(',')];
+    lines.forEach(([n, fn]) => { const v = fm.map((_, i) => cell(i, fn)); out.push([`"${n}"`, ...v, v.reduce((s, x) => s + x, 0)].join(',')); });
+    return out.join('\r\n');
+  }
+  const out = ['"推移表","マネーフォワード クラウド会計"', ['"勘定科目"', '"補助科目"', ...fm.map(m => `"${m.ym.replace('-', '/')}"`)].join(',')];
+  lines.forEach(([n, fn]) => {
+    if (n === '売上高合計') out.push(['"売上高"', '"工事売上"', ...fm.map((_, i) => `"${cell(i, fn).toLocaleString('en-US')}"`)].join(','));
+    out.push([`"${n}"`, '""', ...fm.map((_, i) => `"${cell(i, fn).toLocaleString('en-US')}"`)].join(','));
+  });
+  return out.join('\n');
+}
+async function loadImportFiles(fileList) {
+  const files = [];
+  for (const f of fileList) {
+    try { files.push(parseTable(decodeBytes(await f.arrayBuffer()), f.name)); }
+    catch (e) { toast(`${f.name}：${e.message}`); }
+  }
+  if (!files.length) return;
+  importDraft = { files }; ui.impMap = {};
+  const y = files.flatMap(f => f.months).find(m => m.y);
+  if (y) ui.impFy = fyOf(`${y.y}-${String(y.m).padStart(2, '0')}`);
+  render();
+}
+function applyImport(b) {
+  const fy = ui.impFy, optM = $('#imp-opt-monthly')?.checked, optC = $('#imp-opt-cash')?.checked, optB = $('#imp-opt-bs')?.checked;
+  importUndo = JSON.stringify(state);
+  const r0 = x => x == null ? null : Math.round(x);
+  let nM = 0;
+  if (b.kind === 'transition' && (optM || optC)) {
+    const rows = monthlyRows(fy);
+    b.dataIdx.forEach(i => {
+      const r = b.recs[i];
+      if (optM && r.sales != null) { rows[i].sa = r0(r.sales); rows[i].ga = r0(r.gp); rows[i].oa = r0(r.op); }
+      if (optC && r.cash != null) rows[i].cash = r0(r.cash);
+      nM++;
+    });
+  }
+  if (optB) {
+    const last = b.dataIdx.length ? b.dataIdx[b.dataIdx.length - 1] : 0, r = b.recs[last];
+    const sum = k => b.kind === 'transition' ? b.dataIdx.reduce((s, i) => s + n0(b.recs[i][k]), 0) : n0(r[k]);
+    const a = state.bs.actual;
+    if (r.cash != null) ['cash', 'receivables', 'inventory', 'otherCurrent', 'fixed', 'payables', 'shortDebt', 'otherCurrentLiab', 'longDebt', 'otherFixedLiab'].forEach(k => { a[k] = r0(r[k]); });
+    if (r.sales != null) { a.sales = r0(sum('sales')); a.op = r0(sum('op')); a.dep = r0(sum('dep')); a.interest = r0(sum('interest')); }
+    a.label = $('#imp-bs-label')?.value || a.label;
+  }
+  (state.imports ??= []).unshift({ at: Date.now(), files: importDraft.files.map(f => `${f.fileName}（${f.source}）`), fy, months: nM, bs: !!optB });
+  state.imports = state.imports.slice(0, 10);
+  state.sample = false;
+  importDraft = null;
+  commit(`取り込みました（${nM ? nM + 'か月分の月次実績' : ''}${nM && optB ? '・' : ''}${optB ? '直近決算BS' : ''}）`);
+}
+
+function viewAcct() {
+  const { fys } = pickFy();
+  if (!ui.impFy) ui.impFy = n0(state.company.currentFY);
+  const fy = ui.impFy, unit = ui.impUnit || 10000, fm = fyMonths(fy);
+  const b = importDraft ? buildImport(importDraft.files, fy, unit, ui.impMap || {}) : null;
+  const cols = b ? (b.kind === 'transition' ? b.dataIdx : [0]) : [];
+  const rowsDef = [['sales', '売上高'], ['gp', '売上総利益（粗利）'], ['op', '営業利益'], ['dep', '減価償却費'], ['interest', '支払利息'], null,
+    ['cash', '現金及び預金'], ['receivables', '売上債権'], ['inventory', '棚卸資産'], ['otherCurrent', 'その他流動資産'], ['fixed', '固定資産'],
+    ['payables', '仕入債務'], ['shortDebt', '短期借入金'], ['otherCurrentLiab', 'その他流動負債'], ['longDebt', '長期借入金・社債'], ['otherFixedLiab', 'その他固定負債'], ['equity', '純資産（計算）']];
+  const srcOf = { sales: ['sales'], gp: ['gp', 'cogs'], op: ['op', 'sga'], dep: ['dep'], interest: ['interest'], cash: ['cash'], receivables: ['receivables'], inventory: ['inventory'], otherCurrent: ['caTotal'], fixed: ['faTotal', 'defTotal'], payables: ['payables'], shortDebt: ['shortDebt'], otherCurrentLiab: ['clTotal'], longDebt: ['longDebt'], otherFixedLiab: ['flTotal'], equity: ['naTotal'] };
+  const pick = ['sales', 'gp', 'op', 'dep', 'interest', 'cash', 'caTotal', 'faTotal', 'clTotal', 'flTotal', 'naTotal'];
+  const mapCell = key => {
+    const parts = srcOf[key].map((k, pi) => {
+      const names = b.src[k];
+      if (pick.includes(k)) return `<select id="imp-map-${k}" data-impmap="${k}" style="max-width:190px"><option value="__auto" ${ui.impMap?.[k] === undefined ? 'selected' : ''}>${names.length ? '自動：' + esc(names.join('+')) : '自動：（見つからず）'}</option><option value="" ${ui.impMap?.[k] === '' ? 'selected' : ''}>使わない</option>${b.accountNames.map(([n, l]) => `<option value="${esc(n)}" ${ui.impMap?.[k] === n ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+      return names.length ? `<span class="small">${pi ? '＋' : ''}${esc(names.join('＋'))}</span>` : pi ? '' : '<span class="small muted">なし</span>';
+    });
+    return parts.join(' ');
+  };
+  const checkBad = b && cols.some(i => b.recs[i].check != null && Math.abs(b.recs[i].check) >= 1);
+  const lastBs = b && cols.length ? b.recs[cols[cols.length - 1]] : null;
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>会計データ連携</h2><span class="muted small">試算表のCSVから、月次実績・月末現預金・直近決算のBSを取り込みます</span></div>
+    <div class="grid-2">
+      <div class="need-card" style="border-left-color:var(--n-freedom)">
+        <header><strong>弥生会計</strong><span class="muted small">CSVで連携</span></header>
+        <p class="small">推移試算表（月次）を「汎用形式・カンマ区切り」でエクスポートしてください。決算の数字だけなら残高試算表でも取り込めます。Shift_JISのままで大丈夫です。</p>
+      </div>
+      <div class="need-card" style="border-left-color:var(--accent)">
+        <header><strong>マネーフォワード クラウド会計</strong><span class="muted small">CSVで連携（API連携は準備中）</span></header>
+        <p class="small">推移表の「損益計算書」と「貸借対照表」をCSVでエクスポートし、2つまとめて選んでください。補助科目の行は自動で除きます。</p>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="field">試算表CSV（複数選択可）<input id="imp-file" type="file" accept=".csv,.txt,text/csv" multiple></label>
+      <label class="field">取り込む年度<select id="imp-fy" data-ui="impFy">${[...new Set([...fys, fy])].sort().map(f => `<option value="${f}" ${f === fy ? 'selected' : ''}>${f}年度（${fyMonths(f)[0].m}月〜）</option>`).join('')}</select></label>
+      <label class="field">CSVの金額の単位<select id="imp-unit" data-ui="impUnit"><option value="10000" ${unit === 10000 ? 'selected' : ''}>円</option><option value="10" ${unit === 10 ? 'selected' : ''}>千円</option><option value="1" ${unit === 1 ? 'selected' : ''}>万円</option></select></label>
+    </div>
+    <div class="btn-row"><span class="small muted">手元にCSVがなければ：</span><button class="btn" data-action="imp-sample" data-kind="yayoi">弥生会計形式のサンプルで試す</button><button class="btn" data-action="imp-sample" data-kind="mf">マネーフォワード形式のサンプルで試す</button>
+      ${importUndo ? `<button class="btn" data-action="imp-undo">直前の取り込みを元に戻す</button>` : ''}</div>
+  </section>
+
+  ${b ? `<section class="panel">
+    <div class="panel-head"><h2>取り込み内容の確認</h2><button class="btn ghost" data-action="imp-clear">やめる</button></div>
+    <p class="small">${importDraft.files.map(f => `<span class="pill">${esc(f.fileName)}・${f.source}・${f.kind === 'transition' ? `推移（${f.months.length}か月）` : '残高試算表'}・${Object.keys(f.accounts).length}科目</span>`).join(' ')}</p>
+    ${cols.length ? `<div class="table-scroll"><table>
+      <thead><tr><th>項目</th><th>元の勘定科目</th>${cols.map(i => `<th class="num">${b.kind === 'transition' ? fm[i].m + '月' : '残高'}</th>`).join('')}</tr></thead>
+      <tbody>${rowsDef.map(d => d ? `<tr${d[0] === 'equity' ? ' class="total"' : ''}><th>${d[1]}</th><td>${mapCell(d[0])}</td>${cols.map(i => { const x = b.recs[i][d[0]]; return `<td class="num">${x == null ? '<span class="muted">—</span>' : man(x)}</td>`; }).join('')}</tr>` : `<tr><td colspan="${cols.length + 2}" style="padding-top:12px;color:var(--ink);font-weight:700">貸借対照表</td></tr>`).join('')}
+      <tr><th>貸借の照合</th><td class="small muted">純資産合計との差</td>${cols.map(i => { const c = b.recs[i].check; return `<td class="num ${c == null ? 'muted' : Math.abs(c) < 1 ? 'pos' : 'neg'}">${c == null ? '—' : Math.abs(c) < 1 ? '一致' : man(c)}</td>`; }).join('')}</tr>
+      </tbody></table></div>
+      <p class="small muted">単位：万円。科目名が会社ごとに違う場合は「元の勘定科目」で選び直してください。${checkBad ? '<span style="color:var(--bad)">純資産が一致しない月があります。合計行の科目の割り当てを確認してください。</span>' : ''}</p>
+      <div class="panel" style="background:var(--surface-2);border:0">
+        <h3>どこに取り込むか</h3>
+        ${b.kind === 'transition' ? `<label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="imp-opt-monthly" checked> ${fy}年度の月次実績（売上・粗利・営業利益）${cols.length}か月分を上書き</label>
+        <label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="imp-opt-cash" checked> 月末現預金の実績を上書き</label>` : ''}
+        <label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="imp-opt-bs" ${b.kind === 'balance' ? 'checked' : ''} ${lastBs?.cash == null && lastBs?.sales == null ? 'disabled' : ''}> 「BS・銀行格付け」の直近決算 実績を上書き（${b.kind === 'transition' ? `${fm[cols[cols.length - 1]]?.m}月末の残高と、${cols.length}か月の損益合計` : '残高と損益'}）</label>
+        <label class="field" style="max-width:320px">直近決算の見出し<input id="imp-bs-label" value="${esc(b.kind === 'transition' ? `${fy}年度 ${fm[cols[cols.length - 1]]?.m}月末 実績` : `${fy - 1}年度 決算 実績`)}"></label>
+        <div class="btn-row"><button class="btn primary" data-action="imp-apply">取り込む</button><span class="small muted">取り込み直後なら「元に戻す」で戻せます。</span></div>
+      </div>` : '<div class="empty">売上高・現預金などの科目が見つかりませんでした。年度の選択と、CSVの種類（推移試算表・残高試算表）を確認してください。</div>'}
+  </section>` : ''}
+
+  <section class="panel">
+    <div class="panel-head"><h2>マネーフォワードのAPI連携</h2><span class="pill warn">準備中</span></div>
+    <p class="small">マネーフォワード クラウド会計は公式のMCPサーバー（Claude向けコネクタ）で試算表・推移表を提供しています。claude.ai の「設定 → コネクタ」でマネーフォワード クラウド会計を接続すると、このページから「推移表を取得」ボタンでCSVなしに取り込めるようにします。取り込んだ後の確認画面は、上のCSVと同じです。</p>
+  </section>
+
+  ${(state.imports || []).length ? `<section class="panel"><h2>取り込み履歴</h2><div class="table-scroll"><table><thead><tr><th>日時</th><th>ファイル</th><th>年度</th><th>内容</th></tr></thead><tbody>
+    ${state.imports.map(x => `<tr><td class="small">${new Date(x.at).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td><td class="small">${x.files.map(esc).join('<br>')}</td><td class="num">${x.fy}</td><td class="small">${x.months ? x.months + 'か月分の月次実績' : ''}${x.months && x.bs ? '・' : ''}${x.bs ? '直近決算BS' : ''}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+}
+
 function blankState() {
   const y = today.getMonth() + 1 >= 4 ? today.getFullYear() : today.getFullYear() - 1;
   return { sample: false, company: { name: '', fyStartMonth: 4, currentFY: y, takeHomeRate: 70, taxRate: 30, mission: '' }, members: [], plans: Array.from({ length: 5 }, (_, i) => ({ year: y + i, sales: 0, grossRate: 30, sga: 0, execComp: 0, theme: '' })), monthly: {}, checkins: [], bs: { actual: { label: '直近決算 実績' }, targets: {} }, policies: [], exit: defaultExit(y), cf: defaultCf() };
@@ -1695,7 +1989,7 @@ function newMember() {
 // ---------- render & events ----------
 function render() {
   renderHeader();
-  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, data: viewData }[ui.tab] || viewDash;
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, acct: viewAcct, data: viewData }[ui.tab] || viewDash;
   $('#view').innerHTML = v();
   saveUi();
 }
@@ -1737,13 +2031,19 @@ document.addEventListener('change', e => {
     applyRemote(doc, false); toast(`「${doc.name}」を開きました`);
   } else if (t.dataset.ui) {
     const k = t.dataset.ui;
-    ui[k] = k === 'fy' ? +t.value : t.value;
+    ui[k] = ['fy', 'impFy', 'impUnit'].includes(k) ? +t.value : t.value;
     if (k === 'ciYm' && !t.value) ui.ciYm = thisYm;
     render();
   } else if (t.dataset.score) {
     const c = upsertCheckin(); if (c) { c.scores[t.dataset.score] = +t.value; commit('保存しました'); }
   } else if (t.dataset.ci) {
     const c = upsertCheckin(); if (c) { c[t.dataset.ci] = t.value; commit('保存しました'); }
+  } else if (t.dataset.impmap) {
+    ui.impMap ??= {};
+    if (t.value === '__auto') delete ui.impMap[t.dataset.impmap]; else ui.impMap[t.dataset.impmap] = t.value;
+    render();
+  } else if (t.id === 'imp-file' && t.files?.length) {
+    loadImportFiles([...t.files]);
   } else if (t.id === 'io-file' && t.files?.[0]) {
     const r = new FileReader();
     r.onload = () => { $('#io-text').value = r.result; importText(r.result); };
@@ -1813,6 +2113,17 @@ document.addEventListener('click', e => {
       monthlyRows(ui.fy).forEach((r, k) => { r.sb = pb.months[k].sales; r.gb = pb.months[k].gp; r.ob = pb.months[k].op; });
       commit(`「${pb.pt.label}」を${ui.fy}年度の月次予算にしました`); break;
     }
+    case 'imp-sample': {
+      const k = b.dataset.kind;
+      try { importDraft = { files: [parseTable(sampleCsv(k), k === 'yayoi' ? '推移試算表_サンプル.csv' : '推移表_サンプル.csv')] }; ui.impMap = {}; ui.impFy = n0(state.company.currentFY); } catch (e) { toast(e.message); }
+      render(); break;
+    }
+    case 'imp-clear': importDraft = null; render(); break;
+    case 'imp-apply': {
+      const bb = buildImport(importDraft.files, ui.impFy, ui.impUnit || 10000, ui.impMap || {});
+      applyImport(bb); break;
+    }
+    case 'imp-undo': if (importUndo) { state = migrate(JSON.parse(importUndo)); importUndo = null; commit('取り込み前に戻しました'); } break;
     case 'report-preview': ui.showReport = !ui.showReport; render(); break;
     case 'report-save': saveReport(); break;
     case 'del-plan': state.plans.splice(+b.dataset.i, 1); commit('削除しました'); break;
