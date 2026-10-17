@@ -230,6 +230,15 @@ tr.chk-done th { color: var(--muted); font-weight: 400; }
 .chk-banner span:nth-child(2) { flex: 1; font-size: .88rem; }
 .sn-badge { margin-left: auto; background: var(--bad); color: var(--surface); font-size: .7rem; font-weight: 700; border-radius: 999px; padding: 0 7px; line-height: 1.6; }
 @media (max-width: 560px) { .chk-hero { padding: 16px; gap: 14px; } .chk-ring { width: 84px; height: 84px; } .chk-ring span { width: 64px; height: 64px; font-size: 1.3rem; } }
+.cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 10px; }
+.cal-month { border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: grid; gap: 6px; align-content: start; }
+.cal-month.now { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-head { font-weight: 700; display: flex; gap: 8px; align-items: center; }
+.cal-item { display: grid; grid-template-columns: auto auto 1fr; gap: 6px; align-items: start; font-size: .8rem; cursor: pointer; }
+.cal-item.done span:last-child { color: var(--muted); text-decoration: line-through; }
+.cal-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: .45em; }
+select.act-st.done { color: var(--good); font-weight: 700; } select.act-st.late { color: var(--bad); font-weight: 700; }
+.pres-scope { max-height: 900px; overflow-y: auto; }
 .tab-group { align-self: center; font-size: .7rem; letter-spacing: .1em; color: var(--accent); font-weight: 700; padding: 0 6px 0 10px; border-left: 1px solid var(--line); }
 .tab-group:first-child { border-left: 0; padding-left: 0; }
 .an-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -327,6 +336,7 @@ const TABS = [
   ['monthly', '月次予実・着地予測'], ['analysis', '財務分析'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['proposal', '提案・出口'], ['exit', 'M&A・企業価値'], ['acct', '会計データ連携'], ['data', 'データ'],
 ];
 TABS.unshift(['check', '入力チェック']);
+TABS.push(['actions', '宿題・年間計画'], ['results', '伴走の成果'], ['president', '社長ページ'], ['bank', '銀行提出資料'], ['keishin', '経審シミュレーション']);
 const OFFICE_TABS = [['portfolio', '顧問先ポートフォリオ'], ['office', '事務所経営']];
 
 // ---------- helpers ----------
@@ -503,6 +513,27 @@ function sampleState() {
     members, plans, monthly, checkins, bs, policies, exit, cf: defaultCf(), history, funding,
     hearing: { ...defaultHearing(), taxSaving: true, insuranceReview: true, fundraising: true, successor: 'あり', memo: '後継者は専務。社長は2028年から週休3日を希望。' },
     ifa: defaultIfa(), structure: defaultStructure(), tax: defaultTaxCfg(), ai: {},
+    contract: { startYm: '2025-10', monthlyFee: 15, plan: 'スタンダード' },
+    baseline: { label: '2025年10月 時点', grade: 4, score: 58, equityRatio: 24.0, debt: 16500, interest: 230, wRate: 1.55, execComp: 3200, happy: 52, value: 15000, cash: 7200, liquidity: 1.1, opLanding: 2600 },
+    results: [
+      { id: 'rs1', date: '2025-12-15', category: '金利・借入条件', title: 'B銀行 設備資金の金利引下げ（1.6% → 1.1%）', amount: 30, recurring: true, note: '格付け改善資料を提出' },
+      { id: 'rs2', date: '2026-02-10', category: '保険の見直し', title: '法人保険の重複を解約・払済化', amount: 85, recurring: true, note: '' },
+      { id: 'rs3', date: '2026-03-20', category: '節税・決算対策', title: '決算対策（中小企業経営強化税制による即時償却）', amount: 420, recurring: false, note: '重機の取得' },
+      { id: 'rs4', date: '2026-05-25', category: '役員報酬・手取り', title: '役員報酬の改定（社会保険料を含めた手取りの改善）', amount: 60, recurring: true, note: '' },
+      { id: 'rs5', date: '2026-07-30', category: '補助金・助成金', title: 'ものづくり補助金の採択', amount: 750, recurring: false, note: '' },
+    ],
+    actions: [
+      { id: 'a1', title: '1,000万円未満の見積決裁を専務へ移す', owner: '山田 太郎', due: '2026-10-31', status: '進行中', from: '2026-09', memo: '' },
+      { id: 'a2', title: '11月の決算説明を主担当で行う', owner: '山田 健一', due: '2026-11-30', status: '未着手', from: '2026-09', memo: '' },
+      { id: 'a3', title: '朝礼の進行を主任に任せ、毎朝30分を資格の学習にあてる', owner: '佐藤 誠', due: '2026-10-31', status: '進行中', from: '2026-09', memo: '' },
+      { id: 'a4', title: '夫婦旅行の日程を決めて予約する', owner: '山田 太郎', due: '2026-09-30', status: '完了', from: '2026-08', memo: '愛・所属' },
+      { id: 'a5', title: '外注単価の見直しを3社と交渉する', owner: '山田 太郎', due: '2026-09-15', status: '完了', from: '2026-08', memo: '' },
+      { id: 'a6', title: '若手社員との面談を月4回行う', owner: '山田 健一', due: '2026-08-31', status: '完了', from: '2026-07', memo: '' },
+      { id: 'a7', title: '工事別の原価管理表の運用を始める', owner: '佐藤 誠', due: '2026-08-31', status: '未着手', from: '2026-07', memo: '' },
+      { id: 'a8', title: 'B銀行へ半期の業績報告（試算表・資金繰り表）', owner: '事務所', due: '2026-10-20', status: '未着手', from: '2026-09', memo: '' },
+    ],
+    guarantee: { separation: true, disclosure: true },
+    keishin: { x1: 850, x2: 740, z: 790, w: 980, capital: 1000, recvInt: 5 },
     loans: [
       { id: 'l1', bank: 'A信用金庫', name: '運転資金（保証協会付き）', kind: '証書貸付', balance: 4000, asOf: '2026-03', rate: 1.4, method: '元金均等', monthlyPrincipal: null, graceUntil: '', maturity: '2030-03', guarantee: '信用保証協会', collateral: '', rollover: false },
       { id: 'l2', bank: 'B銀行', name: '設備資金（重機）', kind: '証書貸付', balance: 6000, asOf: '2026-03', rate: 1.1, method: '元金均等', monthlyPrincipal: null, graceUntil: '', maturity: '2033-09', guarantee: '経営者保証', collateral: '重機', rollover: false },
@@ -951,6 +982,7 @@ function migrate(s) {
   if (smp && !s.monthly[n0(s.company.currentFY) - 1]) s.monthly[n0(s.company.currentFY) - 1] = smp.monthly[n0(smp.company.currentFY) - 1];
   s.hearing ??= smp ? smp.hearing : defaultHearing(); s.funding ??= smp ? smp.funding : { requests: [] };
   if (!s.loans) { s.loans = smp ? smp.loans : []; const k = (n0(s.bs.actual.shortDebt) + n0(s.bs.actual.longDebt)) / 15000; if (smp && k > 0 && Math.abs(k - 1) > 0.01) s.loans.forEach(l => { l.balance = Math.round(l.balance * k); }); }
+  if (smp) { ['contract', 'baseline', 'results', 'actions', 'guarantee', 'keishin'].forEach(k => { s[k] ??= smp[k]; }); if (!s.program) s.program = programTemplate(n0(s.company.currentFY), n0(s.company.fyStartMonth) || 4); }
   s.ifa ??= defaultIfa(); s.structure ??= defaultStructure(); s.tax ??= defaultTaxCfg(); s.ai ??= {};
   if (smp && !Object.values(s.monthly).some(rows => rows.some(r => r.cash != null))) Object.entries(smp.monthly).forEach(([fy, rows]) => rows.forEach((r, i) => { if (s.monthly[fy]?.[i]) s.monthly[fy][i].cash ??= r.cash; }));
   s.members.forEach(m => { m.ins ??= (smp && smp.members.find(x => x.id === m.id)?.ins) || defaultIns(); });
@@ -2061,6 +2093,367 @@ function viewCheck() {
   </section>`;
 }
 
+// ---------- 伴走プログラム：①成果 ②宿題・年間計画 ③社長ページ ④銀行提出資料 ⑤経審 ----------
+const RESULT_CATS = ['金利・借入条件', '融資・資金調達', '保険の見直し', '節税・決算対策', '役員報酬・手取り', '補助金・助成金', '原価・経費削減', '売上・粗利改善', '承継・M&A', '組織・人材', 'その他'];
+const ACTION_STATUS = ['未着手', '進行中', '完了', '見送り'];
+const loanFyEnd = yr => loanMonth(fyMonths(yr)[11].ym).bal;
+const loanFyRepay = yr => fyMonths(yr).reduce((s, m) => s + loanMonth(m.ym).p, 0);
+function loanWRate() {
+  if (!hasLoans()) return NaN;
+  const base = curYm(); let w = 0, t = 0;
+  loanSchedules().forEach(({ ln, rows }) => { const bal = base <= ln.asOf ? n0(ln.balance) : rows[base]?.bal || 0; w += bal * n0(ln.rate); t += bal; });
+  return t ? w / t : NaN;
+}
+function outcomeNow() {
+  const fy = n0(state.company.currentFY), r = rating(bsColumns()[0]), rl = rolling9(), L = landing(fy)[1], p = planFor(fy);
+  const base = curYm();
+  const interest = hasLoans() ? Array.from({ length: 12 }, (_, k) => loanMonth(ymAdd(base, k + 1)).i).reduce((a, b) => a + b, 0) : n0(state.bs.actual.interest);
+  const latest = state.members.map(m => latestCheckin(m.id)).filter(Boolean);
+  return {
+    grade: r.grade, score: r.score, equityRatio: r.f.equityRatio, debt: hasLoans() ? loanMonth(base).bal : r.f.debt, interest, wRate: loanWRate(),
+    execComp: p ? n0(p.execComp) : NaN, happy: latest.length ? latest.reduce((s, c) => s + happy(c.scores), 0) / latest.length : NaN,
+    value: valuation(bsColumns()[0]).value, cash: rl.startCash, liquidity: rl.liquidity, opLanding: L.op,
+  };
+}
+const OUTCOME_ROWS = [
+  ['opLanding', '営業利益（今期の着地見込み）', 'man', true], ['cash', '現預金', 'man', true], ['liquidity', '手元流動性', 'mon', true],
+  ['score', '格付けスコア', 'pt', true], ['grade', '格付け', 'grade', false], ['equityRatio', '自己資本比率', 'pct', true],
+  ['debt', '借入残高', 'man', false], ['wRate', '借入の平均金利', 'rate', false], ['interest', '年間の支払利息', 'man', false],
+  ['execComp', '役員報酬（年・計画）', 'man', true], ['happy', '経営陣の幸福指数', 'pt', true], ['value', '企業価値', 'man', true],
+];
+const fmtOut = (kind, v) => v == null || !isFinite(v) ? '—' : kind === 'man' ? manU(v) : kind === 'mon' ? v.toFixed(2) + 'か月' : kind === 'pct' ? pct(v) : kind === 'rate' ? v.toFixed(2) + '%' : kind === 'grade' ? `格付け ${v}` : Math.round(v) + '点';
+const monthsSince = ym => ym ? Math.max(0, ymDiff(ym, thisYm)) : 0;
+function resultsCalc() {
+  const ct = state.contract || {}, months = Math.max(1, monthsSince(ct.startYm));
+  const fee = n0(ct.monthlyFee) * months, feeYear = n0(ct.monthlyFee) * 12;
+  const items = (state.results || []).map(x => {
+    const m = Math.max(0, monthsSince((x.date || '').slice(0, 7)));
+    const value = x.recurring ? n0(x.amount) * Math.min(m, 120) / 12 : n0(x.amount);
+    return { ...x, realized: value };
+  });
+  const total = items.reduce((s, x) => s + x.realized, 0);
+  const annual = items.filter(x => x.recurring).reduce((s, x) => s + n0(x.amount), 0) + items.filter(x => !x.recurring && monthsSince((x.date || '').slice(0, 7)) < 12).reduce((s, x) => s + n0(x.amount), 0);
+  return { months, fee, feeYear, items, total, annual, roi: fee ? total / fee : NaN, roiYear: feeYear ? annual / feeYear : NaN };
+}
+function actionStats() {
+  const as = state.actions || [], todayS = today.toISOString().slice(0, 10);
+  const due = as.filter(a => a.due && a.due < todayS && a.status !== '見送り');
+  const done = due.filter(a => a.status === '完了').length;
+  return { total: as.length, rate: due.length ? done / due.length * 100 : NaN, overdue: as.filter(a => a.due && a.due < todayS && (a.status === '未着手' || a.status === '進行中')), open: as.filter(a => a.status === '未着手' || a.status === '進行中'), doneAll: as.filter(a => a.status === '完了').length };
+}
+function programTemplate(fy, start) {
+  const fm = fyMonths(fy, start), items = [];
+  fm.forEach((m, i) => {
+    items.push({ id: uid(), ym: m.ym, kind: '面談', title: '月次の幸せ面談・月次レポートの説明', done: false });
+    if (i % 3 === 2) items.push({ id: uid(), ym: m.ym, kind: '四半期', title: '四半期レビュー（計画と着地の見直し・宿題の総点検）', done: false });
+    if (i === 2 || i === 8) items.push({ id: uid(), ym: m.ym, kind: '銀行', title: '金融機関への業績報告（試算表・資金繰り表・計画の進み具合）', done: false });
+    if (i === 5) items.push({ id: uid(), ym: m.ym, kind: '人生', title: 'ライフプランと5つの欲求の見直し（社長・幹部）', done: false });
+    if (i === 9) items.push({ id: uid(), ym: m.ym, kind: '決算', title: '決算対策会議（着地予測・税額試算・役員報酬）', done: false });
+    if (i === 11) items.push({ id: uid(), ym: m.ym, kind: '計画', title: '次期の経営計画発表会（予算3案から決定）', done: false });
+  });
+  items.forEach(x => { x.done = x.ym < thisYm; });
+  return { fy, items };
+}
+const PROG_COLOR = { 面談: 'var(--c1)', 四半期: 'var(--n-freedom)', 銀行: 'var(--c2)', 人生: 'var(--n-love)', 決算: 'var(--n-power)', 計画: 'var(--accent)' };
+
+// ① 伴走の成果
+function viewResults() {
+  state.contract ??= { startYm: thisYm, monthlyFee: 15, plan: 'スタンダード' }; state.results ??= [];
+  const ct = state.contract, rc = resultsCalc(), now = outcomeNow(), b = state.baseline;
+  const st = actionStats();
+  return `
+  <section class="hero"><div class="hero-main">
+      <span class="eyebrow">伴走を始めてから ${rc.months}か月で生まれた価値</span>
+      <span class="hero-num">${man(rc.total)}<small>万円</small></span>
+      <span class="hero-chip">顧問料の累計 ${manU(rc.fee)} の ${isFinite(rc.roi) ? rc.roi.toFixed(1) : '—'}倍</span>
+      <span class="hero-sub">年間で見ると、効果 <strong>${manU(rc.annual)}</strong> ÷ 顧問料 ${manU(rc.feeYear)} ＝ <strong>${isFinite(rc.roiYear) ? rc.roiYear.toFixed(1) : '—'}倍</strong></span>
+    </div>
+    <div class="status-grid">
+      ${statusTile('results', isFinite(rc.roiYear) ? (rc.roiYear >= 3 ? 'good' : rc.roiYear >= 1 ? 'warn' : 'bad') : '', '投資対効果', isFinite(rc.roiYear) ? `${rc.roiYear.toFixed(1)}<small>倍</small>` : '—', '年間効果 ÷ 年間顧問料（目安3倍以上）')}
+      ${statusTile('actions', isFinite(st.rate) ? (st.rate >= 80 ? 'good' : st.rate >= 60 ? 'warn' : 'bad') : '', '宿題の実行率', isFinite(st.rate) ? `${st.rate.toFixed(0)}<small>%</small>` : '—', `期限切れ ${st.overdue.length}件・完了 ${st.doneAll}件`)}
+      ${statusTile('fin', b ? (now.score >= b.score ? 'good' : 'bad') : '', '格付けスコア', `${now.score}<small>点</small>`, b ? `開始時 ${b.score}点 → ${now.score - b.score >= 0 ? '+' : ''}${now.score - b.score}点` : '開始時点を記録してください')}
+      ${statusTile('checkin', b && isFinite(now.happy) ? (now.happy >= b.happy ? 'good' : 'bad') : '', '幸福指数', isFinite(now.happy) ? `${now.happy.toFixed(0)}<small>/100</small>` : '—', b ? `開始時 ${Math.round(b.happy)} → ${now.happy - b.happy >= 0 ? '+' : ''}${(now.happy - b.happy).toFixed(0)}` : '')}
+    </div></section>
+
+  <section class="grid-2">
+    <div class="panel"><div class="panel-head"><h2>契約の内容</h2></div>
+      <div class="form-row">
+        <label class="field">プラン<select id="ct-plan" data-bind="contract.plan">${['ライト', 'スタンダード', 'プレミアム'].map(v => `<option ${ct.plan === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+        <label class="field">月額顧問料（万円）<input id="ct-fee" type="number" step="0.5" data-num data-bind="contract.monthlyFee" value="${esc(ct.monthlyFee)}"></label>
+        <label class="field">伴走の開始月<input id="ct-start" type="month" data-bind="contract.startYm" value="${esc(ct.startYm)}"></label>
+      </div>
+      <div class="btn-row"><button class="btn ${ui.armed === 'baseline' ? 'armed danger' : ''}" data-action="baseline">${ui.armed === 'baseline' ? '今の数字で開始時点を上書きします。もう一度' : b ? '開始時点の数字を今の数字で記録し直す' : '今の数字を「開始時点」として記録'}</button>${b ? `<span class="small muted">開始時点：${esc(b.label || '')}</span>` : ''}</div>
+      <p class="small muted">開始時点の数字を記録しておくと、伴走による変化を自動で比べます。新しい顧問先は、契約した月に一度押してください。</p>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>数字の変化（開始時点 → 今）</h2></div>
+      ${b ? `<div class="table-scroll"><table><thead><tr><th>指標</th><th class="num">開始時点</th><th class="num">今</th><th class="num">変化</th></tr></thead><tbody>
+        ${OUTCOME_ROWS.map(([k, l, kind, hi]) => { const a = b[k], c = now[k], d = isFinite(a) && isFinite(c) ? c - a : NaN; const good = isFinite(d) && d !== 0 ? (hi ? d > 0 : d < 0) : null; return `<tr><th>${l}</th><td class="num muted">${fmtOut(kind, a)}</td><td class="num"><strong>${fmtOut(kind, c)}</strong></td><td class="num ${good == null ? '' : good ? 'pos' : 'neg'}">${!isFinite(d) || d === 0 ? '—' : `${good ? '▲' : '▼'} ${kind === 'grade' ? Math.abs(d) + '段階' : kind === 'man' ? man(Math.abs(d)) : kind === 'mon' ? Math.abs(d).toFixed(2) : kind === 'rate' ? Math.abs(d).toFixed(2) + 'pt' : kind === 'pct' ? Math.abs(d).toFixed(1) + 'pt' : Math.abs(Math.round(d))}`}</td></tr>`; }).join('')}
+      </tbody></table></div><p class="small muted">▲は良くなった、▼は悪くなった方向です（格付け・借入・金利は数字が小さいほど良い）。</p>` : '<div class="empty">開始時点の数字がまだありません。左の「今の数字を開始時点として記録」を押してください。</div>'}
+    </div>
+  </section>
+
+  <section class="panel"><div class="panel-head"><h2>成果の記録</h2><div class="btn-row"><button class="btn" data-action="result-add">＋ 成果を記録</button><button class="btn primary" data-action="results-save">成果レポートを保存（HTML）</button></div></div>
+    <div class="table-scroll"><table><thead><tr><th>日付</th><th>分類</th><th>内容</th><th class="num">効果（万円）</th><th>毎年続く効果</th><th class="num">これまでの効果</th><th>メモ</th><th></th></tr></thead><tbody>
+      ${rc.items.map((x, j) => `<tr>
+        <td><input id="rs-${x.id}-d" type="date" data-bind="results.${j}.date" value="${esc(x.date)}"></td>
+        <td><select id="rs-${x.id}-c" data-bind="results.${j}.category">${RESULT_CATS.map(v => `<option ${x.category === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+        <td><input id="rs-${x.id}-t" data-bind="results.${j}.title" value="${esc(x.title)}" style="min-width:240px;width:100%"></td>
+        <td><input id="rs-${x.id}-a" type="number" data-num data-bind="results.${j}.amount" value="${esc(x.amount)}"></td>
+        <td style="text-align:center"><input type="checkbox" id="rs-${x.id}-r" data-bool data-bind="results.${j}.recurring" ${x.recurring ? 'checked' : ''} aria-label="毎年続く効果"></td>
+        <td class="num"><strong>${man(x.realized)}</strong></td>
+        <td><input id="rs-${x.id}-n" data-bind="results.${j}.note" value="${esc(x.note)}" style="min-width:140px"></td>
+        <td><button class="btn ghost" data-action="result-del" data-j="${j}">削除</button></td></tr>`).join('') || '<tr><td colspan="8" class="muted">金利の引下げ、保険の見直し、節税、補助金の採択、役員報酬の改善など、伴走で生まれた成果を記録してください。</td></tr>'}
+    </tbody></table></div>
+    <p class="small muted">「毎年続く効果」にチェックした成果（金利・保険料の削減など）は、記録した月からの経過月数に応じて「これまでの効果」が増えていきます。単発の成果（補助金・節税など）はそのままの金額です。</p>
+  </section>`;
+}
+function resultsReportHtml() {
+  const rc = resultsCalc(), now = outcomeNow(), b = state.baseline, st = actionStats(), ct = state.contract || {};
+  const byCat = RESULT_CATS.map(c => [c, rc.items.filter(x => x.category === c).reduce((s, x) => s + x.realized, 0)]).filter(x => x[1]);
+  const max = Math.max(1, ...byCat.map(x => x[1]));
+  const body = `<div class="rpt">
+  <h1>伴走の成果レポート</h1>
+  <div class="meta"><span>${esc(state.company.name)} 御中</span><span>${ct.startYm ? ymLabel(ct.startYm) : ''}〜${ymLabel(thisYm)}（${rc.months}か月）</span><span>作成日 ${today.toLocaleDateString('ja-JP')}</span>${state.company.advisor ? `<span>担当 ${esc(state.company.advisor)}</span>` : ''}</div>
+  <div class="tiles" style="margin-top:16px">
+    <div class="tile"><span>これまでに生まれた価値</span><b>${manU(rc.total)}</b><span>顧問料累計 ${manU(rc.fee)} の ${isFinite(rc.roi) ? rc.roi.toFixed(1) : '—'}倍</span></div>
+    <div class="tile"><span>年間の効果</span><b>${manU(rc.annual)}</b><span>年間顧問料の ${isFinite(rc.roiYear) ? rc.roiYear.toFixed(1) : '—'}倍</span></div>
+    <div class="tile"><span>宿題の実行率</span><b>${isFinite(st.rate) ? st.rate.toFixed(0) + '%' : '—'}</b><span>完了 ${st.doneAll}件</span></div>
+  </div>
+  <h2>分野別の成果</h2>
+  ${byCat.map(([c, v]) => `<div style="display:grid;grid-template-columns:140px 1fr 90px;gap:8px;align-items:center;margin:4px 0"><span>${c}</span><span style="height:10px;border-radius:5px;background:#eef2f5;overflow:hidden"><span style="display:block;height:100%;width:${v / max * 100}%;background:#008f80"></span></span><span class="n" style="text-align:right">${manU(v)}</span></div>`).join('') || '<p>記録された成果はまだありません。</p>'}
+  <h2>主な成果</h2>
+  <table><thead><tr><th>時期</th><th>内容</th><th class="n">効果</th></tr></thead><tbody>${rc.items.slice().sort((a, c) => String(c.date).localeCompare(String(a.date))).map(x => `<tr><td>${esc(x.date)}</td><td>${esc(x.title)}<br><small style="color:#5b6878">${esc(x.category)}${x.recurring ? `・毎年 ${manU(x.amount)}` : ''}</small></td><td class="n">${manU(x.realized)}</td></tr>`).join('')}</tbody></table>
+  ${b ? `<h2>会社の数字の変化</h2><table><thead><tr><th>指標</th><th class="n">開始時点</th><th class="n">現在</th></tr></thead><tbody>${OUTCOME_ROWS.map(([k, l, kind]) => `<tr><th>${l}</th><td class="n">${fmtOut(kind, b[k])}</td><td class="n"><b>${fmtOut(kind, now[k])}</b></td></tr>`).join('')}</tbody></table>` : ''}
+  <p class="foot">効果の金額は、記録した成果をもとにした目安です。企業価値・格付けは簡易計算によります。</p></div>`;
+  const title = `伴走の成果レポート_${(state.company.name || '').replace(/\s/g, '')}_${thisYm}`;
+  return { title, doc: `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${REPORT_CSS}body{margin:0;background:#fff}</style></head><body>${body}</body></html>` };
+}
+
+// ② 宿題・年間計画
+function viewActions() {
+  state.actions ??= [];
+  const fy = n0(state.company.currentFY), st = actionStats(), owners = ['事務所', ...state.members.map(m => m.name)];
+  const f = ui.actOwner || '', list = state.actions.map((a, j) => ({ a, j })).filter(({ a }) => !f || a.owner === f).sort((x, y) => (ACTION_STATUS.indexOf(x.a.status) - ACTION_STATUS.indexOf(y.a.status)) || String(x.a.due).localeCompare(String(y.a.due)));
+  const todayS = today.toISOString().slice(0, 10);
+  const prog = state.program && state.program.fy === fy ? state.program : null, fm = fyMonths(fy);
+  const byOwner = owners.map(o => { const xs = state.actions.filter(a => a.owner === o && a.due && a.due < todayS && a.status !== '見送り'); return [o, xs.length ? xs.filter(a => a.status === '完了').length / xs.length * 100 : NaN, state.actions.filter(a => a.owner === o && (a.status === '未着手' || a.status === '進行中')).length]; }).filter(x => isFinite(x[1]) || x[2]);
+  return `
+  <section class="kpis">
+    <div class="kpi ${isFinite(st.rate) ? (st.rate >= 80 ? 'good' : st.rate >= 60 ? 'warn' : 'bad') : ''}"><span class="label">宿題の実行率</span><span class="value">${isFinite(st.rate) ? st.rate.toFixed(0) + '%' : '—'}</span><span class="sub">期限を過ぎた宿題のうち、完了した割合</span></div>
+    <div class="kpi ${st.overdue.length ? 'bad' : 'good'}"><span class="label">期限切れ</span><span class="value">${st.overdue.length}件</span><span class="sub">未着手・進行中のまま期限を過ぎたもの</span></div>
+    <div class="kpi"><span class="label">取り組み中</span><span class="value">${st.open.length}件</span><span class="sub">未着手・進行中</span></div>
+    <div class="kpi good"><span class="label">完了</span><span class="value">${st.doneAll}件</span><span class="sub">これまでの累計</span></div>
+  </section>
+  ${byOwner.length ? `<section class="panel"><div class="panel-head"><h2>人ごとの実行率</h2></div>${byOwner.map(([o, r, open]) => `<div style="display:grid;grid-template-columns:120px minmax(0,1fr) 150px;gap:10px;align-items:center"><strong class="small">${esc(o)}</strong><div class="meter ${isFinite(r) ? (r >= 80 ? '' : r >= 60 ? 'warn' : 'bad') : ''}"><span style="width:${isFinite(r) ? r : 0}%"></span></div><span class="small muted">${isFinite(r) ? r.toFixed(0) + '%' : '—'}・取り組み中 ${open}件</span></div>`).join('')}</section>` : ''}
+
+  <section class="panel"><div class="panel-head"><h2>宿題（アクション）</h2><div class="btn-row">
+      <select id="act-owner" data-ui="actOwner"><option value="">全員</option>${owners.map(o => `<option ${f === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>
+      <button class="btn" data-action="action-add">＋ 宿題を追加</button></div></div>
+    <div class="table-scroll"><table><thead><tr><th>状態</th><th>宿題</th><th>担当</th><th>期限</th><th>どの面談で</th><th>メモ</th><th></th></tr></thead><tbody>
+      ${list.map(({ a, j }) => { const late = a.due && a.due < todayS && (a.status === '未着手' || a.status === '進行中'); return `<tr ${a.status === '完了' ? 'class="chk-done"' : ''}>
+        <td><select id="ac-${a.id}-s" data-bind="actions.${j}.status" class="act-st ${a.status === '完了' ? 'done' : late ? 'late' : ''}">${ACTION_STATUS.map(v => `<option ${a.status === v ? 'selected' : ''}>${v}</option>`).join('')}</select></td>
+        <td><input id="ac-${a.id}-t" data-bind="actions.${j}.title" value="${esc(a.title)}" style="min-width:260px;width:100%">${late ? '<div class="small neg">期限切れ</div>' : ''}</td>
+        <td><select id="ac-${a.id}-o" data-bind="actions.${j}.owner">${owners.map(o => `<option ${a.owner === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></td>
+        <td><input id="ac-${a.id}-d" type="date" data-bind="actions.${j}.due" value="${esc(a.due)}"></td>
+        <td class="small muted">${a.from ? ymLabel(a.from) : '—'}</td>
+        <td><input id="ac-${a.id}-m" data-bind="actions.${j}.memo" value="${esc(a.memo)}" style="min-width:140px"></td>
+        <td><button class="btn ghost" data-action="action-del" data-j="${j}">削除</button></td></tr>`; }).join('') || '<tr><td colspan="7" class="muted">宿題はまだありません。「幸せ面談」タブの「来月の行動を宿題に登録」からも追加できます。</td></tr>'}
+    </tbody></table></div>
+  </section>
+
+  <section class="panel"><div class="panel-head"><h2>${fy}年度 年間の伴走カレンダー</h2><button class="btn ${ui.armed === 'prog-gen' ? 'armed danger' : ''}" data-action="prog-gen">${ui.armed === 'prog-gen' ? '今のカレンダーを作り直します。もう一度' : prog ? '標準のカレンダーで作り直す' : '標準の年間カレンダーを作る'}</button></div>
+    ${prog ? `<div class="cal-grid">${fm.map(m => { const xs = prog.items.map((x, k) => ({ x, k })).filter(({ x }) => x.ym === m.ym); return `<div class="cal-month ${m.ym === thisYm ? 'now' : ''}"><div class="cal-head">${m.m}月${m.ym === thisYm ? '<span class="pill sample">今月</span>' : ''}</div>
+      ${xs.map(({ x, k }) => `<label class="cal-item ${x.done ? 'done' : ''}"><input type="checkbox" id="pg-${x.id}" data-bool data-bind="program.items.${k}.done" ${x.done ? 'checked' : ''}><span class="cal-dot" style="background:${PROG_COLOR[x.kind] || 'var(--muted)'}"></span><span>${esc(x.title)}</span></label>`).join('')}</div>`; }).join('')}</div>
+      <div class="legend">${Object.entries(PROG_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k}</span>`).join('')}</div>`
+      : '<div class="empty">毎月の面談、四半期レビュー、金融機関への報告、ライフプランの見直し、決算対策、次期計画の発表会を、1年分のカレンダーにします。</div>'}
+  </section>`;
+}
+
+// ③ 社長ページ（顧問先に渡す、その会社だけの画面）
+const PRES_CSS = `:root{--ink:#1a2430;--muted:#5b6878;--line:#d9e0e7;--surface:#fff;--surface-2:#eef2f5;--bg:#f3f5f7;--accent:#0e6b66;--accent-soft:#d6ecea;--good:#2c8a55;--warn:#b97c08;--bad:#be3d36;--c0:#9aa6b2;--c1:#008f80;--c2:#d0790a;--hero1:#0e6b66;--hero2:#0b4a5a;--n-survival:#3e9356;--n-love:#c9507a;--n-power:#cf7f12;--n-freedom:#2f7fc1;--n-fun:#8259c4;color-scheme:light}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;font-size:15px;line-height:1.65}
+.pp-wrap{max-width:760px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:14px}
+h1,h2{font-family:"Hiragino Mincho ProN","Yu Mincho",serif;margin:0}h1{font-size:1.35rem}h2{font-size:1.05rem}
+.pp-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:10px}
+.pp-hero{background:linear-gradient(140deg,var(--hero1),var(--hero2));color:#fff;border-radius:16px;padding:20px;display:grid;gap:8px}
+.pp-hero .pp-big{font-size:2.6rem;font-weight:700;line-height:1}.pp-hero small{opacity:.8}.pp-hero .pp-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.2);overflow:hidden}.pp-hero .pp-bar span{display:block;height:100%;background:#fff}
+.pp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pp-tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;border-top:4px solid var(--line)}
+.pp-tile.good{border-top-color:var(--good)}.pp-tile.warn{border-top-color:var(--warn)}.pp-tile.bad{border-top-color:var(--bad)}.pp-tile b{display:block;font-size:1.4rem}.pp-tile span{font-size:.78rem;color:var(--muted)}
+.muted{color:var(--muted)}.small{font-size:.82rem}ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+li.pp-todo{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:10px;border-radius:10px;background:var(--surface-2)}
+.pp-st{font-size:.72rem;font-weight:700;border:1px solid currentColor;border-radius:999px;padding:0 8px;white-space:nowrap}.pp-st.done{color:var(--good)}.pp-st.late{color:var(--bad)}.pp-st.open{color:var(--warn)}
+.chart{width:100%;height:auto;display:block}svg text{fill:var(--muted);font-size:11px}svg .grid-line{stroke:var(--line);fill:none}svg .axis-label{fill:var(--ink);font-size:12px;font-weight:500}.hit{fill:transparent}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.78rem;color:var(--muted)}.legend i{display:inline-block;width:14px;margin-right:4px;vertical-align:middle;border-top:2px solid}
+.spark{width:120px;height:34px}.pp-foot{font-size:.75rem;color:var(--muted);text-align:center}
+@media (max-width:420px){.pp-hero .pp-big{font-size:2.1rem}}`;
+function presidentHtml(memberId) {
+  const m = member(memberId) || state.members[0], fy = n0(state.company.currentFY), L = landing(fy)[1], p = planFor(fy), y = ytd(fy);
+  const rows = monthlyRows(fy), fm = fyMonths(fy), r = rating(bsColumns()[0]), rl = rolling9(), rc = resultsCalc(), st = actionStats();
+  const planOp = p ? planCalc(p).op : NaN, opRate = planOp ? L.op / planOp * 100 : NaN;
+  const c = m ? latestCheckin(m.id) : null, tg = m ? targetsOf(m) : null;
+  const todayS = today.toISOString().slice(0, 10);
+  const mine = (state.actions || []).filter(a => a.status !== '見送り' && (!m || a.owner === m.name || a.owner === '事務所')).sort((a, b) => (a.status === '完了') - (b.status === '完了') || String(a.due).localeCompare(String(b.due))).slice(0, 8);
+  const lastIdx = rows.reduce((a, x, i) => x.sa != null && x.sa !== '' ? i : a, -1);
+  let cb = 0, ca = 0, cl = 0;
+  const cumB = rows.map(x => (cb += n0(x.sb))), cumA = rows.map((x, i) => i <= lastIdx ? (ca += n0(x.sa)) : null), cumL = L.months.map((mm, i) => { cl += mm.sales; return i >= lastIdx && lastIdx >= 0 ? cl : null; });
+  const prog = state.program && state.program.fy === fy ? state.program.items.filter(x => x.ym >= thisYm).slice(0, 5) : [];
+  const t = (v, g, w) => !isFinite(v) ? '' : v >= g ? 'good' : v >= w ? 'warn' : 'bad';
+  const body = `<div class="pp-wrap">
+  <div><span class="muted small">${esc(state.company.name)}・${ymLabel(thisYm)}</span><h1>${esc(m?.name || '')} 様の経営ナビ</h1></div>
+  <div class="pp-hero"><small>今期の営業利益の着地見込み</small><span class="pp-big">${man(L.op)}<small style="font-size:1rem"> 万円</small></span>
+    ${isFinite(opRate) ? `<div class="pp-bar"><span style="width:${Math.min(100, Math.max(0, opRate))}%"></span></div><small>計画 ${manU(planOp)} に対して ${pct(opRate)}</small>` : ''}</div>
+  <div class="pp-grid">
+    <div class="pp-tile ${t(y.sRate, 100, 95)}"><span>売上の累計達成率</span><b>${y.n ? pct(y.sRate) : '—'}</b></div>
+    <div class="pp-tile ${rl.min.end < n0(state.cf.minCash) ? 'warn' : 'good'}"><span>9か月で最も少ない現預金</span><b>${manU(rl.min.end)}</b></div>
+    <div class="pp-tile ${r.score >= 65 ? 'good' : r.score >= 40 ? 'warn' : 'bad'}"><span>財務の健康（格付けスコア）</span><b>${r.score}点</b></div>
+    <div class="pp-tile ${t(st.rate, 80, 60)}"><span>宿題の実行率</span><b>${isFinite(st.rate) ? st.rate.toFixed(0) + '%' : '—'}</b></div>
+  </div>
+  <div class="pp-card"><h2>売上の累計</h2><div class="legend"><span><i style="border-color:var(--c0);border-top-style:dashed"></i>予算</span><span><i style="border-color:var(--c1)"></i>実績</span><span><i style="border-color:var(--c2);border-top-style:dashed"></i>着地予測</span></div>
+    ${dashLineChart(fm.map(x => x.m + '月'), [{ name: '予算', values: cumB, color: 'var(--c0)', dash: '5 4', endDot: false }, { name: '実績', values: cumA, color: 'var(--c1)', area: true, endLabel: true }, { name: '着地予測', values: cumL, color: 'var(--c2)', dash: '5 4', endLabel: true }], { label: '売上の累計' })}</div>
+  ${m ? `<div class="pp-card"><h2>あなたの5つの欲求</h2>
+    <div style="display:grid;grid-template-columns:minmax(0,200px) 1fr;gap:12px;align-items:center">${radarSvg(c?.scores, tg, 200)}
+      <div>${c ? `<b style="font-size:1.6rem">${happy(c.scores).toFixed(0)}</b><span class="muted small"> / 100（${ymLabel(c.ym)}）</span>` : '<span class="muted">面談の記録はまだありません</span>'}
+        ${c?.plan ? `<p class="small" style="margin:8px 0 0"><b>次の行動：</b>${esc(c.plan)}</p>` : ''}</div></div></div>` : ''}
+  <div class="pp-card"><h2>宿題</h2><ul>${mine.map(a => { const late = a.due && a.due < todayS && a.status !== '完了'; return `<li class="pp-todo"><span class="pp-st ${a.status === '完了' ? 'done' : late ? 'late' : 'open'}">${a.status === '完了' ? '完了' : late ? '期限切れ' : a.status}</span><span>${esc(a.title)}<br><span class="muted small">${esc(a.owner)}・期限 ${esc(a.due || '—')}</span></span></li>`; }).join('') || '<li class="muted">宿題はありません。</li>'}</ul></div>
+  ${prog.length ? `<div class="pp-card"><h2>これからの予定</h2><ul>${prog.map(x => `<li class="pp-todo"><span class="pp-st open">${+x.ym.slice(5)}月</span><span>${esc(x.title)}</span></li>`).join('')}</ul></div>` : ''}
+  ${rc.items.length ? `<div class="pp-card"><h2>伴走で生まれた価値</h2><b style="font-size:1.6rem">${manU(rc.total)}</b><span class="muted small">${rc.months}か月の累計（${rc.items.length}件の成果）</span></div>` : ''}
+  <p class="pp-foot">${state.company.advisor ? `担当：${esc(state.company.advisor)}・` : ''}${today.toLocaleDateString('ja-JP')} 時点の数字です。着地予測・格付けは簡易計算による目安です。</p></div>`;
+  const title = `経営ナビ_${(state.company.name || '').replace(/\s/g, '')}_${thisYm}`;
+  return { title, body, doc: `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${PRES_CSS}</style></head><body>${body}</body></html>` };
+}
+function viewPresident() {
+  if (!ui.presMember || !member(ui.presMember)) ui.presMember = state.members[0]?.id;
+  const pg = presidentHtml(ui.presMember);
+  return `<section class="panel"><div class="panel-head"><h2>社長ページ</h2><div class="btn-row">
+      <select id="pres-m" data-ui="presMember">${state.members.map(x => `<option value="${x.id}" ${x.id === ui.presMember ? 'selected' : ''}>${esc(x.name)}（${esc(x.role)}）</option>`).join('')}</select>
+      <button class="btn primary" data-action="pres-save">社長ページを保存（HTML）</button></div></div>
+    <p class="small muted">この会社のデータだけを使った、社長・幹部向けのスマホ用ページです。保存したファイルをメールやチャットで送れば、社長はスマホのブラウザでそのまま開けます。他の顧問先のデータは一切含みません。毎月の面談のあとに作り直して送ると、「先生から毎月届く経営ナビ」になります。</p></section>
+  <section class="pres-frame" style="background:#f3f5f7;border-radius:16px;border:1px solid var(--line);overflow:hidden"><style>${PRES_CSS.replace(':root{', '.pres-scope{').replace('*{box-sizing:border-box}body{margin:0;', '.pres-scope{')}</style><div class="pres-scope">${pg.body}</div></section>`;
+}
+
+// ④ 銀行提出資料
+function bankDocHtml() {
+  const c = state.company, fy = n0(c.currentFY), h = state.history || {}, L = landing(fy)[1], tb = fyBs(fy), r = rating(bsColumns()[0]), rl = rolling9();
+  const g = state.guarantee || {};
+  const plans = [...state.plans].sort((a, b) => n0(a.year) - n0(b.year));
+  const rowsPlan = plans.map(p => { const pc = planCalc(p), t = state.bs.targets[p.year] || {}, ord = pc.op - n0(t.interest), te = taxEstimate(ord, p.sales, pc.op, t.dep), cf = ord - te.incomeTotal + n0(t.dep); const rep = hasLoans() ? loanFyRepay(n0(p.year)) : n0(state.cf.annualRepay); return { y: p.year, sales: n0(p.sales), gp: pc.gp, op: pc.op, ord, dep: n0(t.dep), cf, bal: hasLoans() ? loanFyEnd(n0(p.year)) : n0(t.shortDebt) + n0(t.longDebt), rep, cover: rep ? cf / rep : NaN }; });
+  const banks = [...new Set((state.loans || []).map(l => l.bank))];
+  const base = curYm();
+  const bankRow = b => { const ls = state.loans.filter(l => l.bank === b); const bal = ls.reduce((s, l) => { const s2 = loanSchedules().find(x => x.ln === l); return s + (base <= l.asOf ? n0(l.balance) : s2?.rows[base]?.bal || 0); }, 0); return { b, n: ls.length, bal, kinds: [...new Set(ls.map(l => l.kind))].join('・'), guar: [...new Set(ls.map(l => l.guarantee).filter(Boolean))].join('・') }; };
+  const weak = [...r.items].sort((a, b) => (b.max - b.pts) - (a.max - a.pts)).filter(x => x.pts < x.max).slice(0, 3);
+  const adv = state.ai?.advice?.data;
+  const f = r.f;
+  const req3 = [['法人と経営者個人の資産・経理が明確に分離されている', !!g.separation], ['財務基盤が強化され、法人のみで返済が可能（目安：自己資本比率20%以上・債務償還年数10年以内）', f.equityRatio >= 20 && isFinite(f.repayYears) && f.repayYears <= 10], ['金融機関へ適時・適切に財務情報を開示している（月次試算表・資金繰り表・計画の進み具合）', !!g.disclosure]];
+  const tdn = v => `<td class="n">${man(v)}</td>`;
+  const body = `<div class="rpt">
+  <h1>事業計画書（金融機関ご提出用）</h1>
+  <div class="meta"><span>${esc(c.name)}</span><span>${today.toLocaleDateString('ja-JP')} 作成</span></div>
+  <h2>1. 会社の概要と経営方針</h2>
+  <table><tbody><tr><th>業種</th><td>${esc(c.industry || '')}</td></tr><tr><th>従業員数</th><td>${c.employees ? esc(c.employees) + '名' : '—'}</td></tr><tr><th>経営理念</th><td>${esc(c.mission || '')}</td></tr>
+  ${plans[0]?.theme ? `<tr><th>今期の重点テーマ</th><td>${esc(plans.find(p => n0(p.year) === fy)?.theme || plans[0].theme)}</td></tr>` : ''}</tbody></table>
+  <h2>2. 業績の推移と今期の見込み</h2>
+  <table><thead><tr><th>（万円）</th><th class="n">${fy - 2}年度</th><th class="n">${fy - 1}年度</th><th class="n">${fy}年度 見込み</th></tr></thead><tbody>
+    ${[['売上高', 'sales', L.sales], ['売上総利益', 'gp', L.gp], ['営業利益', 'op', L.op], ['経常利益', 'ordinary', L.op - n0(tb.interest)]].map(([l, k, v]) => `<tr><th>${l}</th>${tdn(n0(h[fy - 2]?.[k]))}${tdn(n0(h[fy - 1]?.[k]))}${tdn(v)}</tr>`).join('')}
+  </tbody></table>
+  <h2>3. 中期経営計画と返済計画</h2>
+  <table><thead><tr><th>（万円）</th>${rowsPlan.map(x => `<th class="n">${x.y}</th>`).join('')}</tr></thead><tbody>
+    ${[['売上高', 'sales'], ['売上総利益', 'gp'], ['営業利益', 'op'], ['経常利益', 'ord'], ['減価償却費', 'dep'], ['返済原資（税引後利益＋減価償却）', 'cf'], ['年間の返済元金', 'rep'], ['年度末の借入残高', 'bal']].map(([l, k]) => `<tr><th>${l}</th>${rowsPlan.map(x => tdn(x[k])).join('')}</tr>`).join('')}
+    <tr><th>返済余力（返済原資 ÷ 返済元金）</th>${rowsPlan.map(x => `<td class="n"><b>${isFinite(x.cover) ? x.cover.toFixed(2) + '倍' : '—'}</b></td>`).join('')}</tr>
+  </tbody></table>
+  ${banks.length ? `<h2>4. お借入れの状況</h2><table><thead><tr><th>金融機関</th><th class="n">残高（万円）</th><th>本数・種類</th><th>保証</th></tr></thead><tbody>${banks.map(bankRow).map(x => `<tr><th>${esc(x.b)}</th><td class="n">${man(x.bal)}</td><td>${x.n}本・${esc(x.kinds)}</td><td>${esc(x.guar)}</td></tr>`).join('')}</tbody></table>` : ''}
+  <h2>${banks.length ? 5 : 4}. 資金繰りの見通し（9か月）</h2>
+  <table><thead><tr><th>（万円）</th>${rl.rows.map(x => `<th class="n">${x.label}</th>`).join('')}</tr></thead><tbody>
+    <tr><th>収支</th>${rl.rows.map(x => tdn(x.net)).join('')}</tr><tr><th>月末の現預金</th>${rl.rows.map(x => `<td class="n"><b>${man(x.end)}</b></td>`).join('')}</tr></tbody></table>
+  <h2>${banks.length ? 6 : 5}. 財務の状況と改善の取り組み</h2>
+  <table><tbody><tr><th>自己資本比率</th><td class="n">${pct(f.equityRatio)}</td></tr><tr><th>債務償還年数（実質）</th><td class="n">${isFinite(f.repayYears) ? f.repayYears.toFixed(1) + '年' : '—'}</td></tr><tr><th>売上高経常利益率</th><td class="n">${pct(f.ordinaryMargin)}</td></tr><tr><th>流動比率</th><td class="n">${isFinite(f.currentRatio) ? pct(f.currentRatio) : '—'}</td></tr></tbody></table>
+  ${(adv?.actions || []).length ? adv.actions.map(x => `<div class="q"><small>${esc(x.when || '')}</small><b>${esc(x.title)}</b><br>${esc(x.detail)}</div>`).join('') : weak.map(x => `<div class="q"><small>${x.label}（現在 ${fmtItem(x, x.value)}）</small>${nextStep(x, x.value)}を目標に改善に取り組みます。</div>`).join('')}
+  <h2>${banks.length ? 7 : 6}. 経営者保証に関するガイドラインの3要件（自己点検）</h2>
+  ${req3.map(([l, ok]) => `<div class="q"><small>${ok ? '充足' : '取り組み中'}</small>${l}</div>`).join('')}
+  <p class="foot">本計画は現時点の見通しであり、将来の業績を約束するものではありません。数値は万円未満を四捨五入しています。</p></div>`;
+  const title = `事業計画書_${(c.name || '').replace(/\s/g, '')}_${thisYm}`;
+  return { title, body, doc: `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${REPORT_CSS}body{margin:0;background:#fff}</style></head><body>${body}</body></html>` };
+}
+function viewBank() {
+  state.guarantee ??= { separation: false, disclosure: false };
+  const g = state.guarantee, d = bankDocHtml();
+  return `<section class="panel"><div class="panel-head"><h2>銀行提出資料</h2><button class="btn primary" data-action="bank-save">事業計画書を保存（HTML）</button></div>
+    <p class="small muted">経営計画・BS目標・借入金・資金繰り・格付けから、金融機関に出す事業計画書を自動で作ります。融資の申込み、条件交渉、経営者保証の解除の相談に使えます。AIアドバイスを作成済みなら、その打ち手を「改善の取り組み」に載せます。</p>
+    <div class="form-row">
+      <label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="gr-sep" data-bool data-bind="guarantee.separation" ${g.separation ? 'checked' : ''}> 法人と個人の資産・経理を分離できている</label>
+      <label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="gr-dis" data-bool data-bind="guarantee.disclosure" ${g.disclosure ? 'checked' : ''}> 金融機関へ定期的に財務情報を開示している</label>
+    </div></section>
+  <section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS}</style>${d.body}</section>`;
+}
+
+// ⑤ 経審シミュレーション（経営状況分析 Y点の試算と総合評定値 P点）
+const KY = [
+  ['x1', '純支払利息比率', '%', -0.4650, -0.3, 5.1, false], ['x2', '負債回転期間', 'か月', -0.0508, 0.9, 18.0, false],
+  ['x3', '総資本売上総利益率', '%', 0.0264, 6.5, 63.6, true], ['x4', '売上高経常利益率', '%', 0.0277, -8.5, 5.1, true],
+  ['x5', '自己資本対固定資産比率', '%', 0.0011, -76.5, 350.0, true], ['x6', '自己資本比率', '%', 0.0089, -68.6, 68.5, true],
+  ['x7', '営業キャッシュフロー', '億円', 0.0818, -10.0, 15.0, true], ['x8', '利益剰余金', '億円', 0.0172, -3.0, 100.0, true],
+];
+function keishinY(src) {
+  const k = state.keishin || {};
+  const assetsAvg = src.prevAssets ? (src.assets + src.prevAssets) / 2 : src.assets;
+  const raw = {
+    x1: src.sales ? (n0(src.interest) - n0(k.recvInt)) / src.sales * 100 : 0,
+    x2: src.sales ? src.liab / (src.sales / 12) : 0,
+    x3: assetsAvg ? src.gp / assetsAvg * 100 : 0,
+    x4: src.sales ? src.ordinary / src.sales * 100 : 0,
+    x5: src.fixed ? src.equity / src.fixed * 100 : 0,
+    x6: src.assets ? src.equity / src.assets * 100 : 0,
+    x7: src.opcf / 10000,
+    x8: (src.equity - n0(k.capital)) / 10000,
+  };
+  const items = KY.map(([key, label, unit, coef, lo, hi, up]) => { const v = Math.max(lo, Math.min(hi, raw[key])); return { key, label, unit, coef, lo, hi, up, raw: raw[key], v, pts: coef * v * 167.3 }; });
+  const A = Math.round((items.reduce((s, x) => s + x.coef * x.v, 0) + 0.1906) * 100) / 100;
+  return { items, A, Y: Math.max(0, Math.min(1595, Math.round(167.3 * A + 583))) };
+}
+function keishinSources() {
+  const fy = n0(state.company.currentFY), a = state.bs.actual, h = state.history || {}, out = [];
+  const mk = (label, b, sales, gp, op, prevAssets) => {
+    const f = fin({ data: b, sales, op }), ord = op - n0(b.interest), te = taxEstimate(ord, sales, op, b.dep);
+    return { label, sales, gp, ordinary: ord, interest: n0(b.interest), liab: f.liab, assets: f.assets, equity: f.equity, fixed: n0(b.fixed), opcf: ord - te.incomeTotal + n0(b.dep), prevAssets };
+  };
+  const gpA = n0(h[fy - 1]?.gp) || n0(a.sales) * n0(planFor(fy)?.grossRate || 25) / 100;
+  out.push(mk(a.label || '直近決算', a, n0(a.sales), gpA, n0(a.op), n0(h[fy - 2]?.assets) || null));
+  let prevAssets = fin({ data: a, sales: n0(a.sales), op: n0(a.op) }).assets;
+  [...state.plans].sort((x, y) => n0(x.year) - n0(y.year)).forEach(p => { const t = state.bs.targets[p.year]; if (!t) return; const pc = planCalc(p); const s = mk(`${p.year}年度 計画`, t, n0(p.sales), pc.gp, pc.op, prevAssets); prevAssets = s.assets; out.push(s); });
+  return out;
+}
+function viewKeishin() {
+  state.keishin ??= { x1: null, x2: null, z: null, w: null, capital: 1000, recvInt: 0 };
+  const k = state.keishin, srcs = keishinSources(), ys = srcs.map(keishinY);
+  const P = y => [k.x1, k.x2, k.z, k.w].some(v => isBlank(v)) ? NaN : Math.round(0.25 * n0(k.x1) + 0.15 * n0(k.x2) + 0.2 * y + 0.25 * n0(k.z) + 0.15 * n0(k.w));
+  const cur = ys[0];
+  const num = (key, l) => `<label class="field">${l}<input id="ks-${key}" type="number" data-num data-bind="keishin.${key}" value="${esc(k[key] ?? '')}" placeholder="通知書の数値"></label>`;
+  const gain = cur.items.map(x => { const step = x.unit === '億円' ? 0.5 : x.key === 'x2' ? -1 : x.key === 'x1' ? -0.5 : x.key === 'x5' ? 10 : 1; const nv = Math.max(x.lo, Math.min(x.hi, x.v + step)); return { ...x, step, dy: Math.round(x.coef * (nv - x.v) * 167.3) }; }).filter(x => x.dy > 0).sort((a, b) => b.dy - a.dy).slice(0, 4);
+  return `
+  <section class="kpis">
+    <div class="kpi"><span class="label">経営状況分析 Y点（${esc(srcs[0].label)}）</span><span class="value">${cur.Y}</span><span class="sub">簡易試算・上限1,595点</span></div>
+    <div class="kpi ${isFinite(P(cur.Y)) ? '' : 'warn'}"><span class="label">総合評定値 P点（試算）</span><span class="value">${isFinite(P(cur.Y)) ? P(cur.Y) : '—'}</span><span class="sub">${isFinite(P(cur.Y)) ? 'X1・X2・Z・W は通知書の数値' : '下でX1・X2・Z・Wを入力すると計算します'}</span></div>
+    ${ys.length > 1 ? `<div class="kpi ${ys[ys.length - 1].Y >= cur.Y ? 'good' : 'bad'}"><span class="label">${esc(srcs[srcs.length - 1].label)}のY点</span><span class="value">${ys[ys.length - 1].Y}</span><span class="sub">現在から ${ys[ys.length - 1].Y - cur.Y >= 0 ? '+' : ''}${ys[ys.length - 1].Y - cur.Y}点${isFinite(P(cur.Y)) ? `・P点 ${P(ys[ys.length - 1].Y)}` : ''}</span></div>` : ''}
+  </section>
+  <section class="panel"><div class="panel-head"><h2>Y点の推移（経営計画どおりに進んだ場合）</h2></div>
+    ${dashLineChart(srcs.map(s => s.label.replace(' 計画', '').replace(' 実績', '')), [{ name: 'Y点', values: ys.map(y => y.Y), color: 'var(--c1)', endLabel: true }], { label: 'Y点の推移' })}
+    <div class="table-scroll"><table><thead><tr><th>指標</th>${srcs.map(s => `<th class="num">${esc(s.label)}</th>`).join('')}<th class="num">評点への影響（現在）</th></tr></thead><tbody>
+      ${KY.map(([key, label, unit, , lo, hi, up], i) => `<tr><th>${label}<small class="muted">（${up ? '高いほど良い' : '低いほど良い'}・${lo}〜${hi}${unit}）</small></th>${ys.map(y => `<td class="num">${y.items[i].raw.toFixed(2)}${unit === '億円' ? '' : ''}</td>`).join('')}<td class="num ${cur.items[i].pts >= 0 ? 'pos' : 'neg'}">${cur.items[i].pts >= 0 ? '+' : ''}${Math.round(cur.items[i].pts)}点</td></tr>`).join('')}
+      <tr class="total"><td>Y点</td>${ys.map(y => `<td class="num">${y.Y}</td>`).join('')}<td></td></tr>
+    </tbody></table></div>
+  </section>
+  <section class="grid-2">
+    <div class="panel"><h2>Y点を上げる近道</h2>
+      <ul class="alerts">${gain.map(x => `<li><span class="sev good">+${x.dy}点</span><span><strong>${x.label}</strong>を ${x.step > 0 ? '+' : ''}${x.step}${x.unit} 改善すると、Y点が約${x.dy}点上がります（P点では約${Math.round(x.dy * 0.2)}点）。</span></li>`).join('')}</ul>
+      <p class="small muted">純支払利息比率と営業キャッシュフローは、Y点への影響が特に大きい項目です。借入の圧縮・金利交渉・利益の確保がそのまま評点に効きます。</p></div>
+    <div class="panel"><h2>経審の結果通知書の数値</h2>
+      <div class="form-row">${num('x1', 'X1（完成工事高）')}${num('x2', 'X2（自己資本額・利益額）')}${num('z', 'Z（技術職員・元請完工高）')}${num('w', 'W（社会性等）')}
+        <label class="field">資本金（万円）<input id="ks-cap" type="number" data-num data-bind="keishin.capital" value="${esc(k.capital)}"></label>
+        <label class="field">受取利息配当金（万円）<input id="ks-ri" type="number" data-num data-bind="keishin.recvInt" value="${esc(k.recvInt)}"></label></div>
+      <p class="small muted">P点 = 0.25×X1 + 0.15×X2 + 0.20×Y + 0.25×Z + 0.15×W。X1・X2・Z・Wは主な業種の数値を通知書から入力してください。</p></div>
+  </section>
+  <p class="small muted">Y点は経営状況分析の算式（A = 8指標の加重合計＋0.1906、Y = 167.3×A＋583）で、決算書の数字から簡易試算しています。営業キャッシュフローは「経常利益 − 法人税等 + 減価償却費」、利益剰余金は「純資産 − 資本金」で近似しています。正式な評点は登録経営状況分析機関の結果で確認してください。</p>`;
+}
+
 // ---------- state ----------
 function load() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -2145,6 +2538,7 @@ function buildAlerts() {
   const lt = landing(fy)[1], mc = n0(state.cf.minCash);
   if (lt.sim.min < mc) out.push([lt.sim.min < 0 ? 'bad' : 'warn', `資金繰り：今のペースでは ${fyMonths(fy)[lt.sim.minIdx]?.m}月に現預金が ${manU(lt.sim.min)}（安全ライン ${manU(mc)}）。月次予実タブで対策を確認しましょう。`]);
   if (hasLoans()) { const b0 = curYm(); (state.loans || []).forEach(l => { const d = l.maturity ? ymDiff(b0, l.maturity) : -1; if (d >= 0 && d <= 3 && (l.method === '期日一括' || l.kind === '手形貸付' || l.kind === '当座貸越')) out.push([l.rollover ? 'info' : 'warn', `${esc(l.bank)}「${esc(l.name)}」が ${ymLabel(l.maturity)} に期日を迎えます（${l.rollover ? '折り返し予定。条件と書類を確認' : '一括返済。資金の準備を'}）。`]); }); }
+  { const ov = actionStats().overdue; if (ov.length) out.push(['warn', `宿題が ${ov.length}件 期限切れです（${ov.slice(0, 2).map(a => esc(a.title)).join('、')}${ov.length > 2 ? ' ほか' : ''}）。`]); }
   const rl9 = rolling9();
   if (rl9.short) out.push(['bad', `資金繰り：9か月以内（${rl9.rows.find(x => x.end < 0)?.label}）に資金ショートの見込みです。`]);
   if (rl9.liquidity < 1) out.push(['bad', `手元流動性が ${rl9.liquidity.toFixed(2)}か月（月商の1か月分未満）です。`]);
@@ -2242,6 +2636,11 @@ const needLegend = () => `<div class="legend">${NEEDS.map(n => `<span><i style="
 const ICONS = {
   dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   analysis: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  actions: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
+  results: '<path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>',
+  president: '<rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10 18h4"/>',
+  bank: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+  keishin: '<path d="M3 21h18M5 21V10l4-3v14M9 21V7l6-4v18M15 21V9l4 2v10"/>',
   check: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
   plan: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>',
   budget: '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
@@ -2261,7 +2660,7 @@ const ICONS = {
 };
 const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.dash}</svg>`;
 const NAV_GROUPS = [
-  ['全体像', ['dash', 'check', 'analysis']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin']], ['人と人生', ['life', 'checkin', 'ins']],
+  ['全体像', ['dash', 'check', 'analysis']], ['伴走プログラム', ['actions', 'results', 'president']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin', 'bank', 'keishin']], ['人と人生', ['life', 'checkin', 'ins']],
   ['提案と出口', ['proposal', 'exit']], ['データ', ['acct', 'data']], ['事務所全体', ['portfolio', 'office']],
 ];
 const tabLabel = k => ([...TABS, ...OFFICE_TABS].find(t => t[0] === k) || [k, ''])[1];
@@ -2737,6 +3136,7 @@ function viewCheckin() {
     </div>
     <label class="field">担当者からのメッセージ（レポートに載ります）<textarea id="ci-note" data-ci="advisorNote" rows="3" placeholder="今月の頑張りへの承認、次の一歩への期待など">${esc(c.advisorNote)}</textarea></label>
     <div class="btn-row"><button class="btn primary" data-action="save-checkin">この内容で面談を記録</button>
+      <button class="btn" data-action="ci-to-action">来月の行動を宿題に登録</button>
       <button class="btn" data-action="report-preview">${ui.showReport ? 'レポートのプレビューを閉じる' : '面談レポートをプレビュー'}</button>
       <button class="btn" data-action="report-save" ${existing ? '' : 'disabled title="先に面談を記録してください"'}>面談レポートを保存（HTML）</button>
       ${existing ? `<button class="btn danger ${ui.armed === 'del-ci' ? 'armed' : ''}" data-action="del-checkin">${ui.armed === 'del-ci' ? 'もう一度押すと削除' : 'この月の記録を削除'}</button>` : ''}</div>
@@ -3452,7 +3852,7 @@ function newMember() {
 // ---------- render & events ----------
 function render() {
   renderHeader();
-  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, actions: viewActions, results: viewResults, president: viewPresident, bank: viewBank, keishin: viewKeishin, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
   $('#view').innerHTML = v();
   saveUi();
 }
@@ -3574,6 +3974,22 @@ document.addEventListener('click', e => {
       let k = 0; monthlyRows(fy).forEach(r => { if (isBlank(r.sb)) { r.sb = Math.round(sb); k++; } if (isBlank(r.gb)) r.gb = Math.round(gb); if (isBlank(r.ob)) r.ob = Math.round(ob); });
       commit(`${k}か月分の予算を埋めました`); break;
     }
+    case 'baseline': if (!arm('baseline')) return; state.baseline = { ...outcomeNow(), label: ymLabel(thisYm) + ' 時点', at: Date.now() }; commit('開始時点の数字を記録しました'); break;
+    case 'result-add': (state.results ??= []).unshift({ id: uid(), date: today.toISOString().slice(0, 10), category: '金利・借入条件', title: '', amount: 0, recurring: false, note: '' }); commit(); break;
+    case 'result-del': state.results.splice(+b.dataset.j, 1); commit('削除しました'); break;
+    case 'results-save': { const d = resultsReportHtml(); saveHtmlFile(d.title + '.html', d.doc); break; }
+    case 'action-add': (state.actions ??= []).unshift({ id: uid(), title: '', owner: state.members[0]?.name || '事務所', due: (() => { const d = new Date(today.getFullYear(), today.getMonth() + 2, 0); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })(), status: '未着手', from: thisYm, memo: '' }); commit(); break;
+    case 'action-del': state.actions.splice(+b.dataset.j, 1); commit('削除しました'); break;
+    case 'prog-gen': if (state.program && state.program.fy === n0(state.company.currentFY) && !arm('prog-gen')) return; state.program = programTemplate(n0(state.company.currentFY)); commit('年間カレンダーを作りました'); break;
+    case 'ci-to-action': {
+      const m = member(ui.ciMember), txt = document.querySelector('[data-ci="plan"]')?.value?.trim();
+      if (!m || !txt) { toast('先に「P 来月、具体的に何をする？」を書いてください'); return; }
+      const [yy, mm] = ui.ciYm.split('-').map(Number), d = new Date(yy, mm + 1, 0);
+      (state.actions ??= []).unshift({ id: uid(), title: txt, owner: m.name, due: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, status: '未着手', from: ui.ciYm, memo: '面談から登録' });
+      commit('宿題に登録しました'); break;
+    }
+    case 'pres-save': { const d = presidentHtml(ui.presMember); saveHtmlFile(d.title + '.html', d.doc); break; }
+    case 'bank-save': { const d = bankDocHtml(); saveHtmlFile(d.title + '.html', d.doc); break; }
     case 'dash-alerts': ui.tab = 'analysis'; ui.an = 'summary'; render(); window.scrollTo(0, 0); break;
     case 'alert-sev': ui.alertSev = b.dataset.sev; render(); break;
     case 'ai-advice': runAdvice(); break;
