@@ -119,10 +119,10 @@ const NEEDS = [
   ['freedom', '自由', '自分の時間・自分で決められること', 'var(--n-freedom)'],
   ['fun', '楽しみ', '学び・趣味・好奇心', 'var(--n-fun)'],
 ];
-const EXAMPLE = { company: '', industry: '建設業', sales: 50000, op: 1800, cash: 4500, debt: 12000, equity: 9000, assets: 32000,
+const EXAMPLE = { company: '', industry: '建設業', sales: 50000, op: 1800, cash: 4500, debt: 12000, equity: 9000, assets: 32000, employees: 25, direct: 5,
   age: 62, retire: 70, comp: 1200, living: 900, savings: 3000, pension: 220, successor: '未定',
   needs: { survival: 6, love: 7, power: 7, freedom: 3, fun: 4 } };
-const blank = () => ({ company: '', industry: '建設業', sales: null, op: null, cash: null, debt: null, equity: null, assets: null, age: null, retire: 70, comp: null, living: null, savings: null, pension: 200, successor: '未定', needs: { survival: 5, love: 5, power: 5, freedom: 5, fun: 5 } });
+const blank = () => ({ company: '', industry: '建設業', sales: null, op: null, cash: null, debt: null, equity: null, assets: null, employees: null, direct: null, age: null, retire: 70, comp: null, living: null, savings: null, pension: 200, successor: '未定', needs: { survival: 5, love: 5, power: 5, freedom: 5, fun: 5 } });
 let d = JSON.parse(JSON.stringify(EXAMPLE)), isExample = true, step = 0;
 let office = { name: '', person: '', contact: '' };
 try { const o = JSON.parse(localStorage.getItem('shindan-office')); if (o) office = o; } catch (e) {}
@@ -150,8 +150,9 @@ function calc() {
   const low = NEEDS.map(([k, l], i) => ({ k, l, v: nv[i] })).sort((a, b) => a.v - b.v)[0];
   const value = Math.max(0, eq + Math.max(0, op) * 3);
   const succession = age >= 60 && d.successor !== 'あり';
+  const orgHeavy = n0(d.direct) >= 4;
   const total = Math.round(fin * 0.4 + life * 0.3 + happy * 0.3);
-  return { er, repay, liq, margin, fin, pE, pR, pL, pM, oldNeed, oldGap, saveYear, needComp, compGap, life, happy, low, value, succession, total, retire, work, years };
+  return { er, repay, liq, margin, fin, pE, pR, pL, pM, oldNeed, oldGap, saveYear, needComp, compGap, life, happy, low, value, succession, orgHeavy, total, retire, work, years };
 }
 const tone = (v, g, w) => v >= g ? 'good' : v >= w ? 'warn' : 'bad';
 const word = t => ({ good: '良好', warn: '注意', bad: '要対策' }[t]);
@@ -175,7 +176,7 @@ function viewStep() {
   if (step === 0) body = `<div class="card"><h2>1. 会社の数字</h2><p class="muted small">直近の決算書の数字を、万円単位で入れてください。だいたいで大丈夫です。</p>
     <div class="grid2"><label class="f">会社名（任意）<input id="in-company" data-k="company" data-text value="${esc(d.company)}" placeholder="例）○○建設"></label>
     <label class="f">業種<select id="in-industry" data-k="industry" data-text>${['建設業', '製造業', '卸売・小売業', '飲食業', '医療・福祉', '情報通信業', '不動産業', 'サービス業', 'その他'].map(v => `<option ${d.industry === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-    ${num('sales', '年商（売上高）')}${num('op', '営業利益')}${num('cash', '現預金')}${num('debt', '借入金の残高', '短期・長期の合計')}${num('equity', '純資産')}${num('assets', '総資産')}</div></div>`;
+    ${num('sales', '年商（売上高）')}${num('op', '営業利益')}${num('cash', '現預金')}${num('debt', '借入金の残高', '短期・長期の合計')}${num('equity', '純資産')}${num('assets', '総資産')}${num('employees', '社員数（役員を除く・人）', 'パート・アルバイトは0.5人で数えてください')}${num('direct', '社長に直接報告する人数（人）', '部長・課長・現場の責任者など')}</div></div>`;
   if (step === 1) body = `<div class="card"><h2>2. 社長の人生</h2><p class="muted small">ご家族の生活と、引退後の暮らしを支えるお金の数字です。</p>
     <div class="grid2">${num('age', '社長の年齢（歳）')}${num('retire', '何歳まで社長を続けたいか（歳）')}${num('comp', '今の役員報酬（年・万円）')}${num('living', 'ご家族の生活費（年・万円）')}${num('savings', '老後のための預貯金（万円）')}${num('pension', '年金の見込み（年・万円）', 'わからなければ200万円のままで')}
     <label class="f">後継者<select id="in-successor" data-k="successor" data-text>${['あり', '未定', 'なし'].map(v => `<option ${d.successor === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div></div>`;
@@ -190,6 +191,7 @@ function themes(c) {
   const t = [];
   if (c.compGap < 0) t.push(['ライフプランから逆算した経営計画づくり', `人生に必要な役員報酬まで年 ${man(-c.compGap)} 足りません。報酬を出せる売上・利益の計画を、人生の数字から逆算します。`]);
   if (c.succession) t.push(['事業承継とM&Aの選択肢づくり', `${n0(d.age)}歳で後継者が「${d.successor}」。親族承継・社員承継・M&Aを、企業価値と手取りで比べます。`]);
+  if (c.orgHeavy) t.push(['理想の組織図と幹部の年収計画', `社長に直接報告する人が${n0(d.direct)}人。間に立つ幹部を決め、その人の人生に必要な年収と、社員を増やしたときの人件費まで計画します。`]);
   if (c.fin < 50) t.push(['銀行格付けの改善と資金繰りの見える化', '自己資本比率・返済年数・手元資金を改善し、金利や経営者保証の条件交渉につなげます。']);
   if (c.repay > 10) t.push(['借入の返済計画と金融機関との交渉', `借入を今の利益で返すのに約${isFinite(c.repay) ? c.repay.toFixed(1) : '—'}年。返済予定を銀行別に整理し、条件を見直します。`]);
   if (c.low.v <= 4) t.push([`「${c.low.l}」の欲求を満たす働き方`, `${c.low.l}が${c.low.v}点。${c.low.k === 'freedom' ? '権限委譲で社長の時間をつくる' : c.low.k === 'fun' ? '学びや趣味の時間を計画に入れる' : c.low.k === 'love' ? '家族・社員との時間を予定に入れる' : c.low.k === 'survival' ? '健康とお金の不安を数字で解消する' : '目標と達成を見える化する'}ことから始めます。`]);
@@ -203,6 +205,7 @@ function result() {
   finds.push([c.compGap >= 0 ? 'good' : 'bad', '人生に必要な役員報酬', c.compGap >= 0 ? `今の報酬で、生活費と老後への積立をまかなえています（必要 ${man(c.needComp)}／現在 ${man(d.comp)}）。` : `必要な報酬は年 ${man(c.needComp)}。今より年 ${man(-c.compGap)} 足りません。生活費に加えて、引退までの${c.work}年で老後資金 ${man(c.oldGap)} を積み立てる前提です。`]);
   finds.push([c.oldGap > 0 ? 'warn' : 'good', '引退後に必要なお金', `${c.retire}歳から90歳までの${c.years}年で、年金を除いて約 ${man(c.oldNeed)}。今の預貯金を差し引くと ${c.oldGap > 0 ? man(c.oldGap) + ' 不足' : '足りています'}。`]);
   finds.push([tF, '金融機関からの見え方', `財務の点数は ${c.fin}点/100（自己資本比率 ${isFinite(c.er) ? c.er.toFixed(1) + '%' : '—'}・借入を返す年数 ${c.repay === 0 ? '実質無借金' : isFinite(c.repay) ? c.repay.toFixed(1) + '年' : '利益で返せない状態'}・手元資金 ${isFinite(c.liq) ? c.liq.toFixed(1) + 'か月分' : '—'}）。${tF === 'good' ? '金利や保証の交渉ができる水準です。' : tF === 'warn' ? '融資は受けられますが、条件の改善余地があります。' : '追加融資の条件が厳しくなりやすい水準です。'}`]);
+  if (n0(d.direct)) finds.push([c.orgHeavy ? 'warn' : 'good', '組織と社長の時間', `社長に直接報告する人が${n0(d.direct)}人${n0(d.employees) ? `、社員${n0(d.employees)}人（1人あたり売上 ${man(n0(d.sales) / n0(d.employees))}）` : ''}。${c.orgHeavy ? '社長が全部を見る形になっていて、承継の準備や新しい仕事に時間を使えません。' : '幹部に任せられる形ができています。'}`]);
   if (c.succession) finds.push(['warn', '事業承継', `${n0(d.age)}歳で後継者が「${d.successor}」です。承継の準備には一般に5〜10年かかります。`]);
   finds.push([c.low.v <= 4 ? 'warn' : 'good', 'いちばん満たされていない欲求', `「${c.low.l}」が${c.low.v}点。会社の数字が良くても、ここが満たされないと社長の幸せは続きません。`]);
   return `

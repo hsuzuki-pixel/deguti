@@ -4205,6 +4205,7 @@ function stateFromShindan(d) {
   const when = d.date ? new Date(d.date).toLocaleDateString('ja-JP') : '';
   s.company.name = (d.company || '').trim() || '無料診断の会社';
   s.company.industry = d.industry || 'その他';
+  s.company.employees = n0(d.employees) || null;
   s.plans.forEach(p => { p.sales = sales; p.execComp = comp; p.sga = Math.max(0, Math.round(sales * p.grossRate / 100 - op - comp)); });
   // 診断では内訳を聞いていないので、現預金以外の資産と借入以外の負債はまとめて「その他」に置く
   s.bs.actual = { label: `無料診断${when ? `（${when}）` : ''}`, sales, op, cash, otherCurrent: Math.max(0, assets - cash), longDebt: debt, otherFixedLiab: Math.max(0, assets - eq - debt) };
@@ -4217,7 +4218,7 @@ function stateFromShindan(d) {
   const scores = Object.fromEntries(NEEDS.map(n => [n.key, Math.max(0, Math.min(10, n0(d.needs[n.key])))]));
   s.checkins.push({ memberId: m.id, ym: `${y}-${String(today.getMonth() + 1).padStart(2, '0')}`, scores, want: '', doing: '', evaluation: '', plan: '', advisorNote: '無料診断の自己採点' });
   s.hearing.successor = ['あり', '未定', 'なし'].includes(d.successor) ? d.successor : '未定';
-  s.hearing.memo = `無料診断${when ? `（${when}）` : ''}から取り込み。社長は${retire}歳まで続けたい意向。`;
+  s.hearing.memo = `無料診断${when ? `（${when}）` : ''}から取り込み。社長は${retire}歳まで続けたい意向。${n0(d.direct) ? `社長に直接報告する人は${n0(d.direct)}人。` : ''}`;
   s.exit.targetYear = fy + work;
   return migrate(s);
 }
