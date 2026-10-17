@@ -337,6 +337,11 @@ svg .axis-label { fill: var(--ink); font-size: 12px; font-weight: 500; }
   .rpt-list td[data-label]::before { content: attr(data-label); display: block; font-size: .7rem; color: var(--muted); }
 }
 
+/* 面談前のお知らせ */
+.mail-preview { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--surface-2); margin-top: 8px; }
+.mail-preview pre { white-space: pre-wrap; font-family: inherit; font-size: .86rem; margin: 4px 0 0; line-height: 1.7; }
+a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+
 </style>
 </head>
 <body>
@@ -417,7 +422,7 @@ function sampleState() {
   const fy = 2026;
   const members = [
     {
-      id: 'm1', name: '山田 太郎', role: '代表取締役社長', birthYear: 1968, currentComp: 1800, livingCost: 900, savingGoal: 300,
+      id: 'm1', name: '山田 太郎', role: '代表取締役社長', email: 'yamada@example.com', birthYear: 1968, currentComp: 1800, livingCost: 900, savingGoal: 300,
       vision: {
         survival: { text: '70歳まで現場に顔を出せる体。引退後30年分の生活資金と退職金を確保する。', metric: '人間ドックA判定・老後資金1.5億円', target: 8 },
         love: { text: '妻と年2回の旅行。社員と家族を招く感謝祭を毎年続ける。', metric: '夫婦旅行 年2回', target: 8 },
@@ -579,6 +584,7 @@ function sampleState() {
       { id: 'a8', title: 'B銀行へ半期の業績報告（試算表・資金繰り表）', owner: '事務所', due: '2026-10-20', status: '未着手', from: '2026-09', memo: '' },
     ],
     guarantee: { separation: true, disclosure: true },
+    meeting: { next: dayAdd(localDay(), 10), time: '10:00', place: '貴社 会議室', remindDays: 10, to: 'm1', note: '' }, reminders: [],
     org: sampleOrg(fy),
     keishin: { x1: 850, x2: 740, z: 790, w: 980, capital: 1000, recvInt: 5 },
     loans: [
@@ -1073,6 +1079,7 @@ function migrate(s) {
   if (smp) { ['contract', 'baseline', 'results', 'actions', 'guarantee', 'keishin'].forEach(k => { s[k] ??= smp[k]; }); if (!s.program) s.program = programTemplate(n0(s.company.currentFY), n0(s.company.fyStartMonth) || 4); }
   s.ifa ??= defaultIfa(); s.structure ??= defaultStructure(); s.tax ??= defaultTaxCfg(); s.ai ??= {};
   if (smp && !Object.values(s.monthly).some(rows => rows.some(r => r.cash != null))) Object.entries(smp.monthly).forEach(([fy, rows]) => rows.forEach((r, i) => { if (s.monthly[fy]?.[i]) s.monthly[fy][i].cash ??= r.cash; }));
+  s.meeting ??= smp ? smp.meeting : { next: '', time: '', place: '', remindDays: 10, to: '', note: '' }; s.reminders ??= [];
   s.org ??= smp ? smp.org : defaultOrg(n0(s.company.currentFY)); s.org.comp ??= {}; s.org.current ??= []; s.org.ideal ??= []; s.org.staff ??= {}; s.org.raiseRate ??= 2;
   s.members.forEach(m => { m.ins ??= (smp && smp.members.find(x => x.id === m.id)?.ins) || defaultIns(); });
   return s;
@@ -2325,8 +2332,9 @@ function viewActions() {
   const f = ui.actOwner || '', list = state.actions.map((a, j) => ({ a, j })).filter(({ a }) => !f || a.owner === f).sort((x, y) => (ACTION_STATUS.indexOf(x.a.status) - ACTION_STATUS.indexOf(y.a.status)) || String(x.a.due).localeCompare(String(y.a.due)));
   const todayS = today.toISOString().slice(0, 10);
   const prog = state.program && state.program.fy === fy ? state.program : null, fm = fyMonths(fy);
+  state.meeting ??= { next: '', time: '', place: '', remindDays: 10, to: '', note: '' }; state.reminders ??= [];
   const byOwner = owners.map(o => { const xs = state.actions.filter(a => a.owner === o && a.due && a.due < todayS && a.status !== '見送り'); return [o, xs.length ? xs.filter(a => a.status === '完了').length / xs.length * 100 : NaN, state.actions.filter(a => a.owner === o && (a.status === '未着手' || a.status === '進行中')).length]; }).filter(x => isFinite(x[1]) || x[2]);
-  return `
+  return `${remindPanel()}
   <section class="kpis">
     <div class="kpi ${isFinite(st.rate) ? (st.rate >= 80 ? 'good' : st.rate >= 60 ? 'warn' : 'bad') : ''}"><span class="label">宿題の実行率</span><span class="value">${isFinite(st.rate) ? st.rate.toFixed(0) + '%' : '—'}</span><span class="sub">期限を過ぎた宿題のうち、完了した割合</span></div>
     <div class="kpi ${st.overdue.length ? 'bad' : 'good'}"><span class="label">期限切れ</span><span class="value">${st.overdue.length}件</span><span class="sub">未着手・進行中のまま期限を過ぎたもの</span></div>
@@ -2761,7 +2769,7 @@ function renderHeader() {
   $('#companyChip').innerHTML = state.sample ? '<span class="pill sample">サンプルデータ</span>' : '';
   renderCloudBar();
   const cc = chkCount();
-  $('#tabs').innerHTML = NAV_GROUPS.map(([g, keys]) => `<div class="sn-group"><span>${g}</span>${keys.map(k => `<button class="sn-item" data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${tabLabel(k)}${k === 'check' && cc.req ? `<span class="sn-badge">${cc.req}</span>` : ''}</button>`).join('')}</div>`).join('');
+  $('#tabs').innerHTML = NAV_GROUPS.map(([g, keys]) => `<div class="sn-group"><span>${g}</span>${keys.map(k => `<button class="sn-item" data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${tabLabel(k)}${k === 'check' && cc.req ? `<span class="sn-badge">${cc.req}</span>` : ''}${k === 'actions' && reminderInfo(state)?.status === 'due' ? '<span class="sn-badge" title="面談前のお知らせを送る日です">送付</span>' : ''}</button>`).join('')}</div>`).join('');
   $('#bottomnav').innerHTML = [['dash', 'ホーム'], ['monthly', '月次'], ['analysis', '分析'], ['checkin', '面談']].map(([k, l]) => `<button data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${l}</button>`).join('') + `<button data-action="nav-open">${icon('menu')}メニュー</button>`;
 }
 function setNav(open) { $('#sidenav').classList.toggle('open', open); $('#scrim').hidden = !open; }
@@ -4229,11 +4237,102 @@ function viewReports() {
   </section>` : ''}`;
 }
 
+// ---------- 面談前のお知らせ（面談の◯日前に、社長・役員の宿題を社長へ送る） ----------
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+function localDay(d = new Date()) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function dayAdd(ds, k) { const d = new Date(ds + 'T00:00'); d.setDate(d.getDate() + k); return localDay(d); }
+const dLabel = ds => { const d = new Date(ds + 'T00:00'); return `${d.getMonth() + 1}月${d.getDate()}日（${WD[d.getDay()]}）`; };
+function reminderInfo(s) {
+  const mt = s.meeting || {}; if (!mt.next) return null;
+  const days = n0(mt.remindDays) || 10, sendOn = dayAdd(mt.next, -days), t = localDay();
+  const sent = (s.reminders || []).find(r => r.meetingDate === mt.next);
+  const status = sent ? 'sent' : t > mt.next ? 'past' : t >= sendOn ? 'due' : 'wait';
+  return { next: mt.next, sendOn, days, sent, status };
+}
+function reminderMessage(s) {
+  const mt = s.meeting || {}, ms = s.members || [];
+  const to = ms.find(m => m.id === mt.to) || ms[0];
+  const mYm = (mt.next || '').slice(0, 7), since = dayAdd(mt.next || localDay(), -45);
+  const acts = s.actions || [];
+  const open = acts.filter(a => a.status === '未着手' || a.status === '進行中');
+  const done = acts.filter(a => a.status === '完了' && a.due && a.due >= since);
+  const owners = [...ms.map(m => m.name), ...new Set(acts.map(a => a.owner).filter(o => o && !ms.some(m => m.name === o)))];
+  const line = a => `・${a.title}（期限 ${a.due ? `${+a.due.slice(5, 7)}/${+a.due.slice(8, 10)}` : '未定'}${a.status === '完了' ? '・完了' : a.due && a.due < localDay() ? '・期限を過ぎています' : '・' + a.status}）`;
+  const blocks = owners.map(o => {
+    const m = ms.find(x => x.name === o), os = open.filter(a => a.owner === o), ds = done.filter(a => a.owner === o);
+    if (!os.length && !ds.length) return '';
+    return `■ ${o === '事務所' ? '事務所（私どもの宿題）' : o}${m ? `（${m.role}）` : ''}\n${[...os, ...ds].map(line).join('\n')}`;
+  }).filter(Boolean);
+  const plans = ms.map(m => { const c = (s.checkins || []).filter(x => x.memberId === m.id && x.ym < mYm && x.plan).sort((a, b) => a.ym < b.ym ? -1 : 1).at(-1); return c ? `・${m.name}：${c.plan}` : ''; }).filter(Boolean);
+  const company = s.company?.name || '', adv = s.company?.advisor || '';
+  const when = `${mt.next ? dLabel(mt.next) : '次回'}${mt.time ? ' ' + mt.time : ''}${mt.place ? '（' + mt.place + '）' : ''}`;
+  const subject = `【${company}】${mt.next ? dLabel(mt.next) : '次回'}の面談に向けて（宿題のご確認）`;
+  const body = [
+    `${to ? to.name : ''} 様`, '',
+    `いつもお世話になっております。${adv ? `担当の${adv}です。` : ''}`,
+    `${when} の面談に向けて、社長と役員の皆さまの宿題をお送りします。`, '',
+    ...(blocks.length ? [blocks.join('\n\n'), ''] : ['今回は確認が必要な宿題はありません。', '']),
+    ...(plans.length ? ['■ 前回の面談で決めた行動', ...plans, ''] : []),
+    ...(mt.note ? [mt.note, ''] : []),
+    '面談の前に、次の2点をご確認いただけると助かります。',
+    '・それぞれの宿題の進み具合（できたこと・できなかったこと、どちらでも大丈夫です）',
+    '・前月の試算表（まだお送りいただいていない場合）', '',
+    '当日は、この1か月の「できたこと」から伺います。どうぞよろしくお願いいたします。',
+    ...(adv ? ['', `担当 ${adv}`] : []),
+  ].join('\n');
+  return { to, subject, body, openCount: open.length };
+}
+const mailtoHref = (addr, subject, body) => `mailto:${encodeURIComponent(addr || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+function remindPanel() {
+  const mt = state.meeting, info = reminderInfo(state), msg = reminderMessage(state), to = msg.to, ti = to ? state.members.indexOf(to) : -1;
+  const pill = !info ? '<span class="pill">次回の面談日が未設定</span>' : info.status === 'sent' ? `<span class="pill good">送付済み</span>` : info.status === 'due' ? '<span class="pill warn">今日が送付日です</span>' : info.status === 'past' ? '<span class="pill">面談日を過ぎています</span>' : `<span class="pill">${esc(dLabel(info.sendOn))}に送付</span>`;
+  const via = { mail: 'メール', line: 'LINE', copy: 'コピーして送付', manual: '手動で送付' };
+  return `
+  <section class="panel" id="remind">
+    <div class="panel-head"><h2>次回の面談と事前のお知らせ</h2>${pill}</div>
+    <p class="small muted">面談の${info ? info.days : n0(mt.remindDays) || 10}日前に、社長と役員の宿題をまとめたお知らせを社長に送ります。送付日になると、メニューとダッシュボード、事務所全体の顧問先ポートフォリオに知らせが出ます。</p>
+    <div class="form-row">
+      <label class="field">次回の面談日<input id="mt-next" type="date" data-bind="meeting.next" value="${esc(mt.next)}"></label>
+      <label class="field">時刻<input id="mt-time" type="time" data-bind="meeting.time" value="${esc(mt.time)}"></label>
+      <label class="field">場所・方法<input id="mt-place" data-bind="meeting.place" value="${esc(mt.place)}" placeholder="貴社 会議室／オンライン"></label>
+      <label class="field">何日前に送るか<input id="mt-days" type="number" min="1" max="30" data-num data-bind="meeting.remindDays" value="${esc(mt.remindDays ?? 10)}" style="width:90px"></label>
+    </div>
+    <div class="form-row">
+      <label class="field">送り先<select id="mt-to" data-bind="meeting.to">${state.members.map(m => `<option value="${esc(m.id)}" ${to && m.id === to.id ? 'selected' : ''}>${esc(m.name)}（${esc(m.role)}）</option>`).join('')}</select></label>
+      ${ti >= 0 ? `<label class="field">送り先のメールアドレス<input id="mt-mail" type="email" data-bind="members.${ti}.email" value="${esc(to.email || '')}" placeholder="name@example.co.jp"></label>` : ''}
+      <label class="field" style="flex:2">今回だけの一言（任意）<input id="mt-note" data-bind="meeting.note" value="${esc(mt.note)}" placeholder="例）今回は決算の着地予測もご説明します"></label>
+    </div>
+    ${info ? `<p class="small">${info.status === 'sent' ? `送付済み：${new Date(info.sent.sentAt).toLocaleDateString('ja-JP')}（${via[info.sent.channel] || '送付'}）` : `送付日：<strong>${esc(dLabel(info.sendOn))}</strong>（面談の${info.days}日前）`}${state.members.length ? `・宿題 ${msg.openCount}件` : ''}</p>` : ''}
+    ${state.members.length ? `<details ${info && info.status === 'due' ? 'open' : ''}><summary class="small">送る文面を見る</summary>
+      <div class="mail-preview"><div class="small muted">件名</div><strong>${esc(msg.subject)}</strong><div class="small muted" style="margin-top:8px">本文</div><pre>${esc(msg.body)}</pre></div></details>
+    <div class="btn-row">
+      <a class="btn ${info && info.status === 'due' ? 'primary' : ''}" href="${esc(mailtoHref(to?.email, msg.subject, msg.body))}" target="_blank" rel="noopener" data-action="rem-sent" data-ch="mail">メールを作成</a>
+      <a class="btn" href="${esc('https://line.me/R/share?text=' + encodeURIComponent(msg.subject + '\n\n' + msg.body))}" target="_blank" rel="noopener" data-action="rem-sent" data-ch="line">LINEで送る</a>
+      <button class="btn ghost" data-action="rem-copy">文面をコピー</button>
+      ${info && info.status === 'sent' ? '<button class="btn ghost" data-action="rem-undo">送付済みを取り消す</button>' : info ? '<button class="btn ghost" data-action="rem-sent" data-ch="manual">送付済みにする</button>' : ''}
+      <button class="btn ghost" data-action="rem-nextmonth">次回を1か月後の同じ曜日に設定</button>
+    </div>
+    <p class="small muted">「メールを作成」はお使いのメールソフトに件名・本文・宛先を入れて開きます。送信は担当者が内容を確認してから行ってください。押した時点で送付済みとして記録します。</p>` : '<p class="muted">ライフプランに社長・役員を登録すると、お知らせを作れます。</p>'}
+  </section>`;
+}
+function remindBanner() {
+  const info = reminderInfo(state); if (!info || info.status !== 'due') return '';
+  return `<div class="hint" style="display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px"><span>${esc(dLabel(info.next))}の面談まで${Math.round((new Date(info.next + 'T00:00') - new Date(localDay() + 'T00:00')) / 864e5)}日です。社長への事前のお知らせを送る日です。</span><button class="btn primary" data-action="tab" data-tab="actions">お知らせを送る</button></div>`;
+}
+function remindOfficePanel() {
+  const rows = portfolioClients().filter(c => !c.demo).map(c => { const s = c.data || {}; const info = reminderInfo(s); return info && (info.status === 'due') ? { c, s, info } : null; }).filter(Boolean);
+  const soon = portfolioClients().filter(c => !c.demo).map(c => { const s = c.data || {}; const info = reminderInfo(s); return info && info.status === 'wait' && info.sendOn <= dayAdd(localDay(), 7) ? { c, s, info } : null; }).filter(Boolean);
+  if (!rows.length && !soon.length) return '';
+  const row = ({ c, s, info }, due) => `<tr><td><strong>${esc(s.company?.name || '名称未設定')}</strong></td><td>${esc(dLabel(info.next))}</td><td>${due ? '<span class="pill warn">今日送る</span>' : esc(dLabel(info.sendOn))}</td><td>${esc(s.company?.advisor || '—')}</td><td><button class="btn ${due ? 'primary' : 'ghost'}" data-action="rem-open" data-id="${esc(c.id)}">開く</button></td></tr>`;
+  return `<section class="panel" style="margin-bottom:16px"><div class="panel-head"><h2>面談前のお知らせ</h2><span class="muted small">今日送るもの ${rows.length}件・1週間以内 ${soon.length}件</span></div>
+    <div class="table-scroll"><table><thead><tr><th>顧問先</th><th>次回の面談</th><th>送付日</th><th>担当</th><th></th></tr></thead><tbody>${rows.map(r => row(r, true)).join('')}${soon.map(r => row(r, false)).join('')}</tbody></table></div></section>`;
+}
+
 // ---------- render & events ----------
 function render() {
   renderHeader();
   const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, actions: viewActions, results: viewResults, president: viewPresident, bank: viewBank, keishin: viewKeishin, org: viewOrg, reports: viewReports, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
-  $('#view').innerHTML = v();
+  $('#view').innerHTML = (ui.tab === 'dash' ? remindBanner() : ui.tab === 'portfolio' ? remindOfficePanel() : '') + v();
   document.querySelectorAll('.org-scroll').forEach(el => { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; });
   saveUi();
 }
@@ -4497,6 +4596,31 @@ document.addEventListener('click', e => {
     case 'add-policy': state.policies.push({ id: uid(), memberId: ui.insMember, owner: 'corp', type: '定期保険', death: 0, premium: 0, cashValue: 0, note: '' }); commit(); break;
     case 'del-policy': state.policies.splice(+b.dataset.j, 1); commit('削除しました'); break;
     case 'share-current': shareCurrent(); break;
+    case 'rem-sent': {
+      const info = reminderInfo(state); if (!info) { toast('先に次回の面談日を入れてください'); return; }
+      const ch = b.dataset.ch;
+      // リンク（メール・LINE）を開いてから画面を描き直す
+      setTimeout(() => {
+        state.reminders = (state.reminders || []).filter(r => r.meetingDate !== info.next);
+        state.reminders.push({ meetingDate: info.next, sentAt: Date.now(), channel: ch, by: cloud.myId || '' });
+        commit(ch === 'manual' ? '送付済みにしました' : '送付済みとして記録しました');
+      }, 0);
+      break;
+    }
+    case 'rem-undo': { const info = reminderInfo(state); state.reminders = (state.reminders || []).filter(r => r.meetingDate !== info?.next); commit('取り消しました'); break; }
+    case 'rem-copy': { const msg = reminderMessage(state); navigator.clipboard?.writeText(msg.subject + '\n\n' + msg.body).then(() => toast('文面をコピーしました'), () => toast('コピーできませんでした')); break; }
+    case 'rem-nextmonth': {
+      const base = state.meeting.next || localDay(), d = new Date(base + 'T00:00'), wd = d.getDay();
+      const n = new Date(d); n.setDate(n.getDate() + 28); if (n.getMonth() === d.getMonth()) n.setDate(n.getDate() + 7);
+      while (n.getDay() !== wd) n.setDate(n.getDate() + 1);
+      state.meeting.next = localDay(n); state.meeting.note = ''; commit(`次回を${dLabel(state.meeting.next)}に設定しました`); break;
+    }
+    case 'rem-open': {
+      const id = b.dataset.id, pc = portfolioClients().find(c => c.id === id);
+      if (!pc) return;
+      if (!pc.current) { const doc = cloud.clients.find(c => c.id === id); if (!doc) return; clearTimeout(cloud.timer); cloud.pending = false; cloud.msg = ''; ui.clientId = doc.id; ui.lifeMember = ui.ciMember = ui.insMember = null; saveUi(); applyRemote(doc, false); }
+      ui.tab = 'actions'; render(); window.scrollTo(0, 0); break;
+    }
     case 'rpt-open': ui.rptOpen = b.dataset.id || ''; render(); if (ui.rptOpen) document.getElementById('rpt-view')?.scrollIntoView({ block: 'start' }); break;
     case 'rpt-dl': { const x = rpt.list.find(r => r.id === b.dataset.id); if (x) rptDownload(x); break; }
     case 'rpt-del': {
