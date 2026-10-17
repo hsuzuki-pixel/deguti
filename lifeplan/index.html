@@ -1020,7 +1020,7 @@ function migrate(s) {
   if (smp) { ['contract', 'baseline', 'results', 'actions', 'guarantee', 'keishin'].forEach(k => { s[k] ??= smp[k]; }); if (!s.program) s.program = programTemplate(n0(s.company.currentFY), n0(s.company.fyStartMonth) || 4); }
   s.ifa ??= defaultIfa(); s.structure ??= defaultStructure(); s.tax ??= defaultTaxCfg(); s.ai ??= {};
   if (smp && !Object.values(s.monthly).some(rows => rows.some(r => r.cash != null))) Object.entries(smp.monthly).forEach(([fy, rows]) => rows.forEach((r, i) => { if (s.monthly[fy]?.[i]) s.monthly[fy][i].cash ??= r.cash; }));
-  s.org ??= smp ? smp.org : defaultOrg(n0(s.company.currentFY)); s.org.comp ??= {}; s.org.current ??= []; s.org.ideal ??= [];
+  s.org ??= smp ? smp.org : defaultOrg(n0(s.company.currentFY)); s.org.comp ??= {}; s.org.current ??= []; s.org.ideal ??= []; s.org.staff ??= {}; s.org.raiseRate ??= 2;
   s.members.forEach(m => { m.ins ??= (smp && smp.members.find(x => x.id === m.id)?.ins) || defaultIns(); });
   return s;
 }
@@ -3887,11 +3887,11 @@ function newMember() {
 }
 
 // ---------- 組織図と幹部の年収計画 ----------
-const defaultOrg = fy => ({ idealYear: fy + 4, current: [], ideal: [], comp: {} });
+const defaultOrg = fy => ({ idealYear: fy + 4, current: [], ideal: [], comp: {}, staff: {}, raiseRate: 2 });
 function sampleOrg(fy) {
   const n = (id, title, o = {}) => ({ id, title, name: '', memberId: '', parent: '', people: 1, comp: null, status: '在任', year: null, ...o });
   return {
-    idealYear: fy + 4,
+    idealYear: fy + 4, raiseRate: 2.5, staff: {},
     current: [
       n('c1', '代表取締役社長', { memberId: 'm1' }),
       n('c2', '専務取締役', { memberId: 'm2', parent: 'c1' }),
@@ -3944,12 +3944,26 @@ function orgCalc() {
   const timedCost = y => timed.filter(n => y >= n0(n.year)).reduce((s, n) => s + n0(n.people) * n0(n.comp), 0);
   const base = staffIdeal - timed.reduce((s, n) => s + n0(n.people) * n0(n.comp), 0) - staffCur;
   const ramp = y => (Y > fy ? base * Math.max(0, Math.min(1, (y - fy) / (Y - fy))) : (y >= Y ? base : 0)) + timedCost(y);
+  // 社員（ライフプラン登録の幹部以外）の人数と人件費。人数・昇給率は年度ごとに上書きできる
+  const frac = y => Y > fy ? Math.max(0, Math.min(1, (y - fy) / (Y - fy))) : (y >= Y ? 1 : 0);
+  const staffHeads = nodes => nodes.reduce((s, n) => s + (n.memberId ? 0 : n0(n.people)), 0);
+  const hCur = staffHeads(o.current), hIdeal = staffHeads(o.ideal);
+  const timedHeads = y => timed.filter(n => y >= n0(n.year)).reduce((s, n) => s + n0(n.people), 0);
+  const baseH = hIdeal - timed.reduce((s, n) => s + n0(n.people), 0) - hCur;
+  const headsOrg = y => hCur + baseH * frac(y) + timedHeads(y);
+  const st = y => o.staff?.[y] || {};
+  const raiseRate = y => st(y).raise ?? o.raiseRate ?? 2;
+  const idx = y => { let k = 1; for (let t = fy + 1; t <= y; t++) k *= 1 + n0(raiseRate(t)) / 100; return k; };
+  const staffN = y => st(y).heads ?? Math.round(headsOrg(y));
+  const avgPay = y => { const h = headsOrg(y); return (h > 0 ? (staffCur + ramp(y)) / h : 0) * idx(y); };
+  const staffPay = y => staffN(y) * avgPay(y);
+  const staffDelta = y => staffPay(y) - staffCur;
   const execs = state.members.filter(m => m.compKind !== 'salary'), salaried = state.members.filter(m => m.compKind === 'salary');
   const execSum = y => execs.reduce((s, m) => s + plannedComp(m, y), 0);
   const raise = y => salaried.reduce((s, m) => s + plannedComp(m, y) - n0(m.currentComp), 0);
-  const adj = y => Math.round(ramp(y) + raise(y));
+  const adj = y => Math.round(staffDelta(y) + raise(y));
   const direct = nodes => { const p = orgPresident(nodes); return p ? orgKids(nodes, p.id).length : 0; };
-  return { fy, Y, staffCur, staffIdeal, ramp, execSum, raise, adj, direct, heads, memberCost };
+  return { fy, Y, staffCur, staffIdeal, ramp, execSum, raise, adj, direct, heads, memberCost, hCur, headsOrg, raiseRate, staffN, avgPay, staffPay, staffDelta, st };
 }
 
 function orgCard(n, mode, year) {
@@ -3995,6 +4009,36 @@ function orgEditTable(key) {
     ${ideal ? `<button class="btn ${ui.armed === 'org-copy' ? 'armed danger' : 'ghost'}" data-action="org-copy">${ui.armed === 'org-copy' ? '理想の組織図が置き換わります。もう一度押す' : '現状の組織図をコピーして作る'}</button>` : ''}</div>`;
 }
 
+function staffPanel(c, years) {
+  const o = state.org, prevN = y => y <= c.fy ? c.hCur : c.staffN(y - 1), prevPay = y => y <= c.fy ? c.staffCur : c.staffPay(y - 1);
+  const yoy = (v, b) => b ? (v / b - 1) * 100 : NaN;
+  const sgn = v => isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(1)}%` : '—';
+  const ov = Object.keys(o.staff || {}).some(y => o.staff[y] && (o.staff[y].heads != null || o.staff[y].raise != null));
+  const last = years.at(-1), payUp = yoy(c.staffPay(last), c.staffCur), cagr = last > c.fy && c.staffCur ? (Math.pow(c.staffPay(last) / c.staffCur, 1 / (last - c.fy)) - 1) * 100 : NaN;
+  const share = y => { const p = planFor(y); if (!p) return NaN; const gp = planCalc(p).gp; return gp ? (c.staffPay(y) + c.execSum(y)) / gp * 100 : NaN; };
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>社員数と人件費の計画</h2>
+      <div class="btn-row"><label class="field" style="flex-direction:row;align-items:center;gap:6px">標準の昇給率（%）<input id="org-raise" type="number" step="0.1" data-num data-bind="org.raiseRate" value="${esc(o.raiseRate)}" style="width:80px"></label>
+      ${ov ? '<button class="btn ghost" data-action="org-staff-reset">人数・昇給率を組織図から計算し直す</button>' : ''}</div></div>
+    <p class="small muted">社員は、ライフプランに登録した幹部以外の全員です（組織図の部署と、経営陣につないでいない役職）。${last}年度までに社員は ${c.hCur}名 → ${c.staffN(last)}名（${c.staffN(last) - c.hCur >= 0 ? '+' : ''}${c.staffN(last) - c.hCur}名）、社員の人件費は ${sgn(payUp)}（年平均 ${sgn(cagr)}）です。</p>
+    <div class="table-scroll"><table class="wrap-th">
+      <thead><tr><th></th><th class="num">現状</th>${years.map(y => `<th class="num">${y}年度</th>`).join('')}</tr></thead>
+      <tbody>
+        <tr><th>社員数（人）</th><td class="num">${c.hCur}</td>${years.map(y => `<td><input id="org-heads-${y}" type="number" min="0" data-num data-bind="org.staff.${y}.heads" value="${c.staffN(y)}" style="width:76px;${c.st(y).heads != null ? 'font-weight:700' : ''}"></td>`).join('')}</tr>
+        <tr><th>増減（前年比）</th><td></td>${years.map(y => { const d = c.staffN(y) - prevN(y); return `<td class="num ${d > 0 ? 'pos' : d < 0 ? 'neg' : ''}">${d > 0 ? '+' : ''}${d}名</td>`; }).join('')}</tr>
+        <tr><th>昇給率（%）</th><td></td>${years.map(y => y <= c.fy ? '<td class="num muted small">基準年</td>' : `<td><input id="org-rr-${y}" type="number" step="0.1" data-num data-bind="org.staff.${y}.raise" value="${c.raiseRate(y)}" style="width:76px;${c.st(y).raise != null ? 'font-weight:700' : ''}"></td>`).join('')}</tr>
+        <tr><th>平均年収</th><td class="num">${man(c.hCur ? c.staffCur / c.hCur : 0)}</td>${years.map(y => `<td class="num">${man(c.avgPay(y))}</td>`).join('')}</tr>
+        <tr class="link"><th>社員の人件費</th><td class="num">${man(c.staffCur)}</td>${years.map(y => `<td class="num"><strong>${man(c.staffPay(y))}</strong></td>`).join('')}</tr>
+        <tr><th>人件費の上昇率（前年比）</th><td></td>${years.map(y => { const v = yoy(c.staffPay(y), prevPay(y)); return `<td class="num" style="${v >= 10 ? 'color:var(--warn);font-weight:700' : ''}">${sgn(v)}</td>`; }).join('')}</tr>
+        <tr><th>人件費の上昇率（現状比）</th><td></td>${years.map(y => `<td class="num">${sgn(yoy(c.staffPay(y), c.staffCur))}</td>`).join('')}</tr>
+        <tr><th>労働分配率（社員＋役員 ÷ 粗利）</th><td></td>${years.map(y => { const v = share(y); return `<td class="num" style="${v >= 60 ? 'color:var(--bad)' : v >= 50 ? 'color:var(--warn)' : ''}">${isFinite(v) ? v.toFixed(1) + '%' : '—'}</td>`; }).join('')}</tr>
+        <tr><th>社員1人あたり売上</th><td></td>${years.map(y => { const p = planFor(y), n = c.staffN(y); return `<td class="num">${p && n ? man(n0(p.sales) / n) : '—'}</td>`; }).join('')}</tr>
+      </tbody></table></div>
+    <p class="small muted">単位：万円。人数は、組織図の現状から理想まで（採用・登用の年度が入ったポジションはその年度から）を目安に入れてあり、年度ごとに上書きできます（太字が上書きした値）。平均年収は、組織の構成から出した平均に昇給率を毎年かけています。社会保険料などの会社負担分を含めたいときは、組織図の1人あたり年収を15%ほど上乗せしてください。労働分配率は50%を超えると黄色、60%を超えると赤で表示します。</p>
+  </section>`;
+}
+
 function viewOrg() {
   state.org ??= defaultOrg(n0(state.company.currentFY));
   const o = state.org, c = orgCalc(), mode = ui.orgView === 'ideal' ? 'ideal' : 'current';
@@ -4030,6 +4074,8 @@ function viewOrg() {
       <p class="small muted">単位：万円。経営陣をつなぐと、年収は下の年収計画の値になり、幸福指数も表示されます。部署は「人数 × 1人あたり年収」を人件費として数えます。</p></details>
   </section>
 
+  ${staffPanel(c, years)}
+
   <section class="panel">
     <div class="panel-head"><h2>幹部の年収計画とライフプランの連動</h2>
       <div class="btn-row"><button class="btn ${ui.armed === 'org-fill' ? 'armed danger' : 'ghost'}" data-action="org-fill">${ui.armed === 'org-fill' ? '入力済みの年収計画が上書きされます。もう一度押す' : '人生に必要な年収で埋める'}</button>
@@ -4042,12 +4088,12 @@ function viewOrg() {
         <tr class="link"><th colspan="2">役員報酬の合計（年収計画）</th>${rowTd(c.execSum)}</tr>
         <tr><th colspan="2">いまの経営計画の役員報酬</th>${years.map(y => { const p = planFor(y), d = c.execSum(y) - n0(p?.execComp); return `<td class="num">${man(p?.execComp)}${Math.abs(d) >= 1 ? `<div class="small" style="color:var(--warn)">差 ${d > 0 ? '+' : ''}${man(d)}</div>` : ''}</td>`; }).join('')}</tr>
         <tr><th colspan="2">給与で払う幹部の昇給</th>${rowTd(c.raise)}</tr>
-        <tr><th colspan="2">理想の組織に向けた人件費の増加</th>${rowTd(y => Math.round(c.ramp(y)))}</tr>
+        <tr><th colspan="2">社員の人件費の増加（現状比）</th>${rowTd(y => Math.round(c.staffDelta(y)))}</tr>
         <tr class="link"><th colspan="2">販管費に上乗せする額</th>${years.map(y => { const p = planFor(y), d = c.adj(y) - n0(p?.orgSgaAdj); return `<td class="num"><strong>${man(c.adj(y))}</strong>${Math.abs(d) >= 1 ? `<div class="small" style="color:var(--warn)">反映済み ${man(p?.orgSgaAdj)}</div>` : ''}</td>`; }).join('')}</tr>
         <tr class="link"><th colspan="2">年収と人件費の増加を粗利で賄うのに必要な売上</th>${years.map(y => { const p = planFor(y); if (!p) return '<td></td>'; const gr = n0(p.grossRate) / 100, need = gr > 0 ? n0(p.sales) + (c.adj(y) + c.execSum(y) - n0(p.execComp)) / gr : NaN; return `<td class="num"><strong>${man(need)}</strong><div class="small ${need > n0(p.sales) ? '' : 'muted'}" style="${need > n0(p.sales) ? 'color:var(--warn)' : ''}">計画 ${man(p.sales)}</div></td>`; }).join('')}</tr>
         <tr><th colspan="2">反映後の営業利益</th>${years.map(y => { const p = planFor(y); if (!p) return '<td></td>'; const op = planCalc(p).op - (c.execSum(y) - n0(p.execComp)) - (c.adj(y) - n0(p.orgSgaAdj)); return `<td class="num ${op < 0 ? 'neg' : ''}"><strong>${man(op)}</strong><div class="small muted">${pct(n0(p.sales) ? op / n0(p.sales) * 100 : NaN)}</div></td>`; }).join('')}</tr>
       </tbody></table></div>` : '<p class="muted">ライフプランに経営陣を登録すると、年収計画を立てられます。</p>'}
-    <p class="small muted">「必要」は各幹部のライフプラン（生活費・貯蓄目標・その年のイベント）を手取り率で割り戻した年収です。人件費の増加は、採用・登用の年度が入ったポジションはその年度から、残りの差は目標年度に向けて均等に積み上げています。「経営計画に反映」を押すと、各年度の役員報酬を年収計画の合計に置き換え、販管費には上乗せ額の差分だけを足し引きします（何度押しても二重に足されません）。</p>
+    <p class="small muted">「必要」は各幹部のライフプラン（生活費・貯蓄目標・その年のイベント）を手取り率で割り戻した年収です。社員の人件費の増加は、上の「社員数と人件費の計画」から計算しています。「経営計画に反映」を押すと、各年度の役員報酬を年収計画の合計に置き換え、販管費には上乗せ額の差分だけを足し引きします（何度押しても二重に足されません）。</p>
   </section>`;
 }
 
@@ -4310,6 +4356,7 @@ document.addEventListener('click', e => {
     case 'del-policy': state.policies.splice(+b.dataset.j, 1); commit('削除しました'); break;
     case 'share-current': shareCurrent(); break;
     case 'org-view': ui.orgView = b.dataset.v; render(); break;
+    case 'org-staff-reset': state.org.staff = {}; commit('組織図から計算し直しました'); break;
     case 'org-add': {
       const key = b.dataset.key, nodes = state.org[key], top = orgPresident(nodes);
       nodes.push({ id: uid(), title: '', name: '', memberId: '', parent: top ? top.id : '', people: 1, comp: null, status: key === 'ideal' ? '採用予定' : '在任', year: key === 'ideal' ? n0(state.company.currentFY) + 1 : null });
