@@ -210,6 +210,26 @@ label.field > input, label.field > select, label.field > textarea { color: var(-
 .chart-tip .ct-row i { width: 12px; border-top: 2px solid; }
 .chart-tip .ct-row span { color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .status-tile { transition: none; } .status-tile:hover { transform: none; } }
+.chk-hero { display: flex; gap: 20px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.chk-ring { --p: 0; width: 104px; height: 104px; border-radius: 50%; flex: none; display: grid; place-items: center; background: conic-gradient(var(--c1) calc(var(--p) * 1%), var(--surface-2) 0); }
+.chk-ring span { width: 80px; height: 80px; border-radius: 50%; background: var(--surface); display: flex; align-items: center; justify-content: center; gap: 1px; font-size: 1.6rem; font-weight: 700; }
+.chk-ring small { font-size: .8rem; color: var(--muted); }
+.chk-secs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+@media (max-width: 560px) { .chk-secs { grid-template-columns: 1fr 1fr; gap: 8px; } .chk-sec { padding: 8px 10px; } .chk-sec-name { font-size: .82rem; } }
+.chk-sec { appearance: none; font: inherit; color: inherit; text-align: left; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--good); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; }
+.chk-sec.warn { border-left-color: var(--warn); } .chk-sec.bad { border-left-color: var(--bad); }
+.chk-sec-name { font-weight: 700; font-size: .9rem; }
+.chk-sec-meta { font-size: .76rem; color: var(--muted); }
+.chk-group { display: grid; gap: 6px; scroll-margin-top: 90px; }
+.chk-group h3 { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 6px; }
+.chk-tag { display: inline-block; font-size: .7rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.chk-tag.bad { color: var(--bad); } .chk-tag.warn { color: var(--warn); }
+.chk-ok { color: var(--good); font-weight: 700; }
+tr.chk-done th { color: var(--muted); font-weight: 400; }
+.chk-banner { appearance: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; display: flex; gap: 10px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--bad); border-radius: 10px; padding: 10px 14px; }
+.chk-banner span:nth-child(2) { flex: 1; font-size: .88rem; }
+.sn-badge { margin-left: auto; background: var(--bad); color: var(--surface); font-size: .7rem; font-weight: 700; border-radius: 999px; padding: 0 7px; line-height: 1.6; }
+@media (max-width: 560px) { .chk-hero { padding: 16px; gap: 14px; } .chk-ring { width: 84px; height: 84px; } .chk-ring span { width: 64px; height: 64px; font-size: 1.3rem; } }
 .tab-group { align-self: center; font-size: .7rem; letter-spacing: .1em; color: var(--accent); font-weight: 700; padding: 0 6px 0 10px; border-left: 1px solid var(--line); }
 .tab-group:first-child { border-left: 0; padding-left: 0; }
 .an-layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 20px; align-items: start; }
@@ -306,6 +326,7 @@ const TABS = [
   ['dash', 'ダッシュボード'], ['life', 'ライフプラン'], ['plan', '経営計画と連動'], ['budget', '予算3案・資金繰り'], ['loans', '借入金・返済予定'],
   ['monthly', '月次予実・着地予測'], ['analysis', '財務分析'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['proposal', '提案・出口'], ['exit', 'M&A・企業価値'], ['acct', '会計データ連携'], ['data', 'データ'],
 ];
+TABS.unshift(['check', '入力チェック']);
 const OFFICE_TABS = [['portfolio', '顧問先ポートフォリオ'], ['office', '事務所経営']];
 
 // ---------- helpers ----------
@@ -1943,6 +1964,103 @@ function viewLoans() {
   </section>`;
 }
 
+// ---------- 入力チェック（手入力が済んでいない項目を一枚で確認・入力） ----------
+const isBlank = (v, zero) => v == null || v === '' || (zero && n0(v) === 0) || (typeof v === 'number' && isNaN(v));
+function inputChecks() {
+  const out = [], c = state.company, fy = n0(c.currentFY), fm = fyMonths(fy);
+  const add = (sec, tab, label, path, kind = 'num', req = true, extra = {}) => { const v = getPath(state, path); out.push({ sec, tab, label, path, kind, req, done: !isBlank(v, extra.zero), ...extra }); };
+  const link = (sec, tab, label, done, req = true, hint = '') => out.push({ sec, tab, label, kind: 'link', req, done, hint });
+  // 1 会社
+  add('会社の基本', 'plan', '会社名', 'company.name', 'text');
+  add('会社の基本', 'plan', '業種', 'company.industry', 'select', true, { opts: INDUSTRIES });
+  add('会社の基本', 'plan', '従業員数（人）', 'company.employees');
+  add('会社の基本', 'plan', '期首月', 'company.fyStartMonth');
+  add('会社の基本', 'plan', '当期（年度）', 'company.currentFY');
+  add('会社の基本', 'plan', '担当者名', 'company.advisor', 'text');
+  add('会社の基本', 'plan', '経営理念', 'company.mission', 'text', false);
+  // 2 経営計画
+  if (!state.plans.length) link('経営計画', 'plan', '中期経営計画の年度がありません', false);
+  state.plans.forEach((p, i) => [['sales', '売上'], ['grossRate', '粗利率（%）'], ['sga', '販管費（役員報酬除く）'], ['execComp', '役員報酬']].forEach(([k, l]) => add('経営計画', 'plan', `${p.year}年度 ${l}`, `plans.${i}.${k}`, 'num', true, { zero: k !== 'grossRate' || true })));
+  // 3 月次予算・実績
+  const rows = monthlyRows(fy);
+  rows.forEach((r, i) => [['sb', '売上予算'], ['gb', '粗利予算'], ['ob', '営業利益予算']].forEach(([k, l]) => add('月次予算', 'monthly', `${fm[i].m}月 ${l}`, `monthly.${fy}.${i}.${k}`)));
+  rows.forEach((r, i) => { if (fm[i].ym < thisYm) [['sa', '売上実績'], ['ga', '粗利実績'], ['oa', '営業利益実績'], ['cash', '月末現預金']].forEach(([k, l]) => add('月次実績（経過した月）', 'monthly', `${fm[i].m}月 ${l}`, `monthly.${fy}.${i}.${k}`)); });
+  // 4 決算・BS
+  const a = 'bs.actual';
+  [['sales', '売上高'], ['op', '営業利益'], ['dep', '減価償却費'], ['interest', '支払利息'], ...BS_ASSETS, ...BS_LIABS].forEach(([k, l]) => add('直近決算（BS・損益）', 'fin', l, `${a}.${k}`));
+  [fy - 2, fy - 1].forEach(yr => [['sales', '売上高'], ['gp', '売上総利益'], ['op', '営業利益'], ['ordinary', '経常利益'], ['equity', '純資産'], ['assets', '総資産']].forEach(([k, l]) => add('過去の決算（3期比較用）', 'analysis', `${yr}年度 ${l}`, `history.${yr}.${k}`, 'num', false)));
+  state.plans.forEach(p => { const t = state.bs.targets[p.year] || {}; const miss = [...BS_ASSETS, ...BS_LIABS].filter(([k]) => isBlank(t[k])).length; link('BS目標', 'fin', `${p.year}年度のBS目標（${miss ? `${miss}項目が未入力` : '入力済み'}）`, !miss, false); });
+  // 5 借入金
+  const debt = n0(state.bs.actual.shortDebt) + n0(state.bs.actual.longDebt);
+  if (!(state.loans || []).length) link('借入金・返済予定', 'loans', debt ? `融資の明細がありません（直近決算の借入金 ${manU(debt)}）` : '融資の明細（借入がなければ不要）', !debt, !!debt);
+  (state.loans || []).forEach((l, j) => { const nm = `${l.bank || '銀行未入力'} ${l.name || ''}`.trim(); add('借入金・返済予定', 'loans', `${nm}：銀行名`, `loans.${j}.bank`, 'text'); add('借入金・返済予定', 'loans', `${nm}：残高`, `loans.${j}.balance`, 'num', true, { zero: true }); add('借入金・返済予定', 'loans', `${nm}：金利（%）`, `loans.${j}.rate`); add('借入金・返済予定', 'loans', `${nm}：残高の基準月`, `loans.${j}.asOf`, 'month'); add('借入金・返済予定', 'loans', `${nm}：最終返済月`, `loans.${j}.maturity`, 'month'); });
+  // 6 経営陣・ライフプラン
+  if (!state.members.length) link('経営陣・ライフプラン', 'life', '社長・幹部が登録されていません', false);
+  state.members.forEach((m, i) => {
+    const nm = m.name || `メンバー${i + 1}`;
+    [['name', '氏名', 'text'], ['role', '役職', 'text'], ['birthYear', '生まれ年', 'num'], ['currentComp', '現在の役員報酬（年）', 'num'], ['livingCost', '年間の生活費', 'num'], ['savingGoal', '年間の貯蓄目標', 'num']].forEach(([k, l, kd]) => add('経営陣・ライフプラン', 'life', `${nm}：${l}`, `members.${i}.${k}`, kd));
+    NEEDS.forEach(n => add('経営陣・ライフプラン', 'life', `${nm}：「${n.label}」のありたい姿`, `members.${i}.vision.${n.key}.text`, 'text', false));
+    if (!(m.events || []).length) link('経営陣・ライフプラン', 'life', `${nm}：ライフイベント（結婚・進学・住宅・承継・引退など）`, false, false);
+  });
+  // 7 幸せ面談
+  state.members.forEach(m => { const done = state.checkins.some(x => x.memberId === m.id && x.ym === prevYm); link('幸せ面談', 'checkin', `${m.name || '名前未入力'}：${ymLabel(prevYm)}の面談`, done, true); });
+  // 8 保険
+  state.members.forEach((m, i) => {
+    if (!state.policies.some(x => x.memberId === m.id)) link('保険', 'ins', `${m.name || '名前未入力'}：加入中の保険（加入がなければ不要）`, false, false);
+    [['savings', '預貯金・金融資産'], ['yearsInOffice', '役員在任年数'], ['merit', '功績倍率']].forEach(([k, l]) => add('保険', 'ins', `${m.name || '名前未入力'}：${l}`, `members.${i}.ins.${k}`, 'num', false));
+  });
+  // 9 資金繰り・出口・ヒアリング
+  add('資金繰りの前提', 'budget', '資金の安全ライン（万円）', 'cf.minCash', 'num', true, { zero: true });
+  add('資金繰りの前提', 'budget', '売上の回収（何か月後）', 'cf.collectLag');
+  add('資金繰りの前提', 'budget', '仕入・外注の支払（何か月後）', 'cf.payLag');
+  add('M&A・企業価値', 'exit', '売却目標の年度', 'exit.targetYear');
+  add('M&A・企業価値', 'exit', '株主の手取り目標（万円）', 'exit.targetNet', 'num', true, { zero: true });
+  add('M&A・企業価値', 'exit', '資産の含み益・含み損（万円）', 'exit.unrealizedGain', 'num', false);
+  add('面談で聞いた非財務情報', 'proposal', 'ヒアリングのメモ', 'hearing.memo', 'text', false);
+  return out;
+}
+const chkCount = () => { try { const c = inputChecks(); return { req: c.filter(x => x.req && !x.done).length, opt: c.filter(x => !x.req && !x.done).length, total: c.length, done: c.filter(x => x.done).length }; } catch (e) { return { req: 0, opt: 0, total: 0, done: 0 }; } };
+function viewCheck() {
+  const all = inputChecks(), mode = ui.chkMode || 'missing';
+  const shown = all.filter(x => mode === 'all' ? true : mode === 'req' ? x.req && !x.done : !x.done);
+  const secs = [...new Set(all.map(x => x.sec))];
+  const reqMiss = all.filter(x => x.req && !x.done).length, optMiss = all.filter(x => !x.req && !x.done).length, doneN = all.filter(x => x.done).length;
+  const rate = all.length ? doneN / all.length * 100 : 100;
+  const fy = n0(state.company.currentFY), budgetMissing = monthlyRows(fy).some(r => isBlank(r.sb));
+  const field = x => {
+    const id = 'chk-' + x.path.replace(/\./g, '-'), v = getPath(state, x.path);
+    if (x.kind === 'select') return `<select id="${id}" data-bind="${x.path}"><option value="">選んでください</option>${x.opts.map(o => `<option ${v === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+    if (x.kind === 'month') return `<input id="${id}" type="month" data-bind="${x.path}" value="${esc(v ?? '')}">`;
+    if (x.kind === 'text') return `<input id="${id}" data-bind="${x.path}" value="${esc(v ?? '')}" placeholder="入力してください" style="width:100%">`;
+    return `<input id="${id}" type="number" step="any" data-num data-bind="${x.path}" value="${!x.done && x.zero && n0(v) === 0 ? '' : esc(v ?? '')}" placeholder="未入力">`;
+  };
+  return `
+  <section class="chk-hero">
+    <div class="chk-ring" style="--p:${rate.toFixed(1)}"><span>${rate.toFixed(0)}<small>%</small></span></div>
+    <div style="display:grid;gap:6px;min-width:0">
+      <h2>入力の進み具合</h2>
+      <p class="muted small">手入力する ${all.length}項目のうち ${doneN}項目が入力済みです。必須が埋まると、分析・予測・格付けが正しく計算されます。</p>
+      <div class="btn-row"><span class="pill ${reqMiss ? 'bad' : 'good'}">必須の未入力 ${reqMiss}件</span><span class="pill ${optMiss ? 'warn' : 'good'}">推奨の未入力 ${optMiss}件</span></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>分野ごとの状況</h2><span class="muted small">押すとその分野へ移動</span></div>
+    <div class="chk-secs">${secs.map((s, i) => { const xs = all.filter(x => x.sec === s), d = xs.filter(x => x.done).length, rm = xs.filter(x => x.req && !x.done).length, om = xs.filter(x => !x.req && !x.done).length; return `<button class="chk-sec ${rm ? 'bad' : om ? 'warn' : 'good'}" data-action="chk-jump" data-sec="${i}"><span class="chk-sec-name">${esc(s)}</span><span class="chk-sec-meta">${rm ? `必須 ${rm}件未入力` : om ? `推奨 ${om}件未入力` : '入力済み'}</span><div class="meter ${rm ? 'bad' : om ? 'warn' : ''}"><span style="width:${d / xs.length * 100}%"></span></div></button>`; }).join('')}</div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><h2>未入力の項目</h2><div class="btn-row">${[['missing', '未入力すべて'], ['req', '必須だけ'], ['all', '入力済みも表示']].map(([k, l]) => `<button class="btn ${mode === k ? 'primary' : ''}" data-action="chk-mode" data-mode="${k}">${l}</button>`).join('')}</div></div>
+    ${budgetMissing && planFor(fy) ? `<div class="hint">月次予算が未入力の月があります。<button class="btn" data-action="chk-spread">${fy}年度の年間計画から12か月に按分して埋める</button>（空欄の月だけ埋めます）</div>` : ''}
+    ${shown.length ? secs.map((s, i) => { const xs = shown.filter(x => x.sec === s); if (!xs.length) return ''; return `<div class="chk-group" id="chk-sec-${i}"><h3>${esc(s)}<button class="btn ghost" data-action="tab" data-tab="${xs[0].tab}">詳しい画面へ</button></h3>
+      <div class="table-scroll"><table class="wrap-th"><tbody>${xs.map(x => `<tr class="${x.done ? 'chk-done' : ''}">
+        <td style="width:28px">${x.done ? '<span class="chk-ok" aria-label="入力済み">✓</span>' : `<span class="chk-tag ${x.req ? 'bad' : 'warn'}">${x.req ? '必須' : '推奨'}</span>`}</td>
+        <th>${esc(x.label)}</th>
+        <td style="min-width:180px">${x.kind === 'link' ? `<button class="btn" data-action="tab" data-tab="${x.tab}">${x.done ? '確認する' : '入力画面を開く'}</button>` : field(x)}</td></tr>`).join('')}</tbody></table></div></div>`; }).join('') : '<div class="empty">未入力の項目はありません。すべて入力済みです。</div>'}
+    <p class="small muted">ここで入力した内容は、それぞれの画面にそのまま反映されます。入力が済んだ項目は一覧から消えます（「入力済みも表示」で確認できます）。</p>
+  </section>`;
+}
+
 // ---------- state ----------
 function load() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -2124,6 +2242,7 @@ const needLegend = () => `<div class="legend">${NEEDS.map(n => `<span><i style="
 const ICONS = {
   dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   analysis: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  check: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
   plan: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8"/>',
   budget: '<path d="M3 17l5-5 4 4 8-8"/><path d="M15 8h5v5"/>',
   loans: '<path d="M3 10 12 4l9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
@@ -2142,7 +2261,7 @@ const ICONS = {
 };
 const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.dash}</svg>`;
 const NAV_GROUPS = [
-  ['全体像', ['dash', 'analysis']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin']], ['人と人生', ['life', 'checkin', 'ins']],
+  ['全体像', ['dash', 'check', 'analysis']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin']], ['人と人生', ['life', 'checkin', 'ins']],
   ['提案と出口', ['proposal', 'exit']], ['データ', ['acct', 'data']], ['事務所全体', ['portfolio', 'office']],
 ];
 const tabLabel = k => ([...TABS, ...OFFICE_TABS].find(t => t[0] === k) || [k, ''])[1];
@@ -2151,7 +2270,8 @@ function renderHeader() {
   $('#tbEyebrow').textContent = ['portfolio', 'office'].includes(ui.tab) ? '事務所全体' : `${state.company.name || '会社名未設定'}・${n0(state.company.currentFY)}年度（${n0(state.company.fyStartMonth)}月期首）`;
   $('#companyChip').innerHTML = state.sample ? '<span class="pill sample">サンプルデータ</span>' : '';
   renderCloudBar();
-  $('#tabs').innerHTML = NAV_GROUPS.map(([g, keys]) => `<div class="sn-group"><span>${g}</span>${keys.map(k => `<button class="sn-item" data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${tabLabel(k)}</button>`).join('')}</div>`).join('');
+  const cc = chkCount();
+  $('#tabs').innerHTML = NAV_GROUPS.map(([g, keys]) => `<div class="sn-group"><span>${g}</span>${keys.map(k => `<button class="sn-item" data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${tabLabel(k)}${k === 'check' && cc.req ? `<span class="sn-badge">${cc.req}</span>` : ''}</button>`).join('')}</div>`).join('');
   $('#bottomnav').innerHTML = [['dash', 'ホーム'], ['monthly', '月次'], ['analysis', '分析'], ['checkin', '面談']].map(([k, l]) => `<button data-action="tab" data-tab="${k}" ${ui.tab === k ? 'aria-current="page"' : ''}>${icon(k)}${l}</button>`).join('') + `<button data-action="nav-open">${icon('menu')}メニュー</button>`;
 }
 function setNav(open) { $('#sidenav').classList.toggle('open', open); $('#scrim').hidden = !open; }
@@ -2256,7 +2376,9 @@ function viewDash() {
   const years = state.plans.map(x => n0(x.year)).sort();
   const sevCount = k => alerts.filter(a => a[0] === k).length;
 
+  const cc = chkCount();
   return `
+  ${cc.req ? `<button class="chk-banner" data-action="tab" data-tab="check"><span class="chk-tag bad">未入力</span><span>必須の入力が <strong>${cc.req}件</strong> 残っています。分析の精度を上げるため、入力チェックで埋めましょう。</span><span aria-hidden="true">›</span></button>` : ''}
   <section class="hero">
     <div class="hero-main">
       <span class="eyebrow">${fy}年度 営業利益の着地見込み（今のペース）</span>
@@ -3330,7 +3452,7 @@ function newMember() {
 // ---------- render & events ----------
 function render() {
   renderHeader();
-  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
   $('#view').innerHTML = v();
   saveUi();
 }
@@ -3443,6 +3565,14 @@ document.addEventListener('click', e => {
       });
       a.shortDebt = Math.round(st); a.longDebt = Math.round(lt);
       commit(`直近決算の借入金を更新しました（短期 ${man(st)}・長期 ${man(lt)}）`); break;
+    }
+    case 'chk-mode': ui.chkMode = b.dataset.mode; render(); break;
+    case 'chk-jump': { const el = document.getElementById('chk-sec-' + b.dataset.sec); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); else { ui.chkMode = 'all'; render(); setTimeout(() => document.getElementById('chk-sec-' + b.dataset.sec)?.scrollIntoView({ block: 'start' }), 0); } break; }
+    case 'chk-spread': {
+      const fy = n0(state.company.currentFY), p = planFor(fy); if (!p) return;
+      const sb = n0(p.sales) / 12, gb = sb * n0(p.grossRate) / 100, ob = gb - (n0(p.sga) + n0(p.execComp)) / 12;
+      let k = 0; monthlyRows(fy).forEach(r => { if (isBlank(r.sb)) { r.sb = Math.round(sb); k++; } if (isBlank(r.gb)) r.gb = Math.round(gb); if (isBlank(r.ob)) r.ob = Math.round(ob); });
+      commit(`${k}か月分の予算を埋めました`); break;
     }
     case 'dash-alerts': ui.tab = 'analysis'; ui.an = 'summary'; render(); window.scrollTo(0, 0); break;
     case 'alert-sev': ui.alertSev = b.dataset.sev; render(); break;
