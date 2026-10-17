@@ -485,7 +485,7 @@ function sampleState() {
     m3: [[7, 6, 5, 6, 6], [7, 6, 5, 6, 6], [7, 5, 4, 5, 5], [6, 5, 4, 5, 5], [7, 6, 5, 6, 6], [7, 6, 4, 6, 6]],
   };
   const latestNotes = {
-    m1: { want: '決裁を手放して、週1日は会社に行かない日をつくりたい。', doing: '結局、見積の最終確認を全部自分でやっている。', evaluation: '効果的ではない。専務の成長機会も奪っている。', plan: '1,000万円未満の見積決裁を10月から専務に移す。毎週水曜は出社しない。' },
+    m1: { want: '決裁を手放して、週1日は会社に行かない日をつくりたい。', doing: '結局、見積の最終確認を全部自分でやっている。', evaluation: '効果的ではない。専務の成長機会も奪っている。', plan: '1,000万円未満の見積決裁を10月から専務に移す。毎週水曜は出社しない。', advisorNote: '9月は売上が予算を3%上回り、累計でもほぼ計画どおりです。一方で「自由」は3点で、前回から2点下がりました。数字が順調な今こそ、社長の時間をつくる好機です。見積決裁を専務に移すのは、専務の成長と社長の自由の両方につながる一手です。10月は水曜日の過ごし方を一緒に振り返りましょう。' },
     m2: { want: '銀行から後継者として信頼されたい。', doing: '月次の銀行報告に同席し、試算表の説明を担当。', evaluation: '効果的。支店長から直接電話が来るようになった。', plan: '11月の決算説明は自分が主担当で行う。' },
     m3: { want: '大型案件を任され、部下に背中を見せたい。', doing: '現場対応に追われ、資格の勉強が進んでいない。', evaluation: '効果的ではない。段取りを部下に渡せていない。', plan: '朝礼の進行を主任に任せ、毎朝30分を学習時間にする。' },
   };
@@ -934,7 +934,7 @@ const REPORT_CSS = `:root,.rpt{--ink:#1a2430;--muted:#5b6878;--line:#d9e0e7;--ac
 @media (max-width:560px){.rpt .two{grid-template-columns:1fr}}
 .rpt .q{background:var(--surface-2);border-radius:8px;padding:10px 12px;margin:8px 0}.rpt .q small{color:var(--accent);font-weight:700;display:block}
 .rpt .msg{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 8px 8px 0;white-space:pre-wrap}
-.rpt .pos{color:var(--good)}.rpt .neg{color:var(--bad)}.rpt .foot{margin-top:28px;color:var(--muted);font-size:11px}
+.rpt .st{display:inline-block;font-size:11px;font-weight:700;padding:0 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}.rpt .st.done{color:var(--good)}.rpt .st.doing{color:var(--accent)}.rpt .st.todo{color:var(--warn)}.rpt .st.late{color:var(--bad)}.rpt .pos{color:var(--good)}.rpt .neg{color:var(--bad)}.rpt .foot{margin-top:28px;color:var(--muted);font-size:11px}
 .rpt svg text{fill:var(--muted);font-size:11px}.rpt svg .grid-line{stroke:var(--line);fill:none}.rpt svg .axis-label{fill:var(--ink);font-size:12px;font-weight:500}.rpt .chart{width:100%;height:auto;display:block}`;
 function reportHtml(m, ym) {
   const c = state.checkins.find(x => x.memberId === m.id && x.ym === ym);
@@ -947,12 +947,21 @@ function reportHtml(m, ym) {
   const vNow = valuation(cols[0]), req = requiredValue();
   const sign = v => (v >= 0 ? '+' : '') + man(v);
   const cls = v => v >= 0 ? 'pos' : 'neg';
+  let sec = 0; const h2 = t => `<h2>${++sec}. ${t}</h2>`;
+  // 資金繰り（作成時点の実績から3か月先）、宿題、伴走の成果
+  const r9 = rolling9(), cf3 = r9.rows.slice(0, 3), rep12 = (state.loans || []).length ? next12Repay() : 0;
+  const ymEnd = ymAdd(ym, 1) + '-01', todayS = today.toISOString().slice(0, 10);
+  const acts = (state.actions || []).filter(a => !a.from || a.from <= ym).filter(a => a.status !== '完了' || (a.due && a.due < ymEnd && a.due >= ymAdd(ym, -1) + '-01'))
+    .sort((a, b) => (a.status === '完了') - (b.status === '完了') || String(a.due).localeCompare(String(b.due)));
+  const stCls = a => a.status === '完了' ? 'done' : a.due && a.due < todayS ? 'late' : a.status === '進行中' ? 'doing' : 'todo';
+  const stTxt = a => a.status === '完了' ? '完了' : a.due && a.due < todayS ? '期限切れ' : a.status;
+  const as = actionStats(), rs = resultsCalc();
   const body = `<div class="rpt">
   <h1>月次面談レポート　${esc(ymLabel(ym))}</h1>
   <div class="meta"><span>${esc(state.company.name)}</span><span>${esc(m.name)} 様（${esc(m.role)}）</span><span>作成日 ${today.toLocaleDateString('ja-JP')}</span>${state.company.advisor ? `<span>担当 ${esc(state.company.advisor)}</span>` : ''}</div>
   ${state.company.mission ? `<p style="margin:14px 0 0">経営理念：<b>${esc(state.company.mission)}</b></p>` : ''}
 
-  <h2>1. 今月の数字</h2>
+  ${h2('今月の数字')}
   <div class="tiles">
     <div class="tile"><span>今月の売上（予算比）</span><b>${r && r.sa != null && r.sa !== '' ? manU(r.sa) : '未入力'}</b><span>${r && n0(r.sb) && r.sa != null && r.sa !== '' ? `予算 ${manU(r.sb)}・達成率 ${pct(n0(r.sa) / n0(r.sb) * 100)}` : ''}</span></div>
     <div class="tile"><span>売上 累計達成率</span><b>${sb ? pct(sa / sb * 100) : '—'}</b><span>累計 ${manU(sa)} ／ 予算 ${manU(sb)}</span></div>
@@ -960,26 +969,44 @@ function reportHtml(m, ym) {
     <div class="tile"><span>期末の着地予測（今のペース）</span><b>${manU(land.op)}</b><span>売上 ${manU(land.sales)}・期末現預金 ${manU(land.sim.end)}</span></div>
   </div>
 
-  <h2>2. 会社の健康状態と未来</h2>
+  ${h2('会社の健康状態と未来')}
   <table><tbody>
     <tr><th>銀行格付け（簡易）</th><td class="n">${rA.grade} / 8（${esc(rA.label)}）</td></tr>
     <tr><th>自己資本比率</th><td class="n">${pct(rA.f.equityRatio)}</td></tr>
     <tr><th>企業価値（現在）／ 出口目標</th><td class="n">${manU(vNow.value)} ／ ${manU(req)}（到達度 ${pct(req ? vNow.value / req * 100 : NaN)}）</td></tr>
   </tbody></table>
 
-  <h2>3. 5つの欲求の満たされ方</h2>
+  ${cf3.length ? `${h2('資金繰りの見通し（この先3か月）')}
+  <table><thead><tr><th>月</th><th class="n">入金</th><th class="n">支払い</th><th class="n">借入の返済</th><th class="n">月末の現預金</th></tr></thead><tbody>
+  ${cf3.map(x => `<tr><th>${esc(x.label)}</th><td class="n">${manU(x.receipts)}</td><td class="n">${manU(n0(x.cogs) + n0(x.opex) + n0(x.interest) + n0(x.tax))}</td><td class="n">${manU(x.repay)}</td><td class="n ${x.end < 0 ? 'neg' : ''}"><b>${manU(x.end)}</b></td></tr>`).join('')}
+  </tbody></table>
+  <p style="font-size:12px;color:var(--muted);margin:6px 0 0">${esc(r9.startLabel)}の現預金 ${manU(r9.startCash)}（月商の${isFinite(r9.liquidity) ? r9.liquidity.toFixed(1) : '—'}か月分）から計算。9か月先までで最も少ないのは${esc(r9.min.label)}の ${manU(r9.min.end)}${rep12 ? `、今後12か月の借入返済は合計 ${manU(rep12)}` : ''}です。${r9.short ? '<b class="neg">資金が不足する月があります。早めに手当てを相談しましょう。</b>' : ''}</p>` : ''}
+
+  ${h2('5つの欲求の満たされ方')}
   ${c ? `<div class="two"><div>${radarSvg(c.scores, t, 260)}</div>
   <table><thead><tr><th>欲求</th><th class="n">今月</th><th class="n">目標</th><th class="n">前回比</th></tr></thead><tbody>
   ${NEEDS.map(n => { const v = n0(c.scores[n.key]), d = prev ? v - n0(prev.scores[n.key]) : null; return `<tr><th><span style="color:${n.color}">●</span> ${n.label}<br><small style="color:var(--muted)">${esc(m.vision?.[n.key]?.metric || n.desc)}</small></th><td class="n"><b>${v}</b></td><td class="n">${t[n.key]}</td><td class="n ${d == null ? '' : cls(d)}">${d == null ? '—' : (d > 0 ? '+' : '') + d}</td></tr>`; }).join('')}
   <tr><th>幸福指数</th><td class="n"><b>${happy(c.scores).toFixed(0)}</b></td><td class="n">100</td><td class="n">${prev ? sign(Math.round(happy(c.scores) - happy(prev.scores))) : '—'}</td></tr>
   </tbody></table></div>` : '<p>この月の面談記録がありません。</p>'}
 
-  ${c ? `<h2>4. 振り返り（WDEP）</h2>
+  ${c ? `${h2('振り返り（WDEP）')}
   <div class="q"><small>W 本当に望んでいること</small>${esc(c.want) || '—'}</div>
   <div class="q"><small>D そのために今していること</small>${esc(c.doing) || '—'}</div>
   <div class="q"><small>E その行動は望みに近づいているか</small>${esc(c.evaluation) || '—'}</div>
   <div class="q"><small>P 次回までの行動計画</small><b>${esc(c.plan) || '—'}</b></div>
-  ${c.advisorNote ? `<h2>5. 担当者からのメッセージ</h2><div class="msg">${esc(c.advisorNote)}</div>` : ''}` : ''}
+  ` : ''}
+  ${acts.length ? `${h2('宿題の進み具合')}
+  <p style="margin:0 0 6px">期限を迎えた宿題の実行率 <b>${pct(as.rate)}</b>（完了 ${as.doneAll}件・取り組み中 ${as.open.length}件${as.overdue.length ? `・<span class="neg">期限切れ ${as.overdue.length}件</span>` : ''}）</p>
+  <table><thead><tr><th>宿題</th><th>担当</th><th class="n">期限</th><th class="n">状況</th></tr></thead><tbody>
+  ${acts.map(a => `<tr><td>${esc(a.title)}</td><td>${esc(a.owner)}</td><td class="n">${a.due ? esc(a.due.slice(5).replace('-', '/')) : '—'}</td><td class="n"><span class="st ${stCls(a)}">${esc(stTxt(a))}</span></td></tr>`).join('')}
+  </tbody></table>` : ''}
+  ${rs.items.length ? `${h2('伴走の成果（契約からの累計）')}
+  <div class="tiles">
+    <div class="tile"><span>これまでの効果の合計</span><b class="pos">${manU(rs.total)}</b><span>${rs.months}か月の顧問料 ${manU(rs.fee)} の <b style="display:inline;font-size:13px">${isFinite(rs.roi) ? rs.roi.toFixed(1) : '—'}倍</b></span></div>
+    <div class="tile"><span>年間の効果の見込み</span><b>${manU(rs.annual)}</b><span>年間の顧問料 ${manU(rs.feeYear)} の ${isFinite(rs.roiYear) ? rs.roiYear.toFixed(1) : '—'}倍</span></div>
+  </div>
+  <table style="margin-top:10px"><tbody>${[...rs.items].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 3).map(x => `<tr><td style="white-space:nowrap;color:var(--muted)">${esc(String(x.date).slice(0, 7).replace('-', '/'))}</td><td>${esc(x.title)}</td><td class="n">${manU(x.amount)}${x.recurring ? '／年' : ''}</td></tr>`).join('')}</tbody></table>` : ''}
+  ${c ? `${c.advisorNote ? `${h2('担当者からのメッセージ')}<div class="msg">${esc(c.advisorNote)}</div>` : ''}` : ''}
   <p class="foot">このレポートは経営者の人生計画（ライフプラン）と会社の経営計画を連動させ、選択理論の5つの基本的欲求（生存・愛と所属・力・自由・楽しみ）で振り返るための資料です。格付け・企業価値・資金繰り予測は簡易計算による目安です。</p>
 </div>`;
   const title = `面談レポート_${(m.name || '').replace(/\s/g, '')}_${ym}`;
