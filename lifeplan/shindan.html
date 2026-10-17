@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>幸せ経営診断</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 1カラムの3ステップ入力 → 結果。帯の主役数字・信号のカード・レーダーで「気づき」を渡す */
+:root {
+  --bg: #f3f5f7; --surface: #ffffff; --surface-2: #eef2f5; --ink: #1a2430; --muted: #5b6878; --line: #d9e0e7;
+  --accent: #0e6b66; --accent-soft: #d6ecea; --good: #2c8a55; --warn: #b97c08; --bad: #be3d36;
+  --hero1: #0e6b66; --hero2: #0b4a5a; --on-hero: #ffffff;
+  --n-survival: #3e9356; --n-love: #c9507a; --n-power: #cf7f12; --n-freedom: #2f7fc1; --n-fun: #8259c4;
+  --font-display: "Shippori Mincho B1", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f151b; --surface: #17202a; --surface-2: #1e2935; --ink: #e5ebf1; --muted: #98a6b5; --line: #2b3745;
+    --accent: #4cbcb3; --accent-soft: #173836; --good: #5cc08a; --warn: #e2ad3f; --bad: #ec7069;
+    --hero1: #145a55; --hero2: #10384a; --on-hero: #f2f7f7;
+    --n-survival: #6cc184; --n-love: #ec7fa3; --n-power: #f0a64a; --n-freedom: #6aaee6; --n-fun: #ab8ce6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f151b; --surface: #17202a; --surface-2: #1e2935; --ink: #e5ebf1; --muted: #98a6b5; --line: #2b3745;
+  --accent: #4cbcb3; --accent-soft: #173836; --good: #5cc08a; --warn: #e2ad3f; --bad: #ec7069;
+  --hero1: #145a55; --hero2: #10384a; --on-hero: #f2f7f7;
+  --n-survival: #6cc184; --n-love: #ec7fa3; --n-power: #f0a64a; --n-freedom: #6aaee6; --n-fun: #ab8ce6;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.65; }
+.wrap { max-width: 820px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 64px; display: grid; gap: 18px; }
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+h1 { font-size: 1.7rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
+p { margin: 0; }
+.muted { color: var(--muted); } .small { font-size: .84rem; }
+.eyebrow { font-size: .75rem; letter-spacing: .1em; color: var(--accent); font-weight: 700; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+.steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.step { appearance: none; font: inherit; font-size: .84rem; border: 1px solid var(--line); background: var(--surface); color: var(--muted); border-radius: 999px; padding: 5px 14px 5px 6px; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; }
+.step span { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); font-weight: 700; font-size: .75rem; }
+.step[aria-current="step"] { border-color: var(--accent); color: var(--ink); font-weight: 700; }
+.step[aria-current="step"] span, .step.done span { background: var(--accent); color: var(--surface); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+label.f { display: grid; gap: 4px; font-size: .82rem; color: var(--muted); }
+label.f small { font-size: .74rem; }
+input, select, textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0; }
+input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
+input:focus-visible, select:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.need { display: grid; grid-template-columns: 110px minmax(0, 1fr) 44px; gap: 10px; align-items: center; }
+.need b { display: inline-flex; gap: 6px; align-items: center; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.need input[type="range"] { accent-color: var(--accent); padding: 0; border: 0; background: none; }
+.need .v { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.need-hint { grid-column: 1 / -1; font-size: .78rem; color: var(--muted); margin-top: -6px; }
+.btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
+.btn { appearance: none; font: inherit; font-weight: 700; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 10px 18px; border-radius: 10px; cursor: pointer; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.ghost { border-color: transparent; color: var(--muted); font-weight: 500; }
+.hero { background: linear-gradient(140deg, var(--hero1), var(--hero2)); color: var(--on-hero); border-radius: 18px; padding: 22px; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; right: -70px; top: -70px; width: 220px; height: 220px; border-radius: 50%; border: 30px solid currentColor; opacity: .06; pointer-events: none; }
+.ring { --p: 0; width: 120px; height: 120px; border-radius: 50%; background: conic-gradient(var(--on-hero) calc(var(--p) * 1%), rgba(255, 255, 255, .18) 0); display: grid; place-items: center; }
+.ring span { width: 94px; height: 94px; border-radius: 50%; background: var(--hero2); display: flex; align-items: center; justify-content: center; gap: 2px; font-size: 2rem; font-weight: 700; }
+.ring small { font-size: .8rem; opacity: .75; }
+.hero h2 { color: inherit; }
+.hero p { opacity: .88; font-size: .9rem; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 600px) { .tiles { grid-template-columns: 1fr; } .hero { grid-template-columns: 1fr; justify-items: start; } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 6px; align-content: start; }
+.tile.good { border-top-color: var(--good); } .tile.warn { border-top-color: var(--warn); } .tile.bad { border-top-color: var(--bad); }
+.tile .lab { font-size: .8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.tile .val { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.tile .val small { font-size: .8rem; color: var(--muted); font-weight: 500; }
+.word { font-size: .72rem; font-weight: 700; }
+.good .word { color: var(--good); } .warn .word { color: var(--warn); } .bad .word { color: var(--bad); }
+.meter { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.meter span { display: block; height: 100%; border-radius: 4px; background: var(--good); }
+.warn .meter span { background: var(--warn); } .bad .meter span { background: var(--bad); }
+.finds { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.finds li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.tag { font-size: .72rem; font-weight: 700; padding: 1px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+.tag.bad { color: var(--bad); } .tag.warn { color: var(--warn); } .tag.good { color: var(--good); } .tag.info { color: var(--accent); }
+.finds strong { display: block; }
+.two { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 18px; align-items: center; }
+@media (max-width: 600px) { .two { grid-template-columns: 1fr; } }
+svg text { fill: var(--muted); font-family: var(--font-body); font-size: 11px; }
+svg .gl { stroke: var(--line); fill: none; }
+.themes { counter-reset: t; display: grid; gap: 10px; }
+.theme { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+.theme::before { counter-increment: t; content: counter(t); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.cta { border: 2px solid var(--accent); }
+.office { white-space: pre-wrap; font-size: .9rem; }
+.banner { font-size: .82rem; background: var(--accent-soft); color: var(--ink); border-radius: 10px; padding: 8px 12px; display: flex; gap: 10px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+details summary { cursor: pointer; color: var(--muted); font-size: .84rem; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: .85rem; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+'use strict';
+const NEEDS = [
+  ['survival', '生存', '健康・お金・将来の安心', 'var(--n-survival)'],
+  ['love', '愛・所属', '家族・仲間・社員とのつながり', 'var(--n-love)'],
+  ['power', '力', '達成感・認められること・成長', 'var(--n-power)'],
+  ['freedom', '自由', '自分の時間・自分で決められること', 'var(--n-freedom)'],
+  ['fun', '楽しみ', '学び・趣味・好奇心', 'var(--n-fun)'],
+];
+const EXAMPLE = { company: '', industry: '建設業', sales: 50000, op: 1800, cash: 4500, debt: 12000, equity: 9000, assets: 32000,
+  age: 62, retire: 70, comp: 1200, living: 900, savings: 3000, pension: 220, successor: '未定',
+  needs: { survival: 6, love: 7, power: 7, freedom: 3, fun: 4 } };
+const blank = () => ({ company: '', industry: '建設業', sales: null, op: null, cash: null, debt: null, equity: null, assets: null, age: null, retire: 70, comp: null, living: null, savings: null, pension: 200, successor: '未定', needs: { survival: 5, love: 5, power: 5, freedom: 5, fun: 5 } });
+let d = JSON.parse(JSON.stringify(EXAMPLE)), isExample = true, step = 0;
+let office = { name: '', person: '', contact: '' };
+try { const o = JSON.parse(localStorage.getItem('shindan-office')); if (o) office = o; } catch (e) {}
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const n0 = v => v == null || v === '' || isNaN(+v) ? 0 : +v;
+const man = v => Math.round(n0(v)).toLocaleString('ja-JP') + '万円';
+const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 1800); };
+
+function calc() {
+  const sales = n0(d.sales), op = n0(d.op), cash = n0(d.cash), debt = n0(d.debt), eq = n0(d.equity), assets = n0(d.assets);
+  const er = assets ? eq / assets * 100 : NaN, cf = op * 0.7, net = debt - cash;
+  const repay = net <= 0 ? 0 : cf > 0 ? net / cf : Infinity;
+  const liq = sales ? cash / (sales / 12) : NaN, margin = sales ? op / sales * 100 : NaN;
+  const pE = !isFinite(er) ? 0 : er >= 40 ? 25 : er >= 30 ? 20 : er >= 20 ? 15 : er >= 10 ? 8 : er > 0 ? 3 : 0;
+  const pR = repay === 0 ? 25 : !isFinite(repay) ? 0 : repay <= 3 ? 25 : repay <= 5 ? 20 : repay <= 10 ? 12 : repay <= 15 ? 5 : 0;
+  const pL = !isFinite(liq) ? 0 : liq >= 3 ? 25 : liq >= 2 ? 20 : liq >= 1.5 ? 15 : liq >= 1 ? 8 : 2;
+  const pM = !isFinite(margin) ? 0 : margin >= 8 ? 25 : margin >= 5 ? 20 : margin >= 3 ? 15 : margin >= 1 ? 8 : margin > 0 ? 4 : 0;
+  const fin = pE + pR + pL + pM;
+  const age = n0(d.age), retire = Math.max(age + 1, n0(d.retire) || 70), years = Math.max(0, 90 - retire), work = Math.max(1, retire - age);
+  const oldNeed = Math.max(0, (n0(d.living) * 0.7 - n0(d.pension)) * years), oldGap = Math.max(0, oldNeed - n0(d.savings));
+  const saveYear = oldGap / work, needComp = (n0(d.living) + saveYear) / 0.7, compGap = n0(d.comp) - needComp;
+  const life = needComp ? Math.max(0, Math.min(100, n0(d.comp) / needComp * 100)) : 0;
+  const nv = NEEDS.map(([k]) => n0(d.needs[k])), happy = nv.reduce((a, b) => a + b, 0) / 5 * 10;
+  const low = NEEDS.map(([k, l], i) => ({ k, l, v: nv[i] })).sort((a, b) => a.v - b.v)[0];
+  const value = Math.max(0, eq + Math.max(0, op) * 3);
+  const succession = age >= 60 && d.successor !== 'あり';
+  const total = Math.round(fin * 0.4 + life * 0.3 + happy * 0.3);
+  return { er, repay, liq, margin, fin, pE, pR, pL, pM, oldNeed, oldGap, saveYear, needComp, compGap, life, happy, low, value, succession, total, retire, work, years };
+}
+const tone = (v, g, w) => v >= g ? 'good' : v >= w ? 'warn' : 'bad';
+const word = t => ({ good: '良好', warn: '注意', bad: '要対策' }[t]);
+
+function radar(scores, size = 240) {
+  const pad = 46, r = size / 2 - pad, c = size / 2;
+  const pt = (i, v) => { const a = (-90 + i * 72) * Math.PI / 180; return [c + Math.cos(a) * r * v / 10, c + Math.sin(a) * r * v / 10]; };
+  let s = `<svg viewBox="0 0 ${size} ${size}" style="width:100%;height:auto;max-width:260px" role="img" aria-label="5つの欲求の満たされ方">`;
+  [2, 4, 6, 8, 10].forEach(v => { s += `<polygon class="gl" points="${NEEDS.map((_, i) => pt(i, v).join(',')).join(' ')}"/>`; });
+  NEEDS.forEach(([k, l, , col], i) => { const [x, y] = pt(i, 10); s += `<line class="gl" x1="${c}" y1="${c}" x2="${x}" y2="${y}"/>`; const a = (-90 + i * 72) * Math.PI / 180; s += `<text x="${c + Math.cos(a) * (r + 20)}" y="${c + Math.sin(a) * (r + 16) + 4}" text-anchor="middle" style="fill:var(--ink);font-size:12px;font-weight:700">${l}</text>`; });
+  s += `<polygon points="${NEEDS.map(([k], i) => pt(i, n0(scores[k])).join(',')).join(' ')}" fill="var(--accent)" fill-opacity=".18" stroke="var(--accent)" stroke-width="2"/>`;
+  NEEDS.forEach(([k, , , col], i) => { const [x, y] = pt(i, n0(scores[k])); s += `<circle cx="${x}" cy="${y}" r="4.5" fill="${col}" stroke="var(--surface)" stroke-width="2"/>`; });
+  return s + '</svg>';
+}
+
+const num = (k, label, hint) => `<label class="f">${label}<input id="in-${k}" type="number" inputmode="numeric" data-k="${k}" value="${d[k] ?? ''}" placeholder="未入力">${hint ? `<small>${hint}</small>` : ''}</label>`;
+function viewStep() {
+  const steps = ['会社の数字', '社長の人生', '5つの欲求'];
+  const nav = `<div class="steps">${steps.map((s, i) => `<button class="step ${i < step ? 'done' : ''}" data-go="${i}" ${i === step ? 'aria-current="step"' : ''}><span>${i + 1}</span>${s}</button>`).join('')}<button class="step" data-go="3" ${step === 3 ? 'aria-current="step"' : ''}><span>✓</span>診断結果</button></div>`;
+  let body = '';
+  if (step === 0) body = `<div class="card"><h2>1. 会社の数字</h2><p class="muted small">直近の決算書の数字を、万円単位で入れてください。だいたいで大丈夫です。</p>
+    <div class="grid2"><label class="f">会社名（任意）<input id="in-company" data-k="company" data-text value="${esc(d.company)}" placeholder="例）○○建設"></label>
+    <label class="f">業種<select id="in-industry" data-k="industry" data-text>${['建設業', '製造業', '卸売・小売業', '飲食業', '医療・福祉', '情報通信業', '不動産業', 'サービス業', 'その他'].map(v => `<option ${d.industry === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    ${num('sales', '年商（売上高）')}${num('op', '営業利益')}${num('cash', '現預金')}${num('debt', '借入金の残高', '短期・長期の合計')}${num('equity', '純資産')}${num('assets', '総資産')}</div></div>`;
+  if (step === 1) body = `<div class="card"><h2>2. 社長の人生</h2><p class="muted small">ご家族の生活と、引退後の暮らしを支えるお金の数字です。</p>
+    <div class="grid2">${num('age', '社長の年齢（歳）')}${num('retire', '何歳まで社長を続けたいか（歳）')}${num('comp', '今の役員報酬（年・万円）')}${num('living', 'ご家族の生活費（年・万円）')}${num('savings', '老後のための預貯金（万円）')}${num('pension', '年金の見込み（年・万円）', 'わからなければ200万円のままで')}
+    <label class="f">後継者<select id="in-successor" data-k="successor" data-text>${['あり', '未定', 'なし'].map(v => `<option ${d.successor === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div></div>`;
+  if (step === 2) body = `<div class="card"><h2>3. 5つの欲求の満たされ方</h2><p class="muted small">人は5つの基本的欲求を満たそうとして行動します（選択理論）。今の満たされ方を、0〜10で直感的に選んでください。</p>
+    <div style="display:grid;gap:16px">${NEEDS.map(([k, l, h, c]) => `<div class="need"><b><span class="dot" style="background:${c}"></span>${l}</b><input id="in-need-${k}" type="range" min="0" max="10" step="1" value="${n0(d.needs[k])}" data-need="${k}" aria-label="${l}"><span class="v" id="v-${k}">${n0(d.needs[k])}</span><span class="need-hint">${h}</span></div>`).join('')}</div></div>`;
+  if (step === 3) body = result();
+  const btns = step < 3 ? `<div class="btns"><button class="btn ghost" data-go="${Math.max(0, step - 1)}" ${step ? '' : 'hidden'}>戻る</button><button class="btn primary" data-go="${step + 1}">${step === 2 ? '診断結果を見る' : '次へ'}</button></div>` : '';
+  return nav + body + btns;
+}
+
+function themes(c) {
+  const t = [];
+  if (c.compGap < 0) t.push(['ライフプランから逆算した経営計画づくり', `人生に必要な役員報酬まで年 ${man(-c.compGap)} 足りません。報酬を出せる売上・利益の計画を、人生の数字から逆算します。`]);
+  if (c.succession) t.push(['事業承継とM&Aの選択肢づくり', `${n0(d.age)}歳で後継者が「${d.successor}」。親族承継・社員承継・M&Aを、企業価値と手取りで比べます。`]);
+  if (c.fin < 50) t.push(['銀行格付けの改善と資金繰りの見える化', '自己資本比率・返済年数・手元資金を改善し、金利や経営者保証の条件交渉につなげます。']);
+  if (c.repay > 10) t.push(['借入の返済計画と金融機関との交渉', `借入を今の利益で返すのに約${isFinite(c.repay) ? c.repay.toFixed(1) : '—'}年。返済予定を銀行別に整理し、条件を見直します。`]);
+  if (c.low.v <= 4) t.push([`「${c.low.l}」の欲求を満たす働き方`, `${c.low.l}が${c.low.v}点。${c.low.k === 'freedom' ? '権限委譲で社長の時間をつくる' : c.low.k === 'fun' ? '学びや趣味の時間を計画に入れる' : c.low.k === 'love' ? '家族・社員との時間を予定に入れる' : c.low.k === 'survival' ? '健康とお金の不安を数字で解消する' : '目標と達成を見える化する'}ことから始めます。`]);
+  if (c.liq < 1.5) t.push(['9か月先までの資金繰り予測', '手元資金が月商の1.5か月分を下回っています。納税・返済を含めた資金繰りを毎月確認します。']);
+  t.push(['企業価値を高める経営', `今の企業価値の目安は ${man(c.value)}。利益を年1,000万円伸ばすと、年買法で約3,000万円上がります。`]);
+  return t.slice(0, 3);
+}
+function result() {
+  const c = calc(), tF = tone(c.fin, 70, 50), tL = tone(c.life, 100, 80), tH = tone(c.happy, 65, 50);
+  const finds = [];
+  finds.push([c.compGap >= 0 ? 'good' : 'bad', '人生に必要な役員報酬', c.compGap >= 0 ? `今の報酬で、生活費と老後への積立をまかなえています（必要 ${man(c.needComp)}／現在 ${man(d.comp)}）。` : `必要な報酬は年 ${man(c.needComp)}。今より年 ${man(-c.compGap)} 足りません。生活費に加えて、引退までの${c.work}年で老後資金 ${man(c.oldGap)} を積み立てる前提です。`]);
+  finds.push([c.oldGap > 0 ? 'warn' : 'good', '引退後に必要なお金', `${c.retire}歳から90歳までの${c.years}年で、年金を除いて約 ${man(c.oldNeed)}。今の預貯金を差し引くと ${c.oldGap > 0 ? man(c.oldGap) + ' 不足' : '足りています'}。`]);
+  finds.push([tF, '金融機関からの見え方', `財務の点数は ${c.fin}点/100（自己資本比率 ${isFinite(c.er) ? c.er.toFixed(1) + '%' : '—'}・借入を返す年数 ${c.repay === 0 ? '実質無借金' : isFinite(c.repay) ? c.repay.toFixed(1) + '年' : '利益で返せない状態'}・手元資金 ${isFinite(c.liq) ? c.liq.toFixed(1) + 'か月分' : '—'}）。${tF === 'good' ? '金利や保証の交渉ができる水準です。' : tF === 'warn' ? '融資は受けられますが、条件の改善余地があります。' : '追加融資の条件が厳しくなりやすい水準です。'}`]);
+  if (c.succession) finds.push(['warn', '事業承継', `${n0(d.age)}歳で後継者が「${d.successor}」です。承継の準備には一般に5〜10年かかります。`]);
+  finds.push([c.low.v <= 4 ? 'warn' : 'good', 'いちばん満たされていない欲求', `「${c.low.l}」が${c.low.v}点。会社の数字が良くても、ここが満たされないと社長の幸せは続きません。`]);
+  return `
+  <div class="hero"><div class="ring" style="--p:${c.total}"><span>${c.total}<small>点</small></span></div>
+    <div style="display:grid;gap:6px"><span class="eyebrow" style="color:inherit;opacity:.8">${esc(d.company || 'あなたの会社')}の幸せ経営スコア</span><h2>${c.total >= 75 ? '人生と会社の数字が、よく噛み合っています' : c.total >= 55 ? '人生と会社の数字に、ずれが見えてきました' : '人生と会社の数字を、つなぎ直すときです'}</h2>
+    <p>財務の安全性・人生の安心・5つの欲求の満たされ方の3つから計算した、100点満点の目安です。</p></div></div>
+  ${isExample ? '<div class="banner"><span>いまは例の数値での結果です。</span><button class="btn ghost" data-act="clear">空にして入力し直す</button></div>' : ''}
+  <div class="tiles">
+    <div class="tile ${tF}"><span class="lab">財務の安全性<span class="word">${word(tF)}</span></span><span class="val">${c.fin}<small>/100</small></span><div class="meter"><span style="width:${c.fin}%"></span></div></div>
+    <div class="tile ${tL}"><span class="lab">人生の安心（報酬の充足）<span class="word">${word(tL)}</span></span><span class="val">${Math.round(c.life)}<small>%</small></span><div class="meter"><span style="width:${c.life}%"></span></div></div>
+    <div class="tile ${tH}"><span class="lab">5つの欲求の満たされ方<span class="word">${word(tH)}</span></span><span class="val">${Math.round(c.happy)}<small>/100</small></span><div class="meter"><span style="width:${c.happy}%"></span></div></div>
+  </div>
+  <div class="card"><h2>診断でわかったこと</h2><ul class="finds">${finds.map(([t, h, b]) => `<li><span class="tag ${t}">${word(t)}</span><span><strong>${h}</strong>${b}</span></li>`).join('')}</ul></div>
+  <div class="card"><h2>5つの欲求</h2><div class="two">${radar(d.needs)}<div style="display:grid;gap:8px">${NEEDS.map(([k, l, h, col]) => `<div style="display:grid;grid-template-columns:90px minmax(0,1fr) 28px;gap:8px;align-items:center"><span class="small" style="display:inline-flex;gap:6px;align-items:center"><span class="dot" style="background:${col}"></span>${l}</span><div class="meter"><span style="width:${n0(d.needs[k]) * 10}%;background:${col}"></span></div><span class="small" style="text-align:right;font-weight:700">${n0(d.needs[k])}</span></div>`).join('')}<p class="small muted">お金は手段で、満たしたいのはこの5つです。経営計画は、社長と幹部のこの5つを満たすためにあります。</p></div></div></div>
+  <div class="card"><h2>これから取り組むとよいテーマ</h2><div class="themes">${themes(c).map(([h, b]) => `<div class="theme"><div><strong>${h}</strong><p class="small muted">${b}</p></div></div>`).join('')}</div></div>
+  <div class="card cta"><h2>結果説明の面談で、この先5年の計画を一緒に描きましょう</h2>
+    <p class="small">この診断は、入力いただいた数字だけで計算した目安です。面談では、決算書と人生の予定（進学・住宅・承継・引退）をもとに、必要な報酬から逆算した経営計画と、銀行・保険・承継の打ち手を具体的にお示しします。</p>
+    ${office.name || office.person || office.contact ? `<div class="office"><strong>${esc(office.name)}</strong>${office.person ? `\n担当：${esc(office.person)}` : ''}${office.contact ? `\n${esc(office.contact)}` : ''}</div>` : ''}
+    <div class="btns"><button class="btn" data-go="0">入力を見直す</button><button class="btn primary" data-act="save">診断結果を保存（HTML）</button></div></div>
+  <details class="card"><summary>事務所の設定（診断を使う側が入力）</summary>
+    <div class="grid2"><label class="f">事務所名<input id="of-name" data-of="name" value="${esc(office.name)}"></label><label class="f">担当者名<input id="of-person" data-of="person" value="${esc(office.person)}"></label></div>
+    <label class="f">連絡先（電話・メールなど、表示用）<textarea id="of-contact" data-of="contact" rows="2">${esc(office.contact)}</textarea></label>
+    <p class="small muted">ここで入れた内容は、結果画面と保存するレポートの最後に表示されます。このブラウザにだけ保存されます。</p></details>
+  <p class="small muted">計算の前提：役員報酬の手取りは7割、引退後の生活費は今の7割で90歳まで、財務の点数は自己資本比率・借入を返す年数・手元資金・営業利益率の4項目、企業価値は「純資産＋営業利益×3年」の簡易計算です。</p>`;
+}
+
+function render() { $('#app').innerHTML = `<div style="display:grid;gap:6px"><span class="eyebrow">ライフプラン × 経営計画 × 選択理論</span><h1>幸せ経営診断</h1><p class="muted small">3つの質問に答えると、社長の人生と会社の数字がどれだけ噛み合っているかがわかります（所要 約10分）。</p></div>${step < 3 && isExample ? '<div class="banner"><span>例の数値が入っています。そのまま「次へ」で結果を見られます。</span><button class="btn ghost" data-act="clear">空にして入力する</button></div>' : ''}${viewStep()}`; }
+
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.need) { d.needs[t.dataset.need] = +t.value; const v = document.getElementById('v-' + t.dataset.need); if (v) v.textContent = t.value; }
+  else if (t.dataset.k) { d[t.dataset.k] = t.hasAttribute('data-text') ? t.value : (t.value === '' ? null : +t.value); }
+  else if (t.dataset.of) { office[t.dataset.of] = t.value; try { localStorage.setItem('shindan-office', JSON.stringify(office)); } catch (er) {} }
+});
+document.addEventListener('change', e => { if (e.target.dataset.k && e.target.tagName === 'SELECT') d[e.target.dataset.k] = e.target.value; if (e.target.dataset.of && step === 3) render(); });
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-go],[data-act]'); if (!b) return;
+  if (b.dataset.go != null) { step = +b.dataset.go; render(); window.scrollTo(0, 0); return; }
+  if (b.dataset.act === 'clear') { d = blank(); isExample = false; step = 0; render(); window.scrollTo(0, 0); toast('入力を空にしました'); }
+  if (b.dataset.act === 'save') saveReport();
+});
+document.addEventListener('focusin', e => { if (e.target.dataset && (e.target.dataset.k || e.target.dataset.need)) isExample = false; });
+
+async function saveReport() {
+  const css = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
+  const doc = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>幸せ経営診断の結果</title><style>${css}</style></head><body><div class="wrap"><div><span class="eyebrow">幸せ経営診断の結果</span><h1>${esc(d.company || '')}</h1><p class="muted small">${new Date().toLocaleDateString('ja-JP')}</p></div>${result().replace(/<details[\s\S]*?<\/details>/, '').replace(/<div class="btns">[\s\S]*?<\/div>/g, '').replace(/<div class="banner">[\s\S]*?<\/div>/, '')}</div></body></html>`;
+  const name = `幸せ経営診断_${(d.company || '結果').replace(/\s/g, '')}.html`;
+  let dl = null;
+  try { dl = window.claude?.use ? await window.claude.use('downloads') : null; } catch (er) {}
+  if (dl) { try { await dl.save({ filename: name, data: doc }); toast('保存しました'); } catch (er) { if (er.code !== 'declined') toast('このビューでは保存できません'); } return; }
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([doc], { type: 'text/html' })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); toast('保存しました'); } catch (er) { toast('保存できませんでした'); }
+}
+render();
+})();
+</script>
+</body>
+</html>
