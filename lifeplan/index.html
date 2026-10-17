@@ -324,6 +324,19 @@ svg .axis-label { fill: var(--ink); font-size: 12px; font-weight: 500; }
 .lg.hire { border: 1.5px dashed var(--warn); }
 .org-edit select, .org-edit input { min-width: 0; }
 
+/* 月次レポート一覧 */
+.rpt-frame { width: 100%; height: 78vh; min-height: 480px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+
+@media (max-width: 600px) {
+  .rpt-list thead { display: none; }
+  .rpt-list, .rpt-list tbody { display: block; width: 100%; }
+  .rpt-list tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .rpt-list td { display: block; border: 0; padding: 0; text-align: left; white-space: normal; }
+  .rpt-list td.c-ym, .rpt-list td.c-who, .rpt-list td.c-issue, .rpt-list td.c-act { grid-column: 1 / -1; }
+  .rpt-list td.c-who br { display: none; } .rpt-list td.c-who .small { margin-left: 6px; }
+  .rpt-list td[data-label]::before { content: attr(data-label); display: block; font-size: .7rem; color: var(--muted); }
+}
+
 </style>
 </head>
 <body>
@@ -369,7 +382,7 @@ const TABS = [
   ['monthly', '月次予実・着地予測'], ['analysis', '財務分析'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['proposal', '提案・出口'], ['exit', 'M&A・企業価値'], ['acct', '会計データ連携'], ['data', 'データ'],
 ];
 TABS.unshift(['check', '入力チェック']);
-TABS.push(['actions', '宿題・年間計画'], ['results', '伴走の成果'], ['president', '社長ページ'], ['bank', '銀行提出資料'], ['keishin', '経審シミュレーション'], ['org', '組織図と年収計画']);
+TABS.push(['actions', '宿題・年間計画'], ['results', '伴走の成果'], ['president', '社長ページ'], ['bank', '銀行提出資料'], ['keishin', '経審シミュレーション'], ['org', '組織図と年収計画'], ['reports', '月次レポート一覧']);
 const OFFICE_TABS = [['portfolio', '顧問先ポートフォリオ'], ['office', '事務所経営']];
 
 // ---------- helpers ----------
@@ -936,7 +949,9 @@ const REPORT_CSS = `:root,.rpt{--ink:#1a2430;--muted:#5b6878;--line:#d9e0e7;--ac
 .rpt .msg{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 8px 8px 0;white-space:pre-wrap}
 .rpt .st{display:inline-block;font-size:11px;font-weight:700;padding:0 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}.rpt .st.done{color:var(--good)}.rpt .st.doing{color:var(--accent)}.rpt .st.todo{color:var(--warn)}.rpt .st.late{color:var(--bad)}.rpt .pos{color:var(--good)}.rpt .neg{color:var(--bad)}.rpt .foot{margin-top:28px;color:var(--muted);font-size:11px}
 .rpt svg text{fill:var(--muted);font-size:11px}.rpt svg .grid-line{stroke:var(--line);fill:none}.rpt svg .axis-label{fill:var(--ink);font-size:12px;font-weight:500}.rpt .chart{width:100%;height:auto;display:block}`;
-function reportHtml(m, ym) {
+const REPORT_CSS_SCOPED = REPORT_CSS.replace(':root,.rpt{', '.rpt{');
+const reportDoc = (title, body) => `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${REPORT_CSS}body{margin:0;background:#fff}</style></head><body>${body}</body></html>`;
+function reportHtml(m, ym, issuedAt) {
   const c = state.checkins.find(x => x.memberId === m.id && x.ym === ym);
   const list = checkinsOf(m.id), prev = list.filter(x => x.ym < ym).pop(), t = targetsOf(m);
   const fy = fyOf(ym), months = fyMonths(fy), mi = months.findIndex(x => x.ym === ym);
@@ -958,7 +973,7 @@ function reportHtml(m, ym) {
   const as = actionStats(), rs = resultsCalc();
   const body = `<div class="rpt">
   <h1>月次面談レポート　${esc(ymLabel(ym))}</h1>
-  <div class="meta"><span>${esc(state.company.name)}</span><span>${esc(m.name)} 様（${esc(m.role)}）</span><span>作成日 ${today.toLocaleDateString('ja-JP')}</span>${state.company.advisor ? `<span>担当 ${esc(state.company.advisor)}</span>` : ''}</div>
+  <div class="meta"><span>${esc(state.company.name)}</span><span>${esc(m.name)} 様（${esc(m.role)}）</span><span>作成日 ${(issuedAt ? new Date(issuedAt) : today).toLocaleDateString('ja-JP')}</span>${state.company.advisor ? `<span>担当 ${esc(state.company.advisor)}</span>` : ''}</div>
   ${state.company.mission ? `<p style="margin:14px 0 0">経営理念：<b>${esc(state.company.mission)}</b></p>` : ''}
 
   ${h2('今月の数字')}
@@ -1010,11 +1025,13 @@ function reportHtml(m, ym) {
   <p class="foot">このレポートは経営者の人生計画（ライフプラン）と会社の経営計画を連動させ、選択理論の5つの基本的欲求（生存・愛と所属・力・自由・楽しみ）で振り返るための資料です。格付け・企業価値・資金繰り予測は簡易計算による目安です。</p>
 </div>`;
   const title = `面談レポート_${(m.name || '').replace(/\s/g, '')}_${ym}`;
-  return { title, body, doc: `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${REPORT_CSS}body{margin:0;background:#fff}</style></head><body>${body}</body></html>` };
+  const summary = { sales: sb ? Math.round(sa / sb * 1000) / 10 : null, happy: c ? Math.round(happy(c.scores)) : null, actions: isFinite(as.rate) ? Math.round(as.rate) : null };
+  return { title, body, summary, doc: `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${REPORT_CSS}body{margin:0;background:#fff}</style></head><body>${body}</body></html>` };
 }
 async function saveReport() {
   const m = member(ui.ciMember); if (!m) return;
   const rp = reportHtml(m, ui.ciYm), filename = rp.title + '.html';
+  if (await archiveReport(m, ui.ciYm)) toast('レポートを発行しました（「月次レポート一覧」に残ります）');
   let dl = null;
   try { dl = window.claude?.use ? await window.claude.use('downloads') : null; } catch (e) {}
   if (dl) {
@@ -1706,7 +1723,7 @@ function anReport() {
   const rp = monthlyReportHtml();
   return `<section class="panel"><div class="panel-head"><h2>月次レポートの自動生成</h2><button class="btn primary" data-action="mreport-save">レポートを保存（HTML）</button></div>
     <p class="small muted">毎月の監査でそのまま説明資料として使えます。サマリー、予実比較と年間着地、勘定科目別の推移、資金繰り、格付け、アラートを自動でまとめます。AIアドバイスを作成済みなら「課題と打ち手」も載ります。</p></section>
-    <section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS}</style>${rp.body}</section>`;
+    <section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS_SCOPED}</style>${rp.body}</section>`;
 }
 
 // ---------- 画面：提案・出口（ニーズレーダー／提携商品マッチング／資金調達／資産運用） ----------
@@ -2445,7 +2462,7 @@ function viewBank() {
       <label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="gr-sep" data-bool data-bind="guarantee.separation" ${g.separation ? 'checked' : ''}> 法人と個人の資産・経理を分離できている</label>
       <label class="field" style="grid-auto-flow:column;justify-content:start;gap:8px;color:var(--ink)"><input type="checkbox" id="gr-dis" data-bool data-bind="guarantee.disclosure" ${g.disclosure ? 'checked' : ''}> 金融機関へ定期的に財務情報を開示している</label>
     </div></section>
-  <section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS}</style>${d.body}</section>`;
+  <section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS_SCOPED}</style>${d.body}</section>`;
 }
 
 // ⑤ 経審シミュレーション（経営状況分析 Y点の試算と総合評定値 P点）
@@ -2697,6 +2714,7 @@ const needLegend = () => `<div class="legend">${NEEDS.map(n => `<span><i style="
 
 // ---------- views ----------
 const ICONS = {
+  reports: '<path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4M8 12h8M8 16h5"/><path d="M3 7v15h13"/>',
   org: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
   dash: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   analysis: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -2724,7 +2742,7 @@ const ICONS = {
 };
 const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ICONS.dash}</svg>`;
 const NAV_GROUPS = [
-  ['全体像', ['dash', 'check', 'analysis']], ['伴走プログラム', ['actions', 'results', 'president']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin', 'bank', 'keishin']], ['人と人生', ['life', 'org', 'checkin', 'ins']],
+  ['全体像', ['dash', 'check', 'analysis']], ['伴走プログラム', ['actions', 'reports', 'results', 'president']], ['計画と数字', ['plan', 'budget', 'loans', 'monthly', 'fin', 'bank', 'keishin']], ['人と人生', ['life', 'org', 'checkin', 'ins']],
   ['提案と出口', ['proposal', 'exit']], ['データ', ['acct', 'data']], ['事務所全体', ['portfolio', 'office']],
 ];
 const tabLabel = k => ([...TABS, ...OFFICE_TABS].find(t => t[0] === k) || [k, ''])[1];
@@ -3202,11 +3220,11 @@ function viewCheckin() {
     <div class="btn-row"><button class="btn primary" data-action="save-checkin">この内容で面談を記録</button>
       <button class="btn" data-action="ci-to-action">来月の行動を宿題に登録</button>
       <button class="btn" data-action="report-preview">${ui.showReport ? 'レポートのプレビューを閉じる' : '面談レポートをプレビュー'}</button>
-      <button class="btn" data-action="report-save" ${existing ? '' : 'disabled title="先に面談を記録してください"'}>面談レポートを保存（HTML）</button>
+      <button class="btn" data-action="report-save" ${existing ? '' : 'disabled title="先に面談を記録してください"'}>面談レポートを発行して保存（HTML）</button>
       ${existing ? `<button class="btn danger ${ui.armed === 'del-ci' ? 'armed' : ''}" data-action="del-checkin">${ui.armed === 'del-ci' ? 'もう一度押すと削除' : 'この月の記録を削除'}</button>` : ''}</div>
   </section>
 
-  ${ui.showReport ? `<section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS}</style>${existing ? reportHtml(m, ui.ciYm).body : '<div class="empty" style="margin:18px">先に面談を記録すると、顧問先に渡すレポートを作れます。</div>'}</section>` : ''}
+  ${ui.showReport ? `<section class="panel" style="padding:0;overflow:hidden"><style>${REPORT_CSS_SCOPED}</style>${existing ? reportHtml(m, ui.ciYm).body : '<div class="empty" style="margin:18px">先に面談を記録すると、顧問先に渡すレポートを作れます。</div>'}</section>` : ''}
 
   <section class="panel">
     <div class="panel-head"><h2>${esc(m.name)} の推移</h2>${needLegend()}</div>
@@ -4124,10 +4142,87 @@ function viewOrg() {
   </section>`;
 }
 
+// ---------- 月次レポートの記録（発行した時点の内容をそのまま残す） ----------
+const RPT_LOCAL = 'shiawase-reports-v1';
+const rpt = { key: null, list: [], loaded: false, unsub: null, err: '' };
+const rptKey = () => cloud.db && ui.clientId ? 'c:' + ui.clientId : 'local';
+function rptLocalAll() { try { return JSON.parse(localStorage.getItem(RPT_LOCAL)) || {}; } catch (e) { return {}; } }
+function rptWatch() {
+  const key = rptKey(); if (rpt.key === key) return;
+  rpt.unsub?.(); rpt.unsub = null; rpt.key = key; rpt.list = []; rpt.loaded = false; rpt.err = '';
+  if (key === 'local') { rpt.list = rptLocalAll().local || []; rpt.loaded = true; return; }
+  rpt.unsub = cloud.db.collection(`clientReports/${ui.clientId}/items`).onSnapshot(snap => {
+    rpt.list = snap.docs.filter(d => d.exists).map(d => ({ id: d.id, ...d.data() })); rpt.loaded = true; rpt.err = '';
+    if (ui.tab === 'reports') render();
+  }, err => { rpt.err = err.code || 'error'; rpt.loaded = true; if (ui.tab === 'reports') render(); });
+}
+// 同じ人・同じ月は1件（発行し直すと最新の内容に置き換わる）
+async function archiveReport(m, ym, createdAt) {
+  const rp = reportHtml(m, ym, createdAt), id = `${m.id}_${ym}`;
+  const rec = { ym, memberId: m.id, memberName: m.name || '', role: m.role || '', title: rp.title, body: rp.body, summary: rp.summary, createdAt: createdAt || Date.now(), createdBy: cloud.myId || '' };
+  rptWatch();
+  if (rpt.key === 'local') {
+    const all = rptLocalAll(), list = (all.local || []).filter(x => x.id !== id);
+    list.push({ id, ...rec }); all.local = list;
+    try { localStorage.setItem(RPT_LOCAL, JSON.stringify(all)); rpt.list = list; return true; }
+    catch (e) { toast('ブラウザの保存容量がいっぱいで、レポートを記録できませんでした'); return false; }
+  }
+  if (cloud.readOnly) { toast('閲覧のみの権限ではレポートを記録できません'); return false; }
+  try { await cloud.db.doc(`clientReports/${ui.clientId}/items/${id}`).set(rec); return true; }
+  catch (e) { toast(e.code === 'quota_exceeded' ? '共有データの容量がいっぱいで、レポートを記録できませんでした' : 'レポートを記録できませんでした'); return false; }
+}
+async function rptDelete(id) {
+  if (rpt.key === 'local') { const all = rptLocalAll(); all.local = (all.local || []).filter(x => x.id !== id); try { localStorage.setItem(RPT_LOCAL, JSON.stringify(all)); } catch (e) {} rpt.list = all.local; render(); return; }
+  try { await cloud.db.doc(`clientReports/${ui.clientId}/items/${id}`).delete(); } catch (e) { toast('削除できませんでした'); }
+}
+async function rptDownload(x) {
+  const doc = reportDoc(x.title, x.body), filename = x.title + '.html';
+  let dl = null;
+  try { dl = window.claude?.use ? await window.claude.use('downloads') : null; } catch (e) {}
+  if (dl) { try { await dl.save({ filename, data: doc }); toast('保存しました'); } catch (e) { if (e.code !== 'declined') toast('このビューではファイルを保存できません'); } return; }
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([doc], { type: 'text/html' })); a.download = filename; document.body.appendChild(a); a.click(); a.remove(); toast('保存しました'); } catch (e) { toast('保存できませんでした'); }
+}
+function viewReports() {
+  rptWatch();
+  const all = [...rpt.list].sort((a, b) => String(b.ym).localeCompare(String(a.ym)) || String(a.memberName).localeCompare(String(b.memberName), 'ja'));
+  const people = [...new Map(all.map(x => [x.memberId, x.memberName])).entries()];
+  if (ui.rptMember && !people.some(([id]) => id === ui.rptMember)) ui.rptMember = '';
+  const list = all.filter(x => !ui.rptMember || x.memberId === ui.rptMember);
+  const open = all.find(x => x.id === ui.rptOpen);
+  const fmt = v => v == null ? '—' : v;
+  const who = id => id && cloud.names[id] ? `・${esc(cloud.names[id])}` : '';
+  const shared = rpt.key !== 'local';
+  // 選んだ人のレポートの推移（古い順）
+  const trend = ui.rptMember ? [...list].reverse() : [];
+  return `
+  <section class="panel">
+    <div class="panel-head"><h2>発行した月次レポート</h2>
+      ${people.length > 1 ? `<label class="field" style="flex-direction:row;align-items:center;gap:6px">対象<select id="rpt-member" data-ui="rptMember"><option value="">全員</option>${people.map(([id, n]) => `<option value="${esc(id)}" ${ui.rptMember === id ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : ''}</div>
+    <p class="small muted">面談画面で「面談レポートを発行して保存」を押すと、その時点の内容のままここに残ります。同じ人・同じ月は1件で、発行し直すと最新の内容に置き換わります。${shared ? '事務所の共有保存に記録され、この顧問先を開けるスタッフ全員が見られます。' : 'このブラウザに保存されています（共有保存した顧問先では、事務所内で共有されます）。'}</p>
+    ${rpt.err ? `<p class="small" style="color:var(--warn)">レポートの記録を読み込めませんでした（${esc(rpt.err)}）。</p>` : ''}
+    ${!rpt.loaded ? '<p class="muted">読み込み中…</p>' : !all.length ? `<div class="empty">まだ発行したレポートはありません。「幸せ面談」で面談を記録し、レポートを発行してください。</div>
+      ${state.sample ? `<div class="btn-row"><button class="btn" data-action="rpt-sample">サンプルの過去レポートを作る</button></div>` : ''}` : `
+    <div class="table-scroll"><table class="rpt-list">
+      <thead><tr><th>月</th><th>対象</th><th class="num">売上 累計達成率</th><th class="num">幸福指数</th><th class="num">宿題の実行率</th><th>発行</th><th></th></tr></thead>
+      <tbody>${list.map(x => `<tr ${x.id === ui.rptOpen ? 'style="background:var(--accent-soft)"' : ''}>
+        <td class="c-ym"><strong>${esc(ymLabel(x.ym))}</strong></td><td class="c-who">${esc(x.memberName)}<br><span class="muted small">${esc(x.role)}</span></td>
+        <td class="num" data-label="売上 累計達成率">${x.summary?.sales == null ? '—' : x.summary.sales.toFixed(1) + '%'}</td><td class="num" data-label="幸福指数">${fmt(x.summary?.happy)}</td><td class="num" data-label="宿題の実行率">${x.summary?.actions == null ? '—' : x.summary.actions + '%'}</td>
+        <td class="small muted c-issue">${new Date(n0(x.createdAt)).toLocaleDateString('ja-JP')} 発行${who(x.createdBy)}</td>
+        <td class="c-act"><div class="btn-row" style="flex-wrap:nowrap"><button class="btn ${x.id === ui.rptOpen ? 'primary' : ''}" data-action="rpt-open" data-id="${esc(x.id)}">${x.id === ui.rptOpen ? '表示中' : '開く'}</button><button class="btn ghost" data-action="rpt-dl" data-id="${esc(x.id)}">保存</button>
+          <button class="btn ghost ${ui.armed === 'rpt-del-' + x.id ? 'armed danger' : ''}" data-action="rpt-del" data-id="${esc(x.id)}">${ui.armed === 'rpt-del-' + x.id ? 'もう一度押すと削除' : '削除'}</button></div></td></tr>`).join('')}</tbody></table></div>
+    ${trend.length >= 2 ? `<div class="hint">${esc(trend.at(-1).memberName)}：幸福指数 ${trend.map(x => fmt(x.summary?.happy)).join(' → ')}（${esc(ymLabel(trend[0].ym))}〜${esc(ymLabel(trend.at(-1).ym))}）</div>` : ''}`}
+  </section>
+  ${open ? `<section class="panel" id="rpt-view">
+    <div class="panel-head"><h2>${esc(ymLabel(open.ym))}　${esc(open.memberName)}</h2><div class="btn-row"><button class="btn" data-action="rpt-dl" data-id="${esc(open.id)}">HTMLで保存</button><button class="btn ghost" data-action="rpt-open" data-id="">閉じる</button></div></div>
+    <p class="small muted">${new Date(n0(open.createdAt)).toLocaleString('ja-JP', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} に発行した内容です。今のデータで作り直したいときは、面談画面から発行し直してください。</p>
+    <iframe class="rpt-frame" sandbox title="${esc(open.title)}" srcdoc="${esc(reportDoc(open.title, open.body))}"></iframe>
+  </section>` : ''}`;
+}
+
 // ---------- render & events ----------
 function render() {
   renderHeader();
-  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, actions: viewActions, results: viewResults, president: viewPresident, bank: viewBank, keishin: viewKeishin, org: viewOrg, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, check: viewCheck, actions: viewActions, results: viewResults, president: viewPresident, bank: viewBank, keishin: viewKeishin, org: viewOrg, reports: viewReports, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
   $('#view').innerHTML = v();
   document.querySelectorAll('.org-scroll').forEach(el => { el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2; });
   saveUi();
@@ -4392,6 +4487,19 @@ document.addEventListener('click', e => {
     case 'add-policy': state.policies.push({ id: uid(), memberId: ui.insMember, owner: 'corp', type: '定期保険', death: 0, premium: 0, cashValue: 0, note: '' }); commit(); break;
     case 'del-policy': state.policies.splice(+b.dataset.j, 1); commit('削除しました'); break;
     case 'share-current': shareCurrent(); break;
+    case 'rpt-open': ui.rptOpen = b.dataset.id || ''; render(); if (ui.rptOpen) document.getElementById('rpt-view')?.scrollIntoView({ block: 'start' }); break;
+    case 'rpt-dl': { const x = rpt.list.find(r => r.id === b.dataset.id); if (x) rptDownload(x); break; }
+    case 'rpt-del': {
+      if (!arm('rpt-del-' + b.dataset.id)) return;
+      if (ui.rptOpen === b.dataset.id) ui.rptOpen = '';
+      rptDelete(b.dataset.id); toast('削除しました'); break;
+    }
+    case 'rpt-sample': {
+      // サンプル会社用：面談記録のある過去の月について、翌月5日に発行した想定でレポートを作る
+      const jobs = state.checkins.filter(c => c.ym < thisYm && member(c.memberId)).sort((a, b) => a.ym.localeCompare(b.ym));
+      (async () => { for (const c of jobs) { const [y, mo] = c.ym.split('-').map(Number); await archiveReport(member(c.memberId), c.ym, new Date(y, mo, 5).getTime()); } toast(`${jobs.length}件のサンプルレポートを作りました`); render(); })();
+      break;
+    }
     case 'org-view': ui.orgView = b.dataset.v; render(); break;
     case 'org-staff-reset': state.org.staff = {}; commit('組織図から計算し直しました'); break;
     case 'org-add': {
