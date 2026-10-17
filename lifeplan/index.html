@@ -4199,6 +4199,7 @@ function parseShindan(txt) {
   return d;
 }
 function stateFromShindan(d) {
+  const has = v => v != null && v !== '' && !isNaN(+v);
   const s = blankState(), fy = n0(s.company.currentFY), y = today.getFullYear();
   const age = n0(d.age) || 60, retire = Math.max(age + 1, n0(d.retire) || 70), work = retire - age;
   const sales = n0(d.sales), op = n0(d.op), comp = n0(d.comp), cash = n0(d.cash), debt = n0(d.debt), eq = n0(d.equity), assets = n0(d.assets) || cash + debt + eq;
@@ -4206,19 +4207,27 @@ function stateFromShindan(d) {
   s.company.name = (d.company || '').trim() || '無料診断の会社';
   s.company.industry = d.industry || 'その他';
   s.company.employees = n0(d.employees) || null;
-  s.plans.forEach(p => { p.sales = sales; p.execComp = comp; p.sga = Math.max(0, Math.round(sales * p.grossRate / 100 - op - comp)); });
+  const gp = n0(d.gp);
+  s.plans.forEach(p => { p.sales = sales; p.execComp = comp; if (gp && sales) p.grossRate = Math.round(gp / sales * 1000) / 10; p.sga = Math.max(0, Math.round(sales * p.grossRate / 100 - op - comp)); });
   // 診断では内訳を聞いていないので、現預金以外の資産と借入以外の負債はまとめて「その他」に置く
   s.bs.actual = { label: `無料診断${when ? `（${when}）` : ''}`, sales, op, cash, otherCurrent: Math.max(0, assets - cash), longDebt: debt, otherFixedLiab: Math.max(0, assets - eq - debt) };
   const oldGap = Math.max(0, (n0(d.living) * 0.7 - n0(d.pension)) * Math.max(0, 90 - retire) - n0(d.savings));
   const m = newMember();
   Object.assign(m, { name: '社長', role: '代表取締役社長', birthYear: y - age, currentComp: comp, livingCost: n0(d.living), savingGoal: Math.round(oldGap / work) });
   m.ins.savings = n0(d.savings);
+  if (has(d.inYears)) { m.ins.yearsInOffice = n0(d.inYears); m.ins.merit = 2; }
   m.events.push({ id: uid(), year: y + work, title: '引退（社長交代）', need: 'freedom', cost: 0, fund: 'savings' });
   s.members.push(m);
   const scores = Object.fromEntries(NEEDS.map(n => [n.key, Math.max(0, Math.min(10, n0(d.needs[n.key])))]));
   s.checkins.push({ memberId: m.id, ym: `${y}-${String(today.getMonth() + 1).padStart(2, '0')}`, scores, want: '', doing: '', evaluation: '', plan: '', advisorNote: '無料診断の自己採点' });
   s.hearing.successor = ['あり', '未定', 'なし'].includes(d.successor) ? d.successor : '未定';
-  s.hearing.memo = `無料診断${when ? `（${when}）` : ''}から取り込み。社長は${retire}歳まで続けたい意向。${n0(d.direct) ? `社長に直接報告する人は${n0(d.direct)}人。` : ''}`;
+  // 診断の組織の答えから、現状の組織図の土台をつくる
+  const emp = n0(d.employees);
+  s.org = { ...defaultOrg(fy), current: [{ id: 'c1', title: '代表取締役社長', name: '', memberId: m.id, parent: '', people: 1, comp: null, status: '在任', year: null }] };
+  if (emp) s.org.current.push({ id: 'c2', title: '社員（部署は面談で分ける）', name: '', memberId: '', parent: 'c1', people: emp, comp: has(d.payroll) ? Math.round(n0(d.payroll) / emp) : null, status: '在任', year: null });
+  const CHK = { talk: '承継の時期を話し合っている', value: '自社株の評価額を知っている', transfer: '株の移し方を検討した', guarantee: '個人保証を外す準備をしている', away: '社長不在でも1か月回る' };
+  const done = Object.keys(CHK).filter(k => d.chk?.[k]).map(k => CHK[k]), todo = Object.keys(CHK).filter(k => d.chk && !d.chk[k]).map(k => CHK[k]);
+  s.hearing.memo = `無料診断${when ? `（${when}）` : ''}から取り込み。社長は${retire}歳まで続けたい意向。${n0(d.direct) ? `社長に直接報告する人は${n0(d.direct)}人。` : ''}${has(d.managers) ? `判断を任せられる幹部は${n0(d.managers)}人。` : ''}${has(d.leavers) ? `昨年の退職者は${n0(d.leavers)}人。` : ''}${has(d.prevSales) ? `前期売上 ${man(d.prevSales)}万円。` : ''}${d.chk ? `役員退職金の準備：${d.prepared ? 'あり' : 'なし'}。承継の準備でできていること：${done.join('、') || 'なし'}。まだのこと：${todo.join('、') || 'なし'}。` : ''}`;
   s.exit.targetYear = fy + work;
   return migrate(s);
 }
