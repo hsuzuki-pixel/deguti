@@ -244,7 +244,7 @@ const NEEDS = [
 ];
 const NEED = Object.fromEntries(NEEDS.map(n => [n.key, n]));
 const TABS = [
-  ['dash', 'ダッシュボード'], ['life', 'ライフプラン'], ['plan', '経営計画と連動'], ['budget', '予算3案・資金繰り'],
+  ['dash', 'ダッシュボード'], ['life', 'ライフプラン'], ['plan', '経営計画と連動'], ['budget', '予算3案・資金繰り'], ['loans', '借入金・返済予定'],
   ['monthly', '月次予実・着地予測'], ['analysis', '財務分析'], ['fin', 'BS・銀行格付け'], ['checkin', '幸せ面談'], ['ins', '保険診断'], ['proposal', '提案・出口'], ['exit', 'M&A・企業価値'], ['acct', '会計データ連携'], ['data', 'データ'],
 ];
 const OFFICE_TABS = [['portfolio', '顧問先ポートフォリオ'], ['office', '事務所経営']];
@@ -423,6 +423,12 @@ function sampleState() {
     members, plans, monthly, checkins, bs, policies, exit, cf: defaultCf(), history, funding,
     hearing: { ...defaultHearing(), taxSaving: true, insuranceReview: true, fundraising: true, successor: 'あり', memo: '後継者は専務。社長は2028年から週休3日を希望。' },
     ifa: defaultIfa(), structure: defaultStructure(), tax: defaultTaxCfg(), ai: {},
+    loans: [
+      { id: 'l1', bank: 'A信用金庫', name: '運転資金（保証協会付き）', kind: '証書貸付', balance: 4000, asOf: '2026-03', rate: 1.4, method: '元金均等', monthlyPrincipal: null, graceUntil: '', maturity: '2030-03', guarantee: '信用保証協会', collateral: '', rollover: false },
+      { id: 'l2', bank: 'B銀行', name: '設備資金（重機）', kind: '証書貸付', balance: 6000, asOf: '2026-03', rate: 1.1, method: '元金均等', monthlyPrincipal: null, graceUntil: '', maturity: '2033-09', guarantee: '経営者保証', collateral: '重機', rollover: false },
+      { id: 'l3', bank: 'B銀行', name: '短期運転資金', kind: '手形貸付', balance: 2000, asOf: '2026-03', rate: 1.6, method: '期日一括', monthlyPrincipal: null, graceUntil: '', maturity: '2026-11', guarantee: '経営者保証', collateral: '', rollover: true },
+      { id: 'l4', bank: 'C政府系金融機関', name: '特別貸付（据置1年）', kind: '証書貸付', balance: 3000, asOf: '2026-03', rate: 0.9, method: '元金均等', monthlyPrincipal: null, graceUntil: '2026-06', maturity: '2032-06', guarantee: '保証なし', collateral: '', rollover: false },
+    ],
   };
 }
 
@@ -617,13 +623,15 @@ function cashSim(fy, months, actualCash = [], opts = {}) {
     const cogs = i >= lagP ? n0(months[i - lagP].sales) - n0(months[i - lagP].gp) : pm ? n0(pm[12 + i - lagP]?.sales) - n0(pm[12 + i - lagP]?.gp) : n0(ob.payables) / (lagP || 1);
     const opex = n0(mo.gp) - n0(mo.op) - depM;
     const taxPay = i === 1 || i === 7 ? tax / 2 : 0;
-    const repay = n0(cf.annualRepay) / 12;
+    const lm = hasLoans() ? loanMonth(opts.ymOf ? opts.ymOf(i) : fyMonths(fy)[i].ym) : null;
+    const repay = lm ? lm.p : n0(cf.annualRepay) / 12;
     const borrow = i === n0(cf.newBorrowMonth) - 1 ? n0(cf.newBorrow) : 0;
     const ctPay = n0(ctPlan[i]);
-    const net = receipts - cogs - opex - intM - taxPay - repay + borrow + ctIn - ctPay;
+    const intPay = lm ? lm.i : intM;
+    const net = receipts - cogs - opex - intPay - taxPay - repay + borrow + ctIn - ctPay;
     const actual = actualCash[i] != null && actualCash[i] !== '';
     cash = actual ? n0(actualCash[i]) : cash + net;
-    return { receipts, cogs, opex, interest: intM, tax: taxPay, repay, borrow, ctIn, ctPay, net, end: cash, actual };
+    return { receipts, cogs, opex, interest: intPay, tax: taxPay, repay, borrow, ctIn, ctPay, net, end: cash, actual };
   });
   const minRow = rows.reduce((a, r, i) => r.end < a.v ? { v: r.end, i } : a, { v: Infinity, i: -1 });
   return { rows, end: cash, min: minRow.v, minIdx: minRow.i, under: rows.filter(r => r.end < n0(cf.minCash)).length };
@@ -860,6 +868,7 @@ function migrate(s) {
   s.history ??= smp ? smp.history : {};
   if (smp && !s.monthly[n0(s.company.currentFY) - 1]) s.monthly[n0(s.company.currentFY) - 1] = smp.monthly[n0(smp.company.currentFY) - 1];
   s.hearing ??= smp ? smp.hearing : defaultHearing(); s.funding ??= smp ? smp.funding : { requests: [] };
+  if (!s.loans) { s.loans = smp ? smp.loans : []; const k = (n0(s.bs.actual.shortDebt) + n0(s.bs.actual.longDebt)) / 15000; if (smp && k > 0 && Math.abs(k - 1) > 0.01) s.loans.forEach(l => { l.balance = Math.round(l.balance * k); }); }
   s.ifa ??= defaultIfa(); s.structure ??= defaultStructure(); s.tax ??= defaultTaxCfg(); s.ai ??= {};
   if (smp && !Object.values(s.monthly).some(rows => rows.some(r => r.cash != null))) Object.entries(smp.monthly).forEach(([fy, rows]) => rows.forEach((r, i) => { if (s.monthly[fy]?.[i]) s.monthly[fy][i].cash ??= r.cash; }));
   s.members.forEach(m => { m.ins ??= (smp && smp.members.find(x => x.id === m.id)?.ins) || defaultIns(); });
@@ -969,7 +978,7 @@ function ifaCalc() {
   const buffer = Math.max(n0(state.cf.minCash), monthlyOut * n0(f.bufferMonths));
   const te = taxEstimate(L.op - n0(fyBs(fy).interest), L.sales, L.op, fyBs(fy).dep);
   const taxes = te.incomeTotal + te.ct / 4;
-  const repay = n0(state.cf.annualRepay), capex = n0(f.capex);
+  const repay = hasLoans() ? next12Repay() : n0(state.cf.annualRepay), capex = n0(f.capex);
   const raw = cash - buffer - taxes - repay - capex;
   return { cash, buffer, taxes, repay, capex, raw, surplus: Math.max(0, raw) };
 }
@@ -1081,6 +1090,7 @@ function sampleVariant(i) {
   Object.values(s.bs.targets).forEach(t => mul(t, Object.keys(t)));
   Object.values(s.history).forEach(h => mul(h, Object.keys(h)));
   mul(s.cf, ['annualRepay', 'minCash']);
+  s.loans.forEach(l => { l.balance = Math.round(n0(l.balance) * k); });
   s.exit.targetNet = Math.round(s.exit.targetNet * k);
   s.members[0].birthYear = birth; s.members[0].currentComp = Math.round(s.members[0].currentComp * Math.max(0.6, k));
   s.hearing = { ...defaultHearing(), ...hear, successor };
@@ -1744,6 +1754,134 @@ function viewOffice() {
   </section>`;
 }
 
+// ---------- 借入金・返済予定（銀行別・融資別） ----------
+const LOAN_KINDS = ['証書貸付', '手形貸付', '当座貸越', '私募債', 'リース・割賦'];
+const LOAN_METHODS = ['元金均等', '元利均等', '期日一括'];
+const ymAdd = (ym, k) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 1 + k, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const ymDiff = (a, b) => { const [ay, am] = a.split('-').map(Number), [by, bm] = b.split('-').map(Number); return (by - ay) * 12 + (bm - am); };
+const loanCache = { key: '', map: null };
+// 融資ごとの月別返済（基準月の月末残高から、最長15年先まで）
+function loanSchedules() {
+  const loans = state.loans || [];
+  const key = JSON.stringify(loans);
+  if (loanCache.key === key) return loanCache.map;
+  const out = loans.map(ln => {
+    const rows = {}; if (!ln.asOf || !ln.maturity) return { ln, rows };
+    let bal = n0(ln.balance), ym = ln.asOf;
+    const r = n0(ln.rate) / 100 / 12, firstPay = ln.graceUntil && ln.graceUntil > ln.asOf ? ymAdd(ln.graceUntil, 1) : ymAdd(ln.asOf, 1);
+    const nPay = Math.max(1, ymDiff(firstPay, ln.maturity) + 1);
+    const fixedP = n0(ln.monthlyPrincipal) || bal / nPay;
+    const pmt = r > 0 ? bal * r / (1 - Math.pow(1 + r, -nPay)) : bal / nPay;
+    const balloon = ln.method === '期日一括' || ln.kind === '当座貸越';
+    for (let k = 1; k <= 180 && bal > 0.01; k++) {
+      ym = ymAdd(ln.asOf, k);
+      const interest = bal * r;
+      let p = 0;
+      if (ln.rollover && ym >= ln.maturity) { rows[ym] = { p: ym === ln.maturity ? bal : 0, i: interest, bal, rolled: ym === ln.maturity }; continue; }
+      if (ym > ln.maturity) break;
+      if (ym === ln.maturity) p = bal;
+      else if (!balloon && ym >= firstPay) p = ln.method === '元利均等' ? Math.min(bal, pmt - interest) : Math.min(bal, fixedP);
+      bal -= p;
+      rows[ym] = { p, i: interest, bal, rolled: false };
+    }
+    return { ln, rows };
+  });
+  loanCache.key = key; loanCache.map = out;
+  return out;
+}
+// 月の返済元金・利息の合計（折り返し予定の期日一括はキャッシュアウトにしない）
+function loanMonth(ym) {
+  let p = 0, i = 0, bal = 0;
+  loanSchedules().forEach(({ ln, rows }) => {
+    const r = rows[ym];
+    if (r) { p += r.rolled ? 0 : r.p; i += r.i; bal += r.bal; }
+    else if (ln.asOf && ym <= ln.asOf) bal += n0(ln.balance);
+  });
+  return { p, i, bal };
+}
+const hasLoans = () => (state.loans || []).length > 0;
+const curYm = () => { const fy = n0(state.company.currentFY), rows = monthlyRows(fy), fm = fyMonths(fy); let k = -1; rows.forEach((r, i) => { if (r.sa != null && r.sa !== '') k = i; }); return k >= 0 ? fm[k].ym : ymAdd(fm[0].ym, -1); };
+const next12Repay = () => Array.from({ length: 12 }, (_, k) => loanMonth(ymAdd(curYm(), k + 1)).p).reduce((a, b) => a + b, 0);
+
+function viewLoans() {
+  state.loans ??= [];
+  const loans = state.loans, base = curYm();
+  const months = Array.from({ length: ui.loanSpan || 12 }, (_, k) => ymAdd(base, k + 1));
+  const sch = loanSchedules();
+  const banks = [...new Set(loans.map(l => l.bank || '（銀行名未入力）'))];
+  const balNow = l => { const r = sch.find(x => x.ln === l)?.rows[base]; return base <= l.asOf ? n0(l.balance) : r ? r.bal : 0; };
+  const sumBal = loans.reduce((s, l) => s + balNow(l), 0);
+  const rep12 = next12Repay(), int12 = months.slice(0, 12).reduce((s, ym) => s + loanMonth(ym).i, 0);
+  const wRate = sumBal ? loans.reduce((s, l) => s + balNow(l) * n0(l.rate), 0) / sumBal : NaN;
+  const fy = n0(state.company.currentFY), L = landing(fy)[1], te = taxEstimate(L.op - int12, L.sales, L.op, fyBs(fy).dep);
+  const cfFund = L.op - int12 - te.incomeTotal + n0(fyBs(fy).dep);
+  const cover = rep12 ? cfFund / rep12 : Infinity;
+  const bankRows = banks.map(b => {
+    const ls = loans.filter(l => (l.bank || '（銀行名未入力）') === b), bal = ls.reduce((s, l) => s + balNow(l), 0);
+    const rp = months.slice(0, 12).reduce((s, ym) => s + ls.reduce((a, l) => { const r = sch.find(x => x.ln === l)?.rows[ym]; return a + (r && !r.rolled ? r.p : 0); }, 0), 0);
+    return { b, n: ls.length, bal, rp, rate: bal ? ls.reduce((s, l) => s + balNow(l) * n0(l.rate), 0) / bal : NaN, guar: [...new Set(ls.map(l => l.guarantee).filter(Boolean))].join('・') };
+  }).sort((a, b) => b.bal - a.bal);
+  const maxBal = Math.max(1, ...bankRows.map(x => x.bal));
+  const yearsAhead = Array.from({ length: 8 }, (_, k) => fy + k);
+  const fyRepay = yr => fyMonths(yr).reduce((s, m) => s + loanMonth(m.ym).p, 0);
+  const fyEndBal = yr => loanMonth(fyMonths(yr)[11].ym).bal;
+  const view = ui.loanView || 'bank';
+  const groups = view === 'bank' ? banks.map(b => ({ label: b, ls: loans.filter(l => (l.bank || '（銀行名未入力）') === b) })) : loans.map(l => ({ label: `${l.bank || ''} ${l.name || ''}`, ls: [l] }));
+  const cell = (ls, ym, k) => ls.reduce((a, l) => { const r = sch.find(x => x.ln === l)?.rows[ym]; return a + (r ? (k === 'p' ? (r.rolled ? 0 : r.p) : r.i) : 0); }, 0);
+  const soon = loans.filter(l => l.maturity && ymDiff(base, l.maturity) >= 0 && ymDiff(base, l.maturity) <= 3 && (l.method === '期日一括' || l.kind === '手形貸付' || l.kind === '当座貸越'));
+  const inp = (l, j, k, type, extra = '') => `<input id="ln-${l.id}-${k}" ${type ? `type="${type}"` : ''} ${type === 'number' ? 'data-num' : ''} data-bind="loans.${j}.${k}" value="${esc(l[k] ?? '')}" ${extra}>`;
+  const sel = (l, j, k, opts) => `<select id="ln-${l.id}-${k}" data-bind="loans.${j}.${k}">${opts.map(o => `<option ${l[k] === o ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+  return `
+  <section class="kpis">
+    <div class="kpi"><span class="label">借入残高（${ymLabel(base)}末）</span><span class="value">${manU(sumBal)}</span><span class="sub">${banks.length}行・${loans.length}本</span></div>
+    <div class="kpi"><span class="label">今後12か月の返済元金</span><span class="value">${manU(rep12)}</span><span class="sub">支払利息 ${manU(int12)}・加重平均金利 ${isFinite(wRate) ? wRate.toFixed(2) + '%' : '—'}</span></div>
+    <div class="kpi ${cover >= 1.2 ? 'good' : cover >= 1 ? 'warn' : 'bad'}"><span class="label">返済余力（返済原資 ÷ 年間返済）</span><span class="value">${isFinite(cover) ? cover.toFixed(2) + '倍' : '—'}</span><span class="sub">返済原資（税引後利益＋減価償却費）${manU(cfFund)}</span></div>
+    <div class="kpi"><span class="label">${fy + 4}年度末の残高見込み</span><span class="value">${manU(fyEndBal(fy + 4))}</span><span class="sub">新規借入がない場合</span></div>
+  </section>
+  ${soon.length ? `<p class="hint" style="color:var(--warn)">3か月以内に期日を迎える融資：${soon.map(l => `${esc(l.bank)} ${esc(l.name)}（${ymLabel(l.maturity)}・${manU(balNow(l))}${l.rollover ? '・折り返し予定' : '・一括返済'}）`).join('、')}。条件の確認と書類の準備を始めましょう。</p>` : ''}
+
+  <section class="grid-2">
+    <div class="panel"><div class="panel-head"><h2>銀行別の借入</h2><span class="muted small">残高の大きい順</span></div>
+      ${bankRows.length ? bankRows.map(x => `<div style="display:grid;gap:4px">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong>${esc(x.b)}</strong><span class="num small">${manU(x.bal)}（${sumBal ? pct(x.bal / sumBal * 100) : '—'}）</span></div>
+        <div class="meter"><span style="width:${x.bal / maxBal * 100}%;background:var(--c1)"></span></div>
+        <span class="small muted">${x.n}本・平均金利 ${isFinite(x.rate) ? x.rate.toFixed(2) + '%' : '—'}・今後12か月の返済 ${manU(x.rp)}${x.guar ? `・${esc(x.guar)}` : ''}</span></div>`).join('') : '<div class="empty">下の「融資を追加」から入力してください。</div>'}
+    </div>
+    <div class="panel"><div class="panel-head"><h2>借入残高の推移</h2><span class="muted small">年度末の残高と年間返済額</span></div>
+      ${loans.length ? dashLineChart(yearsAhead.map(String), [{ name: '年度末の借入残高', values: yearsAhead.map(fyEndBal), color: 'var(--c1)', area: true, endLabel: true }], { label: '借入残高の推移', tipTitle: i => `${yearsAhead[i]}年度末` }) : ''}
+      <div class="table-scroll"><table><thead><tr><th></th>${yearsAhead.map(yr => `<th class="num">${yr}</th>`).join('')}</tr></thead><tbody>
+        <tr><th>年間返済元金</th>${yearsAhead.map(yr => `<td class="num">${man(fyRepay(yr))}</td>`).join('')}</tr>
+        <tr><th>年度末残高</th>${yearsAhead.map(yr => `<td class="num">${man(fyEndBal(yr))}</td>`).join('')}</tr></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="panel"><div class="panel-head"><h2>融資の一覧</h2><div class="btn-row"><button class="btn" data-action="loan-add">＋ 融資を追加</button>${loans.length ? `<button class="btn ${ui.armed === 'loan-bs' ? 'armed danger' : ''}" data-action="loan-bs">${ui.armed === 'loan-bs' ? 'BSの借入金を上書きします。もう一度' : '残高をBS（直近決算）に反映'}</button>` : ''}</div></div>
+    <div class="table-scroll"><table><thead><tr><th>銀行</th><th>融資名・資金使途</th><th>種類</th><th class="num">残高（万円）</th><th>残高の基準月</th><th class="num">金利（%）</th><th>返済方法</th><th class="num">毎月の元金</th><th>据置の終了月</th><th>最終返済月</th><th>保証</th><th>担保</th><th>期日に折り返し</th><th></th></tr></thead><tbody>
+      ${loans.map((l, j) => `<tr>
+        <td>${inp(l, j, 'bank', '', 'style="min-width:120px" list="bank-list"')}</td><td>${inp(l, j, 'name', '', 'style="min-width:150px"')}</td><td>${sel(l, j, 'kind', LOAN_KINDS)}</td>
+        <td>${inp(l, j, 'balance', 'number')}</td><td>${inp(l, j, 'asOf', 'month')}</td><td>${inp(l, j, 'rate', 'number', 'step="0.01" style="min-width:70px"')}</td>
+        <td>${sel(l, j, 'method', LOAN_METHODS)}</td><td>${inp(l, j, 'monthlyPrincipal', 'number', `placeholder="${(() => { const s = sch.find(x => x.ln === l); const r = s && Object.values(s.rows).find(v => v.p > 0 && !v.rolled); return r ? '自動 ' + man(r.p) : '自動'; })()}"`)}</td>
+        <td>${inp(l, j, 'graceUntil', 'month')}</td><td>${inp(l, j, 'maturity', 'month')}</td>
+        <td>${sel(l, j, 'guarantee', ['', '信用保証協会', '経営者保証', '保証協会＋経営者保証', '保証なし'])}</td><td>${inp(l, j, 'collateral', '', 'style="min-width:90px"')}</td>
+        <td style="text-align:center"><input type="checkbox" id="ln-${l.id}-ro" data-bool data-bind="loans.${j}.rollover" ${l.rollover ? 'checked' : ''} aria-label="期日に折り返し"></td>
+        <td><button class="btn ghost" data-action="loan-del" data-j="${j}">削除</button></td></tr>`).join('') || '<tr><td colspan="14" class="muted">融資がまだありません。銀行の返済予定表や残高証明を見ながら入力してください。</td></tr>'}
+    </tbody></table></div>
+    <datalist id="bank-list">${banks.map(b => `<option value="${esc(b)}">`).join('')}</datalist>
+    <p class="small muted">毎月の元金を空欄にすると、残高を最終返済月まで均等に割って計算します。「期日に折り返し」にチェックした手形貸付・当座貸越は、期日に同額で借り換える前提で、資金繰りでは一括返済を出しません。</p>
+  </section>
+
+  <section class="panel"><div class="panel-head"><h2>返済予定表</h2><div class="btn-row">
+      <button class="btn ${view === 'bank' ? 'primary' : ''}" data-action="loan-view" data-v="bank">銀行別</button><button class="btn ${view === 'loan' ? 'primary' : ''}" data-action="loan-view" data-v="loan">融資別</button>
+      <select id="loan-span" data-ui="loanSpan"><option value="12" ${(ui.loanSpan || 12) == 12 ? 'selected' : ''}>12か月</option><option value="24" ${ui.loanSpan == 24 ? 'selected' : ''}>24か月</option><option value="36" ${ui.loanSpan == 36 ? 'selected' : ''}>36か月</option></select></div></div>
+    <div class="table-scroll"><table><thead><tr><th>${view === 'bank' ? '銀行' : '融資'}</th><th></th>${months.map(ym => `<th class="num">${ym.slice(2).replace('-', '/')}</th>`).join('')}<th class="num">合計</th></tr></thead><tbody>
+      ${groups.map(g => { const ps = months.map(ym => cell(g.ls, ym, 'p')), is = months.map(ym => cell(g.ls, ym, 'i')); return `<tr><th rowspan="2">${esc(g.label)}</th><td class="small muted">元金</td>${ps.map(v => `<td class="num">${v ? man(v) : '—'}</td>`).join('')}<td class="num"><strong>${man(ps.reduce((a, b) => a + b, 0))}</strong></td></tr><tr><td class="small muted">利息</td>${is.map(v => `<td class="num muted">${v ? man(v) : '—'}</td>`).join('')}<td class="num">${man(is.reduce((a, b) => a + b, 0))}</td></tr>`; }).join('')}
+      <tr class="total"><td>返済合計</td><td></td>${months.map(ym => { const m = loanMonth(ym); return `<td class="num">${man(m.p + m.i)}</td>`; }).join('')}<td class="num">${man(months.reduce((s, ym) => { const m = loanMonth(ym); return s + m.p + m.i; }, 0))}</td></tr>
+      <tr class="link"><th>月末残高</th><td></td>${months.map(ym => `<td class="num">${man(loanMonth(ym).bal)}</td>`).join('')}<td></td></tr>
+    </tbody></table></div>
+    <p class="small muted">単位：万円。この返済予定は「予算3案・資金繰り」「資金繰り予測（9か月）」「資産運用の余剰資金」の計算にそのまま使います。</p>
+  </section>`;
+}
+
 // ---------- state ----------
 function load() {
   try { const raw = localStorage.getItem(STORE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -1827,6 +1965,7 @@ function buildAlerts() {
   }
   const lt = landing(fy)[1], mc = n0(state.cf.minCash);
   if (lt.sim.min < mc) out.push([lt.sim.min < 0 ? 'bad' : 'warn', `資金繰り：今のペースでは ${fyMonths(fy)[lt.sim.minIdx]?.m}月に現預金が ${manU(lt.sim.min)}（安全ライン ${manU(mc)}）。月次予実タブで対策を確認しましょう。`]);
+  if (hasLoans()) { const b0 = curYm(); (state.loans || []).forEach(l => { const d = l.maturity ? ymDiff(b0, l.maturity) : -1; if (d >= 0 && d <= 3 && (l.method === '期日一括' || l.kind === '手形貸付' || l.kind === '当座貸越')) out.push([l.rollover ? 'info' : 'warn', `${esc(l.bank)}「${esc(l.name)}」が ${ymLabel(l.maturity)} に期日を迎えます（${l.rollover ? '折り返し予定。条件と書類を確認' : '一括返済。資金の準備を'}）。`]); }); }
   const rl9 = rolling9();
   if (rl9.short) out.push(['bad', `資金繰り：9か月以内（${rl9.rows.find(x => x.end < 0)?.label}）に資金ショートの見込みです。`]);
   if (rl9.liquidity < 1) out.push(['bad', `手元流動性が ${rl9.liquidity.toFixed(2)}か月（月商の1か月分未満）です。`]);
@@ -2682,7 +2821,7 @@ function cfSettings() {
   const cf = state.cf;
   const num = (k, label, step) => `<label class="field">${label}<input id="cf-${k}" type="number" ${step ? `step="${step}"` : ''} data-num data-bind="cf.${k}" value="${esc(cf[k])}"></label>`;
   return `<div class="form-row">
-    ${num('collectLag', '売上の回収（何か月後）')}${num('payLag', '仕入・外注の支払（何か月後）')}${num('annualRepay', '借入金の年間返済額（万円）')}
+    ${num('collectLag', '売上の回収（何か月後）')}${num('payLag', '仕入・外注の支払（何か月後）')}${hasLoans() ? `<div class="field"><span>借入金の返済</span><button class="btn" data-action="tab" data-tab="loans">返済予定表から自動（今後12か月 ${manU(next12Repay())}）</button></div>` : num('annualRepay', '借入金の年間返済額（万円）')}
     ${num('newBorrow', '新規借入（万円）')}${num('newBorrowMonth', '借入する月（期首から何か月目）')}${num('minCash', '資金の安全ライン（万円）')}
   </div>
   <p class="small muted">期首の現預金・売上債権・仕入債務は${'「BS・銀行格付け」'}の前期末の数字を使います。法人税等は前期の利益から計算し、2か月目（確定）と8か月目（中間）に半分ずつ支払う前提です。減価償却費は支出から除きます。</p>`;
@@ -3095,7 +3234,7 @@ function viewAcct() {
 
 function blankState() {
   const y = today.getMonth() + 1 >= 4 ? today.getFullYear() : today.getFullYear() - 1;
-  return { sample: false, company: { name: '', fyStartMonth: 4, currentFY: y, takeHomeRate: 70, taxRate: 30, mission: '' }, members: [], plans: Array.from({ length: 5 }, (_, i) => ({ year: y + i, sales: 0, grossRate: 30, sga: 0, execComp: 0, theme: '' })), monthly: {}, checkins: [], bs: { actual: { label: '直近決算 実績' }, targets: {} }, policies: [], exit: defaultExit(y), cf: defaultCf(), history: {}, hearing: defaultHearing(), funding: { requests: [] }, ifa: defaultIfa(), structure: defaultStructure(), tax: defaultTaxCfg(), ai: {} };
+  return { sample: false, company: { name: '', fyStartMonth: 4, currentFY: y, takeHomeRate: 70, taxRate: 30, mission: '' }, members: [], plans: Array.from({ length: 5 }, (_, i) => ({ year: y + i, sales: 0, grossRate: 30, sga: 0, execComp: 0, theme: '' })), monthly: {}, checkins: [], bs: { actual: { label: '直近決算 実績' }, targets: {} }, policies: [], exit: defaultExit(y), cf: defaultCf(), history: {}, hearing: defaultHearing(), funding: { requests: [] }, ifa: defaultIfa(), structure: defaultStructure(), tax: defaultTaxCfg(), ai: {}, loans: [] };
 }
 function newMember() {
   return { id: uid(), name: '新しいメンバー', role: '取締役', birthYear: 1980, currentComp: 600, livingCost: 500, savingGoal: 100,
@@ -3105,7 +3244,7 @@ function newMember() {
 // ---------- render & events ----------
 function render() {
   renderHeader();
-  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
+  const v = { dash: viewDash, life: viewLife, plan: viewPlan, monthly: viewMonthly, checkin: viewCheckin, fin: viewFin, ins: viewIns, exit: viewExit, budget: viewBudget, loans: viewLoans, acct: viewAcct, analysis: viewAnalysis, proposal: viewProposal, portfolio: viewPortfolio, office: viewOffice, data: viewData }[ui.tab] || viewDash;
   $('#view').innerHTML = v();
   saveUi();
 }
@@ -3158,7 +3297,7 @@ document.addEventListener('change', e => {
     applyRemote(doc, false); toast(`「${doc.name}」を開きました`);
   } else if (t.dataset.ui) {
     const k = t.dataset.ui;
-    ui[k] = ['fy', 'impFy', 'impUnit'].includes(k) ? +t.value : t.value;
+    ui[k] = ['fy', 'impFy', 'impUnit', 'loanSpan'].includes(k) ? +t.value : t.value;
     if (k === 'ciYm' && !t.value) ui.ciYm = thisYm;
     render();
   } else if (t.dataset.score) {
@@ -3197,6 +3336,26 @@ document.addEventListener('click', e => {
   switch (a) {
     case 'tab': ui.tab = b.dataset.tab; render(); window.scrollTo(0, 0); break;
     case 'an': ui.an = b.dataset.an; ai.err = ''; render(); break;
+    case 'loan-add': {
+      const last = state.loans?.[state.loans.length - 1];
+      (state.loans ??= []).push({ id: uid(), bank: last?.bank || '', name: '', kind: '証書貸付', balance: 1000, asOf: curYm(), rate: 1.5, method: '元金均等', monthlyPrincipal: null, graceUntil: '', maturity: ymAdd(curYm(), 60), guarantee: '', collateral: '', rollover: false });
+      commit(); break;
+    }
+    case 'loan-del': state.loans.splice(+b.dataset.j, 1); commit('削除しました'); break;
+    case 'loan-view': ui.loanView = b.dataset.v; render(); break;
+    case 'loan-bs': {
+      if (!arm('loan-bs')) return;
+      const a = state.bs.actual, end = fyMonths(n0(state.company.currentFY))[0].ym, asOf = ymAdd(end, -1);
+      let st = 0, lt = 0;
+      loanSchedules().forEach(({ ln, rows }) => {
+        const bal = ln.asOf >= asOf ? n0(ln.balance) : (rows[asOf] ? rows[asOf].bal : 0);
+        if (ln.kind === '手形貸付' || ln.kind === '当座貸越') { st += bal; return; }
+        const due = Array.from({ length: 12 }, (_, k) => rows[ymAdd(asOf, k + 1)]?.p || 0).reduce((x, y) => x + y, 0);
+        st += Math.min(bal, due); lt += Math.max(0, bal - due);
+      });
+      a.shortDebt = Math.round(st); a.longDebt = Math.round(lt);
+      commit(`直近決算の借入金を更新しました（短期 ${man(st)}・長期 ${man(lt)}）`); break;
+    }
     case 'dash-alerts': ui.tab = 'analysis'; ui.an = 'summary'; render(); window.scrollTo(0, 0); break;
     case 'alert-sev': ui.alertSev = b.dataset.sev; render(); break;
     case 'ai-advice': runAdvice(); break;
