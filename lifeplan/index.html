@@ -949,6 +949,15 @@ const REPORT_CSS = `:root,.rpt{--ink:#1a2430;--muted:#5b6878;--line:#d9e0e7;--ac
 .rpt .msg{border-left:4px solid var(--accent);background:var(--accent-soft);padding:12px 14px;border-radius:0 8px 8px 0;white-space:pre-wrap}
 .rpt .st{display:inline-block;font-size:11px;font-weight:700;padding:0 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}.rpt .st.done{color:var(--good)}.rpt .st.doing{color:var(--accent)}.rpt .st.todo{color:var(--warn)}.rpt .st.late{color:var(--bad)}.rpt .pos{color:var(--good)}.rpt .neg{color:var(--bad)}.rpt .foot{margin-top:28px;color:var(--muted);font-size:11px}
 .rpt svg text{fill:var(--muted);font-size:11px}.rpt svg .grid-line{stroke:var(--line);fill:none}.rpt svg .axis-label{fill:var(--ink);font-size:12px;font-weight:500}.rpt .chart{width:100%;height:auto;display:block}`;
+// 伴走の成果は毎月ではなく、契約開始から半年ごと（プレミアムは四半期ごと）の月次レポートに載せる
+const resultsEvery = () => /プレミアム/.test(state.contract?.plan || '') ? 3 : 6;
+function isResultsMonth(ym) {
+  const k = resultsEvery(), st = state.contract?.startYm;
+  if (st) { const d = ymDiff(st, ym); return d > 0 && d % k === 0; }
+  const i = fyMonths(fyOf(ym)).findIndex(x => x.ym === ym);
+  return i >= 0 && (i + 1) % k === 0;
+}
+function nextResultsYm(ym) { for (let i = 0; i <= 12; i++) { const y = ymAdd(ym, i); if (isResultsMonth(y)) return y; } return null; }
 const REPORT_CSS_SCOPED = REPORT_CSS.replace(':root,.rpt{', '.rpt{');
 const reportDoc = (title, body) => `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>${REPORT_CSS}body{margin:0;background:#fff}</style></head><body>${body}</body></html>`;
 function reportHtml(m, ym, issuedAt) {
@@ -1015,7 +1024,7 @@ function reportHtml(m, ym, issuedAt) {
   <table><thead><tr><th>宿題</th><th>担当</th><th class="n">期限</th><th class="n">状況</th></tr></thead><tbody>
   ${acts.map(a => `<tr><td>${esc(a.title)}</td><td>${esc(a.owner)}</td><td class="n">${a.due ? esc(a.due.slice(5).replace('-', '/')) : '—'}</td><td class="n"><span class="st ${stCls(a)}">${esc(stTxt(a))}</span></td></tr>`).join('')}
   </tbody></table>` : ''}
-  ${rs.items.length ? `${h2('伴走の成果（契約からの累計）')}
+  ${rs.items.length && isResultsMonth(ym) ? `${h2(`伴走の成果（契約からの累計・${resultsEvery() === 3 ? '四半期' : '半年'}ごとの報告）`)}
   <div class="tiles">
     <div class="tile"><span>これまでの効果の合計</span><b class="pos">${manU(rs.total)}</b><span>${rs.months}か月の顧問料 ${manU(rs.fee)} の <b style="display:inline;font-size:13px">${isFinite(rs.roi) ? rs.roi.toFixed(1) : '—'}倍</b></span></div>
     <div class="tile"><span>年間の効果の見込み</span><b>${manU(rs.annual)}</b><span>年間の顧問料 ${manU(rs.feeYear)} の ${isFinite(rs.roiYear) ? rs.roiYear.toFixed(1) : '—'}倍</span></div>
@@ -3221,6 +3230,7 @@ function viewCheckin() {
       <button class="btn" data-action="ci-to-action">来月の行動を宿題に登録</button>
       <button class="btn" data-action="report-preview">${ui.showReport ? 'レポートのプレビューを閉じる' : '面談レポートをプレビュー'}</button>
       <button class="btn" data-action="report-save" ${existing ? '' : 'disabled title="先に面談を記録してください"'}>面談レポートを発行して保存（HTML）</button>
+      ${(() => { const n = nextResultsYm(ui.ciYm); return n ? `<span class="small muted">伴走の成果は${resultsEvery() === 3 ? '四半期' : '半年'}ごとに載せます（${n === ui.ciYm ? 'この月のレポートに載ります' : `次は ${esc(ymLabel(n))} のレポート`}）</span>` : ''; })()}
       ${existing ? `<button class="btn danger ${ui.armed === 'del-ci' ? 'armed' : ''}" data-action="del-checkin">${ui.armed === 'del-ci' ? 'もう一度押すと削除' : 'この月の記録を削除'}</button>` : ''}</div>
   </section>
 
