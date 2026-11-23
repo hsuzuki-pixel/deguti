@@ -102,6 +102,12 @@ input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px soli
 .answerbox textarea{min-height:180px;font-size:16px;background:var(--surface)}
 .answerbox.on textarea{border-color:var(--rec);box-shadow:0 0 0 1px var(--rec) inset}
 .partial{color:var(--muted);font-size:14px;min-height:1.6em;margin-top:4px}
+/* 録音中のライブ文字起こし（相手にも見える大きさ） */
+.livebox{background:var(--surface);border:1px solid var(--rec);box-shadow:0 0 0 1px var(--rec) inset;border-radius:8px;padding:14px 16px;min-height:180px;max-height:42vh;overflow-y:auto;font-size:clamp(17px,2vw,21px);line-height:1.9;white-space:pre-wrap;word-break:break-word}
+.livebox .pt{color:var(--muted);background:var(--rec-soft);border-radius:4px;padding:0 2px}
+.livebox .caret{display:inline-block;width:2px;height:1.1em;vertical-align:-0.15em;background:var(--rec);margin-left:2px;animation:pulse 1s steps(2) infinite}
+.livebox .wait{color:var(--muted);font-size:15px}
+.livehead{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
 .big{font:inherit;font-size:20px;font-weight:700;border:0;border-radius:14px;padding:18px 24px;width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;background:var(--accent);color:var(--accent-ink)}
 .big.stop{background:var(--rec);color:var(--rec-ink)}
 .big.finish{background:var(--gold);color:var(--surface)}
@@ -196,9 +202,10 @@ details summary{cursor:pointer;color:var(--accent)}
         <p class="qtext" id="qtext"></p>
         <div class="row" id="ttsRow" hidden><button class="btn ghost sm" id="ttsBtn">🔊 質問を読み上げる</button></div>
         <div class="answerbox" id="answerBox">
-          <label class="lbl" for="answer">回答（音声から自動で文字にします。終了後に手で直せます）</label>
+          <div class="livehead"><label class="lbl" for="answer" id="ansLabel">回答（音声から自動で文字にします。終了後に手で直せます）</label><span class="note" id="liveCount"></span></div>
+          <div class="livebox" id="live" aria-live="polite" hidden></div>
           <textarea id="answer" placeholder="「スタート」を押して話し始めてください"></textarea>
-          <div class="partial" id="partial" aria-live="polite"></div>
+          <div class="partial" id="partial" hidden></div>
         </div>
         <button class="big" id="bigBtn"></button>
         <div class="sub">
@@ -473,6 +480,7 @@ function renderRun() {
   $("followBtn").disabled = recording || allDone || !(item && item.a);
   $("endAllBtn").disabled = recording;
   $("endAllBtn").hidden = allDone;
+  updateLive();
 }
 function commitEdit() {
   if (!S || recording || S.cur < 0) return;
@@ -495,12 +503,25 @@ document.addEventListener("keydown", e => {
   e.preventDefault(); onBig();
 });
 
-let base = "";
+let base = "", partialText = "";
+function updateLive() {
+  const on = recording && !!cap.dict;
+  const live = $("live"), ta = $("answer");
+  live.hidden = !on; ta.hidden = on;
+  $("ansLabel").textContent = on ? "文字起こし（リアルタイム）" : "回答（音声から自動で文字にします。終了後に手で直せます）";
+  const txt = ta.value;
+  $("liveCount").textContent = on ? `${(txt + partialText).replace(/\s/g, "").length}文字` : "";
+  if (!on) return;
+  live.innerHTML = (txt || partialText)
+    ? `${esc(txt)}${partialText ? `<span class="pt">${esc(partialText)}</span>` : ""}<span class="caret"></span>`
+    : `<span class="wait">聞き取っています… お話しください</span><span class="caret"></span>`;
+  live.scrollTop = live.scrollHeight;
+}
 function startQ() {
   commitEdit();
   const it = S.qa[S.cur];
   base = it.a ? it.a + "\n" : "";
-  recording = true; $("partial").textContent = "";
+  recording = true; partialText = "";
   if (cap.tts) cap.tts.stop?.();
   if (cap.dict) {
     // must be called synchronously from the click
@@ -516,15 +537,15 @@ function startQ() {
   }
   $("runNote").textContent = "";
   renderRun();
-  $("answer").value = it.a || "";
+  $("answer").value = base;
+  updateLive();
 }
 async function endQ() {
   stopping = true; renderRun();
   if (cap.dict) { try { await cap.dict.stop(); } catch {} }
-  recording = false; stopping = false;
+  recording = false; stopping = false; partialText = "";
   const it = S.qa[S.cur];
   it.a = $("answer").value.trim();
-  $("partial").textContent = "";
   if (it.a) it.state = "done";
   // the next "スタート" moves to the next question
   S.cur = it.a ? nextPending(S.cur + 1) : S.cur;
@@ -548,19 +569,20 @@ $("addForm").onsubmit = (e) => {
 
 // ---------- dictation ----------
 function setupDictation() {
-  cap.dict.onPartial(({ text }) => { if (recording) $("partial").textContent = text ? "… " + text : ""; });
+  cap.dict.onPartial(({ text }) => { if (recording) { partialText = text || ""; updateLive(); } });
   cap.dict.onFinal(({ text }) => {
     if (!recording && !stopping) return;
     const ta = $("answer");
-    ta.value = (ta.value ? ta.value + text : text.replace(/^\s+/, ""));
-    ta.scrollTop = ta.scrollHeight;
+    ta.value = (ta.value && !ta.value.endsWith("\n") ? ta.value + text : ta.value + text.replace(/^\s+/, ""));
+    partialText = "";
+    updateLive();
   });
   cap.dict.onState(({ state, reason }) => {
     if (state === "idle" && recording && !stopping) {
       // stopped by the platform (hidden tab, viewer's stop, error): keep what we have on this question
       recording = false;
       const it = S.qa[S.cur]; it.a = $("answer").value.trim(); if (it.a) it.state = "done";
-      $("partial").textContent = "";
+      partialText = "";
       $("runNote").textContent = reason === "hidden" ? "画面が切り替わったため録音が止まりました。「スタート」で続きを追記できます。" : "録音が止まりました。「スタート」で続きを追記できます。";
       save(); renderRun();
     }
