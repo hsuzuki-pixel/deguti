@@ -1,0 +1,581 @@
+<title>アクセス インタビュー秘書</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Old+Mincho:wght@600;700&display=swap">
+<style>
+/* Layout: 一本の縦カラム。上に業務バー、中央に対話（聞き取り票のような罫線＋吹き出し）、管理者だけ一覧タブ */
+:root{
+  --bg:#f3f6f5; --surface:#ffffff; --ink:#1b2a27; --muted:#5b6c68; --line:#d6dfdc;
+  --accent:#1f5c52; --accent-ink:#ffffff; --accent-soft:#e2eeeb; --gold:#9a6d22; --gold-soft:#f6ecd9;
+  --danger:#a33a2c;
+  --f-display:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",system-ui,sans-serif;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101715; --surface:#17211e; --ink:#e4ece9; --muted:#97a8a3; --line:#2a3833;
+  --accent:#6dbcab; --accent-ink:#0d1a17; --accent-soft:#1c322d; --gold:#d8aa5c; --gold-soft:#2e261a; --danger:#e57b6c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101715; --surface:#17211e; --ink:#e4ece9; --muted:#97a8a3; --line:#2a3833;
+  --accent:#6dbcab; --accent-ink:#0d1a17; --accent-soft:#1c322d; --gold:#d8aa5c; --gold-soft:#2e261a; --danger:#e57b6c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.75;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:760px;margin:0 auto}
+header.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:20px 14px;border-bottom:1px solid var(--line)}
+.brand{display:flex;flex-direction:column;gap:0}
+.brand small{color:var(--muted);font-size:12px;letter-spacing:.12em}
+.brand b{font-family:var(--f-display);font-size:22px;font-weight:700;letter-spacing:.04em}
+.tabs{display:flex;gap:6px}
+.tabs button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:6px 14px;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.4;margin:0}
+h1{font-size:28px} h2{font-size:20px} h3{font-size:16px}
+.lead{color:var(--muted);max-width:60ch;margin:8px 0 0}
+section{padding-block:24px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.types{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.types{grid-template-columns:1fr}}
+.type{font:inherit;text-align:left;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0}
+.type b{font-size:16px}
+.type span{font-size:12.5px;color:var(--muted);line-height:1.6}
+.type[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset;background:var(--accent-soft)}
+.topics{font-size:13px;color:var(--muted);border-left:2px solid var(--gold);padding:2px 0 2px 12px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:620px){.fields{grid-template-columns:1fr}}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:84px;line-height:1.7}
+input:focus-visible,textarea:focus-visible,button:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-weight:700;border:0;background:var(--accent);color:var(--accent-ink);padding:11px 22px;border-radius:8px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent);font-weight:500}
+.btn.sm{padding:6px 12px;font-size:13px}
+.note{font-size:12.5px;color:var(--muted)}
+.warn{font-size:13px;color:var(--gold);background:var(--gold-soft);padding:8px 12px;border-radius:8px}
+.err{color:var(--danger)}
+/* chat */
+.meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.progress{height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);width:0;transition:width .4s}
+.log{display:flex;flex-direction:column;gap:14px;padding-block:16px}
+.msg{max-width:88%;padding:12px 16px;border-radius:14px;white-space:pre-wrap;word-break:break-word;min-width:0}
+.msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-top-left-radius:4px}
+.msg.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-top-right-radius:4px}
+.who{font-size:11px;letter-spacing:.1em;color:var(--muted);margin-bottom:2px}
+.msg.me .who{color:inherit;opacity:.75}
+.typing{color:var(--muted);font-size:13px}
+.composer{position:sticky;bottom:0;background:var(--bg);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.mic[aria-pressed="true"]{background:var(--danger);color:#fff;border-color:var(--danger)}
+/* report */
+.report{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:16px}
+.report .catch{font-family:var(--f-display);font-size:20px;line-height:1.5}
+.ba{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.ba{grid-template-columns:1fr}}
+.ba div{border:1px solid var(--line);border-radius:8px;padding:10px 12px;min-width:0}
+.lbl{font-size:11.5px;letter-spacing:.12em;color:var(--muted);display:block;margin-bottom:2px}
+.quote{border-left:3px solid var(--gold);padding-left:12px;margin:0}
+.internal{background:var(--gold-soft);border-radius:8px;padding:12px 14px}
+ul.tight{margin:0;padding-left:1.2em}
+.chip{display:inline-block;font-size:12px;padding:1px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.ok{border-color:var(--accent);color:var(--accent)}
+.chip.hot{border-color:var(--gold);color:var(--gold)}
+/* admin list */
+.list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.item{font:inherit;color:var(--ink);text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 4px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;cursor:pointer}
+.item:hover{background:var(--accent-soft)}
+.item .t{font-weight:700}
+.item .s{font-size:12.5px;color:var(--muted);grid-column:1/-1}
+.empty{border:1px dashed var(--line);border-radius:var(--r);padding:24px;color:var(--muted);text-align:center}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.transcript{font-size:13.5px;border-top:1px solid var(--line);padding-top:10px}
+.transcript p{margin:0 0 8px}
+details summary{cursor:pointer;color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand"><small>税理士法人アクセス</small><b>インタビュー秘書</b></div>
+    <nav class="tabs" id="tabs" hidden>
+      <button id="tabInterview" aria-pressed="true">インタビュー</button>
+      <button id="tabAdmin" aria-pressed="false">回答一覧 <span id="countBadge"></span></button>
+    </nav>
+  </header>
+
+  <!-- 開始画面 -->
+  <section id="vStart" class="stack">
+    <div>
+      <h1>5〜10分のインタビューにご協力ください</h1>
+      <p class="lead">秘書が一問ずつお伺いします。思いついた言葉のままで大丈夫です。いただいたお声は、サービス改善と今後のご支援に活かします。</p>
+    </div>
+    <div class="stack" style="gap:8px">
+      <span class="lbl">どの立場でお答えいただきますか</span>
+      <div class="types" id="types"></div>
+      <p class="topics" id="topics"></p>
+    </div>
+    <div class="fields">
+      <label class="f" for="fName">お名前<input type="text" id="fName" placeholder="山田 太郎" autocomplete="name"></label>
+      <label class="f" for="fCompany">会社名・屋号<input type="text" id="fCompany" placeholder="株式会社〇〇建設" autocomplete="organization"></label>
+      <label class="f" for="fIndustry">業種<input type="text" id="fIndustry" placeholder="建設業／飲食業／医療 など"></label>
+      <label class="f" for="fTheme">ご支援内容・セミナー名（任意）<input type="text" id="fTheme" placeholder="社外CFO、事業承継セミナー 等"></label>
+    </div>
+    <label class="f" for="fMode">回答方法
+      <select id="fMode">
+        <option value="self">ご本人が入力する</option>
+        <option value="staff">担当者が聞き取りながら入力する（電話・面談）</option>
+      </select>
+    </label>
+    <div class="row">
+      <button class="btn" id="startBtn" disabled>インタビューを始める</button>
+      <span class="note" id="startNote">立場を選ぶと始められます</span>
+    </div>
+    <p class="warn" id="aiWarn" hidden>この画面ではAIの深掘り質問が使えないため、決まった質問を順にお伺いします。</p>
+  </section>
+
+  <!-- 対話 -->
+  <section id="vChat" hidden>
+    <div class="meta"><span id="chatWho"></span><span id="chatStep"></span></div>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    <div class="log" id="log" aria-live="polite"></div>
+    <div class="composer">
+      <textarea id="answer" placeholder="ここにご回答を入力（Ctrl+Enterで送信）"></textarea>
+      <div class="row">
+        <button class="btn" id="sendBtn">送信</button>
+        <button class="btn ghost sm mic" id="micBtn" aria-pressed="false" hidden>🎙 音声で答える</button>
+        <button class="btn ghost sm" id="skipBtn">この質問は飛ばす</button>
+        <button class="btn ghost sm" id="finishBtn">ここで終える</button>
+        <span class="note err" id="chatErr"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 完了 -->
+  <section id="vDone" class="stack" hidden>
+    <div>
+      <h1>ご協力ありがとうございました</h1>
+      <p class="lead" id="doneLead">いただいたお声をもとに、担当者よりあらためてご連絡する場合があります。</p>
+    </div>
+    <div id="doneReport"></div>
+    <div id="doneCopy" class="stack" hidden>
+      <p class="warn">この画面では回答を自動保存できませんでした。お手数ですが下のボタンでコピーし、担当者へメール等でお送りください。</p>
+      <div class="row"><button class="btn" id="copyBtn">回答をコピー</button><span class="note" id="copyNote"></span></div>
+      <textarea id="copyArea" rows="8" readonly></textarea>
+    </div>
+    <div class="row"><button class="btn ghost" id="againBtn">別のインタビューを始める</button></div>
+  </section>
+
+  <!-- 管理：一覧 -->
+  <section id="vAdmin" class="stack" hidden>
+    <div class="row" style="justify-content:space-between">
+      <h2>回答一覧</h2>
+      <div class="filters" id="filters"></div>
+    </div>
+    <p class="note" id="adminNote">読み込み中…</p>
+    <div class="list" id="list"></div>
+  </section>
+
+  <!-- 管理：詳細 -->
+  <section id="vDetail" class="stack" hidden>
+    <div class="row"><button class="btn ghost sm" id="backBtn">← 一覧へ戻る</button></div>
+    <div id="detail"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const TYPES = {
+  komon: {
+    label: "顧問先", sub: "税務顧問・記帳・決算申告をご依頼の方",
+    topics: ["ご依頼前のお悩み・きっかけ", "当社を選んだ理由（他社との比較）", "印象に残っているやりとり", "数字やお気持ちの変化", "担当者への評価", "物足りない点・ご要望", "ご紹介するならどんな方に", "お声の掲載可否"],
+    script: [
+      "当社にご依頼いただく前、経理や税金のことでどんなお悩みがありましたか？",
+      "数ある事務所の中から、当社を選んでいただいた決め手は何でしたか？",
+      "これまでのやりとりで、印象に残っている場面やエピソードがあれば教えてください。",
+      "ご依頼後、会社の数字や社長ご自身の気持ちにどんな変化がありましたか？",
+      "担当者の対応はいかがですか？良い点も、改善してほしい点も率直にお聞かせください。",
+      "今後、当社にもっと期待したいこと・相談したいことはありますか？",
+      "もし知り合いの社長に当社を紹介するとしたら、どんな方に、何と言って紹介しますか？",
+      "いただいたお声を、ホームページ等に掲載してもよろしいですか？（実名可／イニシャル可／匿名なら可／掲載不可）"
+    ]
+  },
+  consul: {
+    label: "コンサル先", sub: "社外CFO・財務改善・M&A・事業承継をご依頼の方",
+    topics: ["ご依頼時に抱えていた経営課題", "依頼を決めた理由・迷った点", "支援の進め方で良かったこと", "成果（資金繰り・銀行・株価・意思決定）", "社長ご自身の変化", "これからの課題", "投資対効果の実感", "お声の掲載可否"],
+    script: [
+      "ご依頼いただいた当時、どんな経営課題や不安を抱えていらっしゃいましたか？",
+      "依頼を決めた理由と、逆に迷った点があれば教えてください。",
+      "支援の進め方で「これは良かった」と感じたことは何ですか？",
+      "具体的な成果を教えてください。資金繰り・銀行との関係・利益・株価・意思決定のスピードなど、数字があればぜひ。",
+      "支援を受ける前と後で、社長ご自身の考え方や気持ちはどう変わりましたか？",
+      "かけた費用に対して、得られた価値はどう感じていますか？",
+      "今後、会社として取り組みたいテーマや、引き続き相談したいことはありますか？",
+      "いただいたお声を、ホームページや書籍・セミナー等で紹介してもよろしいですか？（実名可／イニシャル可／匿名なら可／掲載不可）"
+    ]
+  },
+  seminar: {
+    label: "セミナー受講生", sub: "セミナー・勉強会・講演にご参加の方",
+    topics: ["参加のきっかけ・期待", "一番響いた内容", "明日から実行すること", "満足度（10点満点）", "わかりにくかった点", "次に聞きたいテーマ", "個別相談のご希望", "お声の掲載可否"],
+    script: [
+      "今回のセミナーに参加しようと思ったきっかけと、期待していたことを教えてください。",
+      "一番心に残った話や、ハッとした内容は何でしたか？",
+      "今日の内容を受けて、明日から実際にやってみようと思うことは何ですか？",
+      "満足度を10点満点でつけるとしたら何点ですか？その理由も教えてください。",
+      "わかりにくかった点や、もっと時間をかけてほしかった内容はありますか？",
+      "次回、どんなテーマの話を聞いてみたいですか？",
+      "ご自身の会社について、個別に相談してみたいことはありますか？（資金繰り・銀行・事業承継・M&A・自社株 など）",
+      "いただいた感想を、チラシやホームページに掲載してもよろしいですか？（実名可／イニシャル可／匿名なら可／掲載不可）"
+    ]
+  }
+};
+const MAX_Q = 12;
+
+// ---------- capabilities ----------
+const cap = { sample: null, db: null, user: null, dict: null, uid: null, canEdit: false };
+const ready = (async () => {
+  if (!window.claude?.use) return;
+  const [s, d, u, dc] = await Promise.all(["sample","db","user","dictation"].map(n => window.claude.use(n).catch(() => null)));
+  cap.sample = s; cap.db = d; cap.user = u; cap.dict = dc;
+  if (u) {
+    try { cap.uid = await u.id(); } catch {}
+    try { cap.canEdit = !!(await u.canEdit()); } catch {}
+  }
+  if (!s) $("aiWarn").hidden = false;
+  if (dc) setupDictation();
+  if (cap.canEdit && d) { $("tabs").hidden = false; subscribeAdmin(); }
+})();
+
+// ---------- state ----------
+let S = null;              // current session
+let busy = false;
+let useAI = true;
+let docExists = null;
+let writeChain = Promise.resolve();
+
+// ---------- start view ----------
+let pickedType = null;
+const typesEl = $("types");
+for (const [k, t] of Object.entries(TYPES)) {
+  const b = document.createElement("button");
+  b.className = "type"; b.type = "button"; b.dataset.k = k; b.setAttribute("aria-pressed", "false");
+  b.innerHTML = `<b>${esc(t.label)}</b><span>${esc(t.sub)}</span>`;
+  b.onclick = () => {
+    pickedType = k;
+    typesEl.querySelectorAll(".type").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    $("topics").textContent = "お伺いすること：" + t.topics.join("／");
+    $("startBtn").disabled = false; $("startNote").textContent = "途中でやめても、それまでの回答は残ります";
+  };
+  typesEl.append(b);
+}
+$("topics").textContent = "顧問先・コンサル先・セミナー受講生、それぞれに合わせた質問をご用意しています。";
+
+function show(view) {
+  for (const v of ["vStart","vChat","vDone","vAdmin","vDetail"]) $(v).hidden = v !== view;
+  const admin = view === "vAdmin" || view === "vDetail";
+  $("tabInterview").setAttribute("aria-pressed", String(!admin));
+  $("tabAdmin").setAttribute("aria-pressed", String(admin));
+  window.scrollTo(0, 0);
+}
+$("tabInterview").onclick = () => show(S && S.status === "in_progress" ? "vChat" : (S ? "vDone" : "vStart"));
+$("tabAdmin").onclick = () => { renderList(); show("vAdmin"); };
+
+$("startBtn").onclick = async () => {
+  await Promise.race([ready, new Promise(r => setTimeout(r, 1500))]);
+  const t = TYPES[pickedType];
+  useAI = !!cap.sample;
+  S = {
+    id: "s" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    type: pickedType,
+    name: $("fName").value.trim(), company: $("fCompany").value.trim(),
+    industry: $("fIndustry").value.trim(), theme: $("fTheme").value.trim(),
+    mode: $("fMode").value,
+    startedAt: Date.now(), updatedAt: Date.now(), status: "in_progress",
+    progress: 5, turns: [], report: null, scriptIdx: 0
+  };
+  const who = S.name ? `${S.name}様` : "";
+  const greet = `${who ? who + "、" : ""}本日はお時間をいただきありがとうございます。アクセスのインタビュー秘書です。\n${t.label}としてのご経験を、これから一問ずつお伺いします。短いお答えでも大丈夫です。\n\nまず最初に――${t.script[0]}`;
+  S.turns.push({ role: "assistant", content: greet });
+  S.scriptIdx = 1;
+  $("chatWho").textContent = [t.label, S.company, S.name && S.name + "様"].filter(Boolean).join("・");
+  renderLog(); show("vChat"); $("answer").focus();
+  save();
+};
+
+// ---------- chat ----------
+function renderLog(thinking) {
+  const log = $("log");
+  log.innerHTML = S.turns.map(m => `<div class="msg ${m.role === "assistant" ? "ai" : "me"}"><div class="who">${m.role === "assistant" ? "インタビュー秘書" : (S.mode === "staff" ? "回答（聞き取り）" : "あなた")}</div>${esc(m.content)}</div>`).join("")
+    + (thinking ? `<div class="typing">${esc(thinking)}</div>` : "");
+  const q = S.turns.filter(m => m.role === "user").length;
+  $("chatStep").textContent = `${q}問 回答済み`;
+  $("bar").style.width = Math.min(100, S.progress || 0) + "%";
+  log.lastElementChild?.scrollIntoView({ block: "nearest" });
+}
+
+function rulesFor(s) {
+  const t = TYPES[s.type];
+  return `あなたは「税理士法人アクセス」のインタビュー秘書です。アクセスは「申告をする会社ではない。社長を元気にする会社だ。」を掲げ、税務顧問・社外CFO・M&A・事業承継・建設業支援を行っています。
+いま${t.label}にインタビューしています。目的は、①お客様の声（掲載用の体験談）を集める、②サービスの改善点を知る、③次のご支援のニーズを知る、の3つです。
+
+回答者情報: 立場=${t.label} / お名前=${s.name || "未入力"} / 会社=${s.company || "未入力"} / 業種=${s.industry || "未入力"} / 支援内容・セミナー=${s.theme || "未入力"} / 回答方法=${s.mode === "staff" ? "担当者が電話・面談で聞き取って入力" : "ご本人が入力"}
+
+必ず聞く項目（順番は会話の流れで調整してよい）:
+${t.topics.map((x, i) => `${i + 1}. ${x}`).join("\n")}
+
+進め方のルール:
+- 1回の発言で質問は1つだけ。丁寧で温かい敬語。社長が話しやすい雰囲気をつくる。
+- 最初に回答への短い受け止め（1文、オウム返しや共感）を入れ、次の質問をする。全体で120字以内。
+- 答えが抽象的なら1回だけ深掘りする（「具体的には？」「数字でいうと？」「そのとき、どんなお気持ちでしたか？」）。同じ項目で2回以上深掘りしない。
+- Before→After、具体的な数字、印象的な一言、エピソードを引き出すことを意識する。
+- 不満や改善点を言いやすいよう、遠慮なくと促す。批判には感謝して受け止め、言い訳しない。
+- 税務・財務の助言や営業はしない。相談希望があれば「担当者からご連絡します」と伝える。
+- 最後の質問は必ず「お声の掲載可否（実名可／イニシャル可／匿名なら可／掲載不可）」。
+- 全項目を聞き終えたら、または回答者の回答が${MAX_Q}回に達したら、感謝の言葉で締めて done=true にする。
+- 回答者が「終わりたい」と言ったら、掲載可否だけ確認して締める。
+
+出力は次のJSONだけ: {"message":"次の発言","done":false,"progress":0〜100の進み具合}
+例: {"message":"資金繰りの不安が大きかったのですね。具体的には、どんな場面で一番不安を感じていましたか？","done":false,"progress":25}`;
+}
+
+async function send(text, opts = {}) {
+  if (busy || !S || S.status !== "in_progress") return;
+  text = text.trim();
+  if (!text) return;
+  $("chatErr").textContent = "";
+  S.turns.push({ role: "user", content: text });
+  $("answer").value = "";
+  const answered = S.turns.filter(m => m.role === "user").length;
+  busy = true; setComposer(false);
+  try {
+    if (useAI) {
+      renderLog("秘書が次の質問を考えています…");
+      const input = [{ role: "user", content: rulesFor(S) + "\n\nでは、インタビューを始めてください。" }, ...S.turns];
+      if (opts.forceEnd || answered >= MAX_Q) input[input.length - 1] = { role: "user", content: text + "\n\n（システム: ここで締めてください。掲載可否が未確認なら確認の質問を、確認済みならお礼で締めて done=true）" };
+      let r;
+      try { r = await cap.sample.json(input, { modelTier: "quick", cache: false }); }
+      catch (e) {
+        if (e && (e.code === "not_granted" || e.code === "sampling_disabled" || e.code === "capability_disabled" || e.code === "not_declared")) { useAI = false; $("aiWarn").hidden = false; }
+        else throw e;
+      }
+      if (r && typeof r.message === "string") {
+        S.turns.push({ role: "assistant", content: r.message });
+        S.progress = Math.max(S.progress, Math.min(100, Number(r.progress) || S.progress));
+        if (r.done || answered >= MAX_Q + 2) return finish();
+      } else if (useAI) throw new Error("bad_reply");
+    }
+    if (!useAI) {
+      const t = TYPES[S.type];
+      if (opts.forceEnd && S.scriptIdx < t.script.length) S.scriptIdx = t.script.length - 1;
+      if (S.scriptIdx >= t.script.length) return finish();
+      S.turns.push({ role: "assistant", content: "ありがとうございます。\n" + t.script[S.scriptIdx] });
+      S.scriptIdx++;
+      S.progress = Math.round((S.scriptIdx - 1) / t.script.length * 100);
+    }
+  } catch (e) {
+    S.turns.pop();
+    $("answer").value = text;
+    $("chatErr").textContent = e?.code === "rate_limited" ? "混み合っています。少し待ってから、もう一度送信してください。" : "通信がうまくいきませんでした。もう一度送信してください。";
+  } finally {
+    busy = false; setComposer(true);
+    if (S.status === "in_progress") { renderLog(); save(); $("answer").focus(); }
+  }
+}
+function setComposer(on) { for (const id of ["sendBtn","skipBtn","finishBtn","answer"]) $(id).disabled = !on; }
+$("sendBtn").onclick = () => send($("answer").value);
+$("answer").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send($("answer").value); } });
+$("skipBtn").onclick = () => send("（この質問は飛ばします）");
+$("finishBtn").onclick = () => send("そろそろ終わりにしたいです。", { forceEnd: true });
+
+// ---------- dictation ----------
+function setupDictation() {
+  const btn = $("micBtn"); btn.hidden = false;
+  let base = "";
+  cap.dict.onPartial(({ text }) => { $("answer").value = base + text; });
+  cap.dict.onFinal(({ text }) => { base += text; $("answer").value = base; });
+  cap.dict.onState(({ state }) => {
+    const on = state === "listening";
+    btn.setAttribute("aria-pressed", String(on));
+    btn.textContent = on ? "■ 録音を止める" : "🎙 音声で答える";
+  });
+  btn.onclick = () => {
+    if (btn.getAttribute("aria-pressed") === "true") { cap.dict.stop().catch(() => {}); return; }
+    base = $("answer").value;
+    cap.dict.start().catch(e => { if (e?.code === "not_granted") btn.hidden = true; });
+  };
+}
+
+// ---------- finish & report ----------
+async function finish() {
+  S.status = "done"; S.finishedAt = Date.now(); S.progress = 100;
+  $("doneReport").innerHTML = `<p class="note">回答をまとめています…</p>`;
+  show("vDone");
+  save();
+  if (cap.sample && useAI) {
+    try { S.report = await makeReport(S); save(); } catch { S.report = null; }
+  }
+  renderDone();
+}
+
+function transcriptText(s) {
+  return s.turns.map(m => (m.role === "assistant" ? "秘書: " : "回答: ") + m.content).join("\n\n");
+}
+
+async function makeReport(s) {
+  const t = TYPES[s.type];
+  const prompt = `以下は税理士法人アクセスが${t.label}に行ったインタビューの記録です。社内で活用するレポートにまとめてください。
+回答者: ${s.name || "未入力"}／${s.company || "未入力"}／業種 ${s.industry || "未入力"}／${s.theme || ""}
+
+ルール:
+- 回答者が言っていないことを作らない。数字や事実は記録にあるものだけ。
+- testimonial は掲載用の「お客様の声」。回答者本人の一人称・話し言葉を活かして250〜400字。誇張しない。
+- quotes は回答者の言葉をほぼそのまま抜き出す（最大4つ）。
+- 情報が無い項目は空文字か空配列。
+
+次のJSONだけを返す:
+{"headline":"掲載用キャッチコピー(30字以内)","testimonial":"","before":"依頼前・参加前の状態","after":"依頼後・参加後の変化","numbers":["数字で語られた成果"],"quotes":[""],"satisfaction":10段階の数値またはnull,"good":["評価された点"],"issues":["不満・改善要望"],"opportunities":["追加支援・紹介・個別相談の可能性（社内用）"],"publish":"実名可|イニシャル可|匿名なら可|掲載不可|未確認","nextAction":"担当者が次にやるべきこと(1〜2文)"}
+
+記録:
+${transcriptText(s)}`;
+  const r = await cap.sample.json(prompt, { modelTier: "default" });
+  if (!r || typeof r !== "object") throw new Error("bad");
+  r.createdAt = Date.now();
+  return r;
+}
+
+function renderDone() {
+  const r = S.report;
+  $("doneReport").innerHTML = r ? `<div class="report">
+      <span class="lbl">お客様の声（下書き）</span>
+      ${r.headline ? `<div class="catch">${esc(r.headline)}</div>` : ""}
+      <p style="margin:0;white-space:pre-wrap">${esc(r.testimonial)}</p>
+      <p class="note">掲載前に、担当者から内容のご確認をお願いします。掲載のご希望：${esc(r.publish || "未確認")}</p>
+    </div>` : "";
+  const saved = !!(cap.db && cap.uid && S.savedOk);
+  $("doneLead").textContent = saved ? "回答は担当者に届きました。いただいたお声をもとに、あらためてご連絡する場合があります。" : "最後に、下の手順で回答を担当者へお送りください。";
+  $("doneCopy").hidden = saved;
+  if (!saved) {
+    const head = `【インタビュー回答】${TYPES[S.type].label}／${S.company}／${S.name}\n日時: ${new Date(S.startedAt).toLocaleString("ja-JP")}\n\n`;
+    $("copyArea").value = head + transcriptText(S) + (r ? `\n\n【お客様の声（下書き）】\n${r.headline || ""}\n${r.testimonial || ""}` : "");
+  }
+}
+$("copyBtn").onclick = () => {
+  const ta = $("copyArea");
+  navigator.clipboard?.writeText(ta.value).then(() => { $("copyNote").textContent = "コピーしました"; })
+    .catch(() => { ta.select(); $("copyNote").textContent = "選択しました。Ctrl+C（⌘+C）でコピーしてください"; });
+};
+$("againBtn").onclick = () => { S = null; $("fName").value = $("fCompany").value = $("fIndustry").value = $("fTheme").value = ""; show("vStart"); };
+
+// ---------- save ----------
+function save() {
+  if (!S) return;
+  const snapshot = JSON.parse(JSON.stringify(S)); delete snapshot.savedOk;
+  snapshot.updatedAt = Date.now();
+  writeChain = writeChain.then(async () => {
+    if (!cap.db || !cap.uid) return;
+    const ref = cap.db.doc("interviews/" + cap.uid);
+    try {
+      if (docExists === null) docExists = (await ref.get()).exists;
+      if (docExists) await ref.update({ sessions: { [snapshot.id]: snapshot } });
+      else { await ref.set({ sessions: { [snapshot.id]: snapshot } }); docExists = true; }
+      if (S && S.id === snapshot.id) S.savedOk = true;
+    } catch (e) { if (S && S.id === snapshot.id) S.savedOk = false; }
+  });
+  return writeChain;
+}
+
+// ---------- admin ----------
+let ALL = [];            // [{owner, s}]
+let filter = "all";
+let adminLoaded = false;
+function subscribeAdmin() {
+  const timer = setTimeout(() => { if (!adminLoaded) $("adminNote").textContent = "データにまだ接続できません。しばらくしてから開き直してください。"; }, 10000);
+  cap.db.collection("interviews").onSnapshot(snap => {
+    if (!snap.metadata?.fromCache) { adminLoaded = true; clearTimeout(timer); }
+    const out = [];
+    snap.docs.forEach(d => {
+      const sessions = (d.data() || {}).sessions || {};
+      for (const s of Object.values(sessions)) if (s && s.id) out.push({ owner: d.id, s });
+    });
+    out.sort((a, b) => (b.s.startedAt || 0) - (a.s.startedAt || 0));
+    ALL = out;
+    $("countBadge").textContent = out.length ? `(${out.length})` : "";
+    renderList();
+    if (!$("vDetail").hidden && openKey) { const it = ALL.find(x => x.s.id === openKey); if (it) renderDetail(it); }
+  }, () => { clearTimeout(timer); $("adminNote").textContent = "一覧を読み込めませんでした。編集権限があるか確認してください。"; });
+}
+const fEl = $("filters");
+for (const [k, l] of [["all", "すべて"], ...Object.entries(TYPES).map(([k, t]) => [k, t.label])]) {
+  const b = document.createElement("button"); b.className = "btn ghost sm"; b.textContent = l; b.dataset.k = k;
+  b.onclick = () => { filter = k; renderList(); };
+  fEl.append(b);
+}
+const fmt = (ts) => ts ? new Date(ts).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+function renderList() {
+  fEl.querySelectorAll("button").forEach(b => { b.style.background = b.dataset.k === filter ? "var(--accent-soft)" : ""; });
+  const items = ALL.filter(x => filter === "all" || x.s.type === filter);
+  if (adminLoaded || ALL.length) $("adminNote").textContent = `${items.length}件。クリックで詳細とお客様の声を表示します。`;
+  $("list").innerHTML = items.length ? "" : `<div class="empty">まだ回答はありません。<br>このページのリンクを顧問先・コンサル先・セミナー受講生へ送ると、回答がここに集まります。</div>`;
+  for (const it of items) {
+    const s = it.s, r = s.report;
+    const b = document.createElement("button"); b.className = "item";
+    const pub = r?.publish && r.publish !== "未確認" ? `<span class="chip ${r.publish === "掲載不可" ? "" : "ok"}">${esc(r.publish)}</span>` : "";
+    const hot = r?.opportunities?.length ? `<span class="chip hot">提案機会 ${r.opportunities.length}</span>` : "";
+    const st = s.status === "done" ? "" : `<span class="chip">回答途中</span>`;
+    b.innerHTML = `<span class="t">${esc(s.company || "（会社名なし）")} ${esc(s.name ? s.name + "様" : "")}</span>
+      <span class="row" style="gap:6px">${st}${pub}${hot}<span class="chip">${esc(TYPES[s.type]?.label || "")}</span></span>
+      <span class="s">${fmt(s.startedAt)} ・ ${s.turns?.filter(m => m.role === "user").length || 0}問回答 ${r?.headline ? "・ " + esc(r.headline) : ""}</span>`;
+    b.onclick = () => { openKey = s.id; renderDetail(it); show("vDetail"); };
+    $("list").append(b);
+  }
+}
+let openKey = null;
+$("backBtn").onclick = () => { openKey = null; renderList(); show("vAdmin"); };
+
+const li = (arr) => arr?.length ? `<ul class="tight">${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<span class="note">なし</span>`;
+function reportText(s) {
+  const r = s.report || {};
+  return `【${TYPES[s.type].label}インタビュー】${s.company}／${s.name}様（${s.industry}）\n${new Date(s.startedAt).toLocaleString("ja-JP")}\n\n■キャッチ\n${r.headline || ""}\n\n■お客様の声\n${r.testimonial || ""}\n\n■Before\n${r.before || ""}\n■After\n${r.after || ""}\n\n■数字の成果\n${(r.numbers || []).join("\n")}\n\n■印象的な言葉\n${(r.quotes || []).map(q => "「" + q + "」").join("\n")}\n\n■満足度 ${r.satisfaction ?? "-"}／10\n■評価された点\n${(r.good || []).join("\n")}\n■改善要望\n${(r.issues || []).join("\n")}\n■提案機会（社内）\n${(r.opportunities || []).join("\n")}\n■掲載可否 ${r.publish || "未確認"}\n■次のアクション\n${r.nextAction || ""}\n\n――記録――\n${transcriptText(s)}`;
+}
+function renderDetail(it) {
+  const s = it.s, r = s.report;
+  const head = `<div><span class="lbl">${esc(TYPES[s.type]?.label)} ・ ${fmt(s.startedAt)} ・ ${s.mode === "staff" ? "担当者聞き取り" : "本人入力"}</span>
+    <h2>${esc(s.company || "（会社名なし）")} ${esc(s.name ? s.name + "様" : "")}</h2>
+    <p class="note" style="margin:0">${esc([s.industry, s.theme].filter(Boolean).join("／"))}</p></div>`;
+  const body = r ? `<div class="report">
+      ${r.headline ? `<div class="catch">${esc(r.headline)}</div>` : ""}
+      <div><span class="lbl">お客様の声（掲載用・要本人確認）</span><p style="margin:0;white-space:pre-wrap">${esc(r.testimonial)}</p></div>
+      <div class="ba"><div><span class="lbl">BEFORE</span>${esc(r.before) || '<span class="note">なし</span>'}</div><div><span class="lbl">AFTER</span>${esc(r.after) || '<span class="note">なし</span>'}</div></div>
+      <div><span class="lbl">数字で語られた成果</span>${li(r.numbers)}</div>
+      <div class="stack" style="gap:6px"><span class="lbl">印象的な言葉</span>${(r.quotes || []).map(q => `<p class="quote">「${esc(q)}」</p>`).join("") || '<span class="note">なし</span>'}</div>
+      <div class="row"><span class="chip">満足度 ${esc(r.satisfaction ?? "-")}／10</span><span class="chip ok">掲載：${esc(r.publish || "未確認")}</span></div>
+      <div><span class="lbl">評価された点</span>${li(r.good)}</div>
+      <div><span class="lbl">不満・改善要望</span>${li(r.issues)}</div>
+      <div class="internal stack" style="gap:8px"><div><span class="lbl">提案機会（社内用）</span>${li(r.opportunities)}</div><div><span class="lbl">次のアクション</span>${esc(r.nextAction) || '<span class="note">なし</span>'}</div></div>
+    </div>` : `<div class="empty">${s.status === "done" ? "レポートはまだ作られていません。" : "回答途中です。ここまでの記録からレポートを作れます。"}</div>`;
+  $("detail").innerHTML = `<div class="stack">${head}${body}
+    <div class="row">
+      ${cap.sample ? `<button class="btn sm" id="regen">${r ? "レポートを作り直す" : "レポートを作る"}</button>` : ""}
+      <button class="btn ghost sm" id="copyRep">テキストでコピー</button>
+      <span class="note" id="detNote"></span>
+    </div>
+    <details><summary>インタビュー記録を見る（${s.turns?.length || 0}件）</summary>
+      <div class="transcript">${(s.turns || []).map(m => `<p><b>${m.role === "assistant" ? "秘書" : "回答"}：</b>${esc(m.content).replace(/\n/g, "<br>")}</p>`).join("")}</div>
+    </details></div>`;
+  $("copyRep").onclick = () => navigator.clipboard?.writeText(reportText(s)).then(() => $("detNote").textContent = "コピーしました").catch(() => $("detNote").textContent = "コピーできませんでした");
+  const g = $("regen");
+  if (g) g.onclick = async () => {
+    g.disabled = true; $("detNote").textContent = "まとめています…（30秒ほど）";
+    try {
+      const rep = await makeReport(s);
+      await cap.db.doc("interviews/" + it.owner).update({ sessions: { [s.id]: { report: rep } } });
+      $("detNote").textContent = "作成しました";
+    } catch (e) { $("detNote").textContent = e?.code === "rate_limited" ? "混み合っています。少し待ってからお試しください" : "作成できませんでした。もう一度お試しください"; g.disabled = false; }
+  };
+}
+})();
+</script>
