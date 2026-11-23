@@ -145,6 +145,17 @@ details summary{cursor:pointer;color:var(--accent)}
 .ph.add b{font-size:24px;line-height:1}
 .ph.add:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 .ph.add input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ph .main{position:absolute;left:4px;bottom:4px;border:0;border-radius:999px;font-size:11px;padding:1px 8px;white-space:nowrap;background:var(--surface);color:var(--accent);cursor:pointer;opacity:.92}
+.ph .badge{position:absolute;left:4px;bottom:4px;border-radius:999px;font-size:11px;padding:1px 8px;background:var(--accent);color:var(--accent-ink)}
+.rp-hero{margin:-20px -20px 0;aspect-ratio:16/9;max-width:none;overflow:hidden;border-radius:var(--r) var(--r) 0 0;background:var(--accent-soft)}
+.rp-hero img,.rp-side img,.rp-gal img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
+.rp-voice{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,38%);gap:16px;align-items:start}
+@media (max-width:620px){.rp-voice{grid-template-columns:1fr}}
+.rp-side{margin:0;aspect-ratio:4/5;max-width:100%;border-radius:8px;overflow:hidden;background:var(--accent-soft)}
+.rp-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.rp-gal figure{margin:0;aspect-ratio:4/3;max-width:100%;border-radius:8px;overflow:hidden;background:var(--accent-soft)}
+.lightbox{position:fixed;inset:0;z-index:50;background:rgba(10,16,14,.86);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));cursor:zoom-out}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
 .ph.busy{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -293,6 +304,16 @@ const TYPES = {
 };
 
 // ---------- photos ----------
+document.addEventListener("click", e => {
+  const t = e.target.closest?.("[data-zoom]");
+  if (t) {
+    const box = document.createElement("div"); box.className = "lightbox"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "写真の拡大");
+    box.innerHTML = `<img src="${photoUrl(esc(t.dataset.zoom))}" alt="拡大写真">`;
+    box.onclick = () => box.remove();
+    document.addEventListener("keydown", function k(ev) { if (ev.key === "Escape") { box.remove(); document.removeEventListener("keydown", k); } });
+    document.body.append(box);
+  }
+});
 let ASSETS;  // undefined = not asked yet
 async function getAssets() {
   if (ASSETS !== undefined) return ASSETS;
@@ -321,7 +342,7 @@ async function photoPanel(el, { get, set, onAdd }) {
   let busy = 0, msg = "";
   const draw = () => {
     const list = get() || [];
-    el.innerHTML = `<div class="photos">${list.map((p, i) => `<figure class="ph"><img src="${photoUrl(esc(p.id))}" alt="写真${i + 1}" loading="lazy">${assets ? `<button class="del" data-i="${i}" aria-label="写真${i + 1}を削除">×</button>` : ""}</figure>`).join("")}
+    el.innerHTML = `<div class="photos">${list.map((p, i) => `<figure class="ph"><img src="${photoUrl(esc(p.id))}" alt="写真${i + 1}" loading="lazy">${assets ? `<button class="del" data-i="${i}" aria-label="写真${i + 1}を削除">×</button>` : ""}${i === 0 ? `<span class="badge">メイン</span>` : (assets ? `<button class="main" data-i="${i}" aria-label="写真${i + 1}をメイン写真にする">★メイン</button>` : "")}</figure>`).join("")}
       ${Array.from({ length: busy }, () => `<div class="ph busy">保存中…</div>`).join("")}
       ${assets ? `<label class="ph add"><b>＋</b>写真を追加<input type="file" accept="image/*" multiple></label>` : ""}</div>
       ${msg ? `<p class="note err" style="margin:6px 0 0">${esc(msg)}</p>` : ""}
@@ -330,6 +351,10 @@ async function photoPanel(el, { get, set, onAdd }) {
       const l = (get() || []).slice(); const [gone] = l.splice(+b.dataset.i, 1);
       await set(l); draw();
       if (gone) assets.delete(gone.id).catch(() => {});
+    });
+    el.querySelectorAll(".main").forEach(b => b.onclick = async () => {
+      const l = (get() || []).slice(); const [m] = l.splice(+b.dataset.i, 1); l.unshift(m);
+      await set(l); draw();
     });
     const inp = el.querySelector("input[type=file]");
     if (inp) inp.onchange = async () => {
@@ -661,7 +686,7 @@ async function finish() {
   $("cwNote").textContent = "";
   $("donePhotoSend").hidden = true; $("donePhotoNote").textContent = "";
   const sess = S;
-  photoPanel($("donePhotos"), { get: () => sess.photos, set: (l) => { sess.photos = l; return save(); }, onAdd: () => { if (cap.db && sess.savedOk) $("donePhotoSend").hidden = false; } });
+  photoPanel($("donePhotos"), { get: () => sess.photos, set: (l) => { sess.photos = l; if (sess.report && S === sess) $("doneReport").innerHTML = reportHTML(sess.report, sess.photos); return save(); }, onAdd: () => { if (cap.db && sess.savedOk) $("donePhotoSend").hidden = false; } });
   $("doneLead").textContent = `${answered()}問の回答を記録しました。`;
   show("vDone");
   await save();
@@ -705,10 +730,15 @@ ${transcriptText(s)}`;
   return r;
 }
 const li = (arr) => arr?.length ? `<ul class="tight">${arr.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : `<span class="note">なし</span>`;
-function reportHTML(r) {
+function reportHTML(r, photos) {
+  const ph = (photos || []).filter(p => p && p.id);
+  const img = (p, i) => `<img src="${photoUrl(esc(p.id))}" alt="インタビュー写真${i + 1}" loading="lazy" data-zoom="${esc(p.id)}">`;
+  const [hero, side, ...rest] = ph;
   return `<div class="report">
+    ${hero ? `<figure class="rp-hero">${img(hero, 0)}</figure>` : ""}
     ${r.headline ? `<div class="catch">${esc(r.headline)}</div>` : ""}
-    <div><span class="lbl">お客様の声（掲載用・要本人確認）</span><p style="margin:0;white-space:pre-wrap">${esc(r.testimonial)}</p></div>
+    <div class="${side ? "rp-voice" : ""}"><div><span class="lbl">お客様の声（掲載用・要本人確認）</span><p style="margin:0;white-space:pre-wrap">${esc(r.testimonial)}</p></div>${side ? `<figure class="rp-side">${img(side, 1)}</figure>` : ""}</div>
+    ${rest.length ? `<div class="rp-gal">${rest.map((p, i) => `<figure>${img(p, i + 2)}</figure>`).join("")}</div>` : ""}
     <div class="ba"><div><span class="lbl">BEFORE</span>${esc(r.before) || '<span class="note">なし</span>'}</div><div><span class="lbl">AFTER</span>${esc(r.after) || '<span class="note">なし</span>'}</div></div>
     <div><span class="lbl">数字で語られた成果</span>${li(r.numbers)}</div>
     <div class="stack" style="gap:6px"><span class="lbl">印象的な言葉</span>${(r.quotes || []).map(q => `<p class="quote">「${esc(q)}」</p>`).join("") || '<span class="note">なし</span>'}</div>
@@ -720,7 +750,7 @@ function reportHTML(r) {
   </div>`;
 }
 function renderDone() {
-  $("doneReport").innerHTML = S.report ? reportHTML(S.report) : $("doneReport").innerHTML;
+  $("doneReport").innerHTML = S.report ? reportHTML(S.report, S.photos) : $("doneReport").innerHTML;
   const saved = !!(cap.db && cap.uid && S.savedOk);
   $("doneLead").textContent = `${answered()}問の回答を記録しました。` + (saved ? "回答一覧にも保存されています。" : "");
   $("doneCopy").hidden = saved;
@@ -821,7 +851,7 @@ function renderDetail(it) {
       <h2>${esc(s.company || "（会社名なし）")} ${esc(s.name ? s.name + "様" : "")}</h2>
       <p class="note" style="margin:0">${esc([s.industry, s.theme].filter(Boolean).join("／"))}</p></div>
     <div class="stack" style="gap:6px"><span class="lbl">写真</span><div id="detPhotos"></div></div>
-    ${r ? reportHTML(r) : `<div class="empty">${s.status === "done" ? "レポートはまだ作られていません。" : "インタビュー途中です。ここまでの回答からレポートを作れます。"}</div>`}
+    ${r ? reportHTML(r, s.photos) : `<div class="empty">${s.status === "done" ? "レポートはまだ作られていません。" : "インタビュー途中です。ここまでの回答からレポートを作れます。"}</div>`}
     <div class="row">
       ${cap.sample ? `<button class="btn sm" id="regen">${r ? "レポートを作り直す" : "レポートを作る"}</button>` : ""}
       ${s.status === "done" ? `<button class="btn ghost sm" id="cwBtn">${s.chatwork?.postedAt ? "Chatworkに再投稿を依頼" : "Chatworkに投稿"}</button>` : ""}
@@ -833,7 +863,7 @@ function renderDetail(it) {
   </div>`;
   $("copyRep").onclick = () => navigator.clipboard?.writeText(reportText(s)).then(() => $("detNote").textContent = "コピーしました").catch(() => $("detNote").textContent = "コピーできませんでした");
   const ownerRef = () => cap.db.doc("interviews/" + it.owner);
-  photoPanel($("detPhotos"), { get: () => s.photos, set: (l) => { s.photos = l; return ownerRef().update({ sessions: { [s.id]: { photos: l } } }); } });
+  photoPanel($("detPhotos"), { get: () => s.photos, set: (l) => { s.photos = l; const rp = $("detail").querySelector(".report"); if (rp && s.report) rp.outerHTML = reportHTML(s.report, l); return ownerRef().update({ sessions: { [s.id]: { photos: l } } }); } });
   const cwp = $("cwPhotoBtn");
   if (cwp) cwp.onclick = async () => { cwp.disabled = true; const r = await requestChatwork(s); $("detNote").textContent = r.ok ? "写真の送信を依頼しました。" : r.msg; cwp.disabled = false; };
   const cw = $("cwBtn");
