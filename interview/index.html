@@ -59,6 +59,7 @@ input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px soli
 .note{font-size:12.5px;color:var(--muted)}
 .warn{font-size:13px;color:var(--gold);background:var(--gold-soft);padding:8px 12px;border-radius:8px;margin:0}
 .err{color:var(--rec)}
+.warn:empty{display:none}
 .lbl{font-size:11.5px;letter-spacing:.12em;color:var(--muted);display:block;margin-bottom:2px}
 .chip{display:inline-block;font-size:12px;padding:1px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .chip.ok{border-color:var(--accent);color:var(--accent)}
@@ -205,6 +206,7 @@ details summary{cursor:pointer;color:var(--accent)}
       <h1>インタビューお疲れさまでした</h1>
       <p class="lead" id="doneLead"></p>
     </div>
+    <p class="warn" id="cwNote" style="color:var(--accent);background:var(--accent-soft)"></p>
     <div id="doneReport"></div>
     <div id="doneCopy" class="stack" hidden>
       <p class="warn">この画面では回答を自動保存できませんでした。下のボタンでコピーして保管してください。</p>
@@ -268,6 +270,25 @@ const TYPES = {
     "いただいた感想を、チラシやホームページに掲載してもよろしいですか？（実名／イニシャル／匿名なら可／掲載不可）"
   ]}
 };
+
+// Chatwork「SNS・インタビュー投稿案」への投稿依頼先（Claude Code の呼び出し口）
+const CW_SERVER = "Claude Code Remote";
+const CW_TRIGGER = "trig_019XU5BN9UkXtuz4cToeQLAz";
+async function requestChatwork(s) {
+  const mcp = window.claude?.use ? await window.claude.use("mcp").catch(() => null) : null;
+  if (!mcp) return { ok: false, msg: "この画面からはChatworkへの投稿を依頼できません。回答一覧のボタンか、Claudeに直接お知らせください。" };
+  try {
+    await mcp.callTool(CW_SERVER, "fire_trigger", { trigger_id: CW_TRIGGER, text: `インタビュー完了: ${s.company || "会社名なし"} ${s.name || ""}（${TYPES[s.type]?.label || ""}） sid=${s.id}` });
+    return { ok: true, msg: "Chatwork「SNS・インタビュー投稿案」への投稿を依頼しました。数分で投稿されます。" };
+  } catch (e) {
+    const c = e?.code;
+    if (c === "server_not_connected" || c === "selection_required") return { ok: false, msg: "claude.aiの設定 → コネクタで「Claude Code Remote」を有効にすると、Chatworkへ自動投稿できます。" };
+    if (c === "approval_required" || c === "not_in_manifest") return { ok: false, msg: "Chatworkへの投稿依頼が許可されませんでした。回答一覧の「Chatworkに投稿」から、もう一度許可して送れます。" };
+    if (c === "blocked_by_policy") return { ok: false, msg: "組織の設定により、この画面からは投稿依頼ができません。Claudeに直接お知らせください。" };
+    if (c === "needs_reauth") return { ok: false, msg: "Claude Code Remote の接続が切れています。claude.aiの設定 → コネクタで再接続してください。" };
+    return { ok: false, msg: "投稿依頼の結果を確認できませんでした（届いている可能性があります）。数分後に回答一覧で「Chatwork投稿済み」になっているか確認してください。" };
+  }
+}
 
 // ---------- capabilities ----------
 const cap = { sample: null, db: null, user: null, dict: null, tts: null, uid: null, canEdit: false };
@@ -508,13 +529,21 @@ async function finish() {
   if (recording) return;
   S.status = "done"; S.finishedAt = Date.now();
   $("doneReport").innerHTML = cap.sample ? `<p class="note">回答をまとめています…（30秒ほど）</p>` : "";
+  $("cwNote").textContent = "";
   $("doneLead").textContent = `${answered()}問の回答を記録しました。`;
   show("vDone");
   await save();
   renderDone();
   if (cap.sample && answered()) {
-    try { S.report = await makeReport(S); await save(); } catch { $("doneReport").innerHTML = `<p class="note">レポートを作れませんでした。回答一覧からもう一度作れます。</p>`; return; }
+    try { S.report = await makeReport(S); await save(); } catch { $("doneReport").innerHTML = `<p class="note">レポートを作れませんでした。回答一覧からもう一度作れます。</p>`; }
     renderDone();
+  }
+  if (answered() && cap.db && S.savedOk) {
+    $("cwNote").textContent = "Chatworkへの投稿を依頼しています…";
+    const r = await requestChatwork(S);
+    $("cwNote").textContent = r.msg;
+  } else if (answered()) {
+    $("cwNote").textContent = "回答が保存されていないため、Chatworkへは投稿できません。下の内容をコピーしてChatworkに貼り付けてください。";
   }
 }
 function transcriptText(s) {
@@ -533,7 +562,8 @@ async function makeReport(s) {
 - 情報が無い項目は空文字か空配列。
 
 次のJSONだけを返す:
-{"headline":"掲載用キャッチコピー(30字以内)","testimonial":"","before":"依頼前・参加前の状態","after":"依頼後・参加後の変化","numbers":["数字で語られた成果"],"quotes":[""],"satisfaction":10段階の数値またはnull,"good":["評価された点"],"issues":["不満・改善要望"],"opportunities":["追加支援・紹介・個別相談の可能性（社内用）"],"publish":"実名可|イニシャル可|匿名なら可|掲載不可|未確認","nextAction":"担当者が次にやるべきこと(1〜2文)"}
+{"headline":"掲載用キャッチコピー(30字以内)","testimonial":"","before":"依頼前・参加前の状態","after":"依頼後・参加後の変化","numbers":["数字で語られた成果"],"quotes":[""],"satisfaction":10段階の数値またはnull,"good":["評価された点"],"issues":["不満・改善要望"],"opportunities":["追加支援・紹介・個別相談の可能性（社内用）"],"publish":"実名可|イニシャル可|匿名なら可|掲載不可|未確認","nextAction":"担当者が次にやるべきこと(1〜2文)","sns":{"instagram":"Instagram投稿案。冒頭1行で引きつけ、お客様の声を要約し、最後に#税理士法人アクセス など関連ハッシュタグ5〜8個。300〜450字","x":"X投稿案。120字以内","facebook":"Facebook投稿案。経営者向けに丁寧な語り口で250〜400字"}}
+SNS投稿案は、掲載可否が「イニシャル可」「匿名なら可」の場合はその表記（例: K社長、建設業A社）にし、「未確認」「掲載不可」の場合は会社名・個人名を出さない。誇張しない。
 
 記録:
 ${transcriptText(s)}`;
@@ -553,6 +583,7 @@ function reportHTML(r) {
     <div class="row"><span class="chip">満足度 ${esc(r.satisfaction ?? "-")}／10</span><span class="chip ok">掲載：${esc(r.publish || "未確認")}</span></div>
     <div><span class="lbl">評価された点</span>${li(r.good)}</div>
     <div><span class="lbl">不満・改善要望</span>${li(r.issues)}</div>
+    ${r.sns ? `<div class="stack" style="gap:8px"><span class="lbl">SNS投稿案</span>${[["Instagram", r.sns.instagram], ["X", r.sns.x], ["Facebook", r.sns.facebook]].filter(x => x[1]).map(([k, v]) => `<div class="ba" style="grid-template-columns:1fr"><div><span class="lbl">${k}</span><span style="white-space:pre-wrap">${esc(v)}</span></div></div>`).join("")}</div>` : ""}
     <div class="internal stack" style="gap:8px"><div><span class="lbl">提案機会（社内用）</span>${li(r.opportunities)}</div><div><span class="lbl">次のアクション</span>${esc(r.nextAction) || '<span class="note">なし</span>'}</div></div>
   </div>`;
 }
@@ -625,7 +656,7 @@ function renderList() {
     const b = document.createElement("button"); b.className = "item";
     const pub = r?.publish && r.publish !== "未確認" ? `<span class="chip ${r.publish === "掲載不可" ? "" : "ok"}">${esc(r.publish)}</span>` : "";
     const hot = r?.opportunities?.length ? `<span class="chip hot">提案機会 ${r.opportunities.length}</span>` : "";
-    const st = s.status === "done" ? "" : `<span class="chip rec">途中</span>`;
+    const st = s.status === "done" ? (s.chatwork?.postedAt ? `<span class="chip ok">Chatwork投稿済み</span>` : `<span class="chip">Chatwork未投稿</span>`) : `<span class="chip rec">途中</span>`;
     b.innerHTML = `<span class="t">${esc(s.company || "（会社名なし）")} ${esc(s.name ? s.name + "様" : "")}</span>
       <span class="row" style="gap:6px">${st}${pub}${hot}<span class="chip">${esc(TYPES[s.type]?.label || "")}</span></span>
       <span class="s">${fmt(s.startedAt)} ・ ${countAns(s)}問回答 ${r?.headline ? "・ " + esc(r.headline) : ""}</span>`;
@@ -653,12 +684,23 @@ function renderDetail(it) {
     ${r ? reportHTML(r) : `<div class="empty">${s.status === "done" ? "レポートはまだ作られていません。" : "インタビュー途中です。ここまでの回答からレポートを作れます。"}</div>`}
     <div class="row">
       ${cap.sample ? `<button class="btn sm" id="regen">${r ? "レポートを作り直す" : "レポートを作る"}</button>` : ""}
+      ${s.status === "done" ? `<button class="btn ghost sm" id="cwBtn">${s.chatwork?.postedAt ? "Chatworkに再投稿を依頼" : "Chatworkに投稿"}</button>` : ""}
       <button class="btn ghost sm" id="copyRep">テキストでコピー</button>
       <span class="note" id="detNote"></span>
     </div>
     <details open><summary>質問と回答（文字起こし）</summary><div class="qa">${qaHTML}</div></details>
   </div>`;
   $("copyRep").onclick = () => navigator.clipboard?.writeText(reportText(s)).then(() => $("detNote").textContent = "コピーしました").catch(() => $("detNote").textContent = "コピーできませんでした");
+  const cw = $("cwBtn");
+  if (cw) cw.onclick = async () => {
+    cw.disabled = true; $("detNote").textContent = "依頼しています…";
+    if (s.chatwork?.postedAt) {
+      // 再投稿: 投稿済みの印を外してから依頼
+      try { await cap.db.doc("interviews/" + it.owner).update({ sessions: { [s.id]: { chatwork: { postedAt: null } } } }); } catch {}
+    }
+    const r = await requestChatwork(s);
+    $("detNote").textContent = r.msg; cw.disabled = false;
+  };
   const g = $("regen");
   if (g) g.onclick = async () => {
     g.disabled = true; $("detNote").textContent = "まとめています…（30秒ほど）";
