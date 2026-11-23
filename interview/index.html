@@ -200,6 +200,7 @@ details summary{cursor:pointer;color:var(--accent)}
           <span class="status" id="status"><i class="dot"></i><span id="statusText">待機中</span></span>
         </div>
         <p class="qtext" id="qtext"></p>
+        <p class="warn" id="runMicWarn" hidden>この画面では音声の文字起こしが使えないため、手入力モードになっています。Chromeでこのリンクを開くか、Claudeデスクトップアプリのメイン画面で開くと音声で記録できます（Safari・スマホのClaudeアプリ・デスクトップアプリの別ウィンドウは非対応）。</p>
         <div class="row" id="ttsRow" hidden><button class="btn ghost sm" id="ttsBtn">🔊 質問を読み上げる</button></div>
         <div class="answerbox" id="answerBox">
           <div class="livehead"><label class="lbl" for="answer" id="ansLabel">回答（音声から自動で文字にします。終了後に手で直せます）</label><span class="note" id="liveCount"></span></div>
@@ -374,14 +375,16 @@ async function requestChatwork(s) {
 
 // ---------- capabilities ----------
 const cap = { sample: null, db: null, user: null, dict: null, tts: null, uid: null, canEdit: false };
+let dictLoading = true;
 const ready = (async () => {
-  if (!window.claude?.use) { $("micWarn").hidden = false; return; }
+  if (!window.claude?.use) { dictLoading = false; $("micWarn").hidden = false; return; }
   const [s, d, u, dc, t] = await Promise.all(["sample","db","user","dictation","tts"].map(n => window.claude.use(n).catch(() => null)));
   Object.assign(cap, { sample: s, db: d, user: u, dict: dc, tts: t });
   if (u) {
     try { cap.uid = await u.id(); } catch {}
     try { cap.canEdit = !!(await u.canEdit()); } catch {}
   }
+  dictLoading = false;
   if (!dc) $("micWarn").hidden = false; else setupDictation();
   if (t) setupTTS();
   if (s) $("followBtn").hidden = false;
@@ -462,9 +465,10 @@ function renderRun() {
   $("qnum").textContent = allDone ? "すべての質問が終わりました" : `質問 ${S.cur + 1} / ${S.qa.length}`;
   $("qtext").textContent = allDone ? "回答をまとめて、レポートを作りましょう。" : item.q;
   $("ttsRow").hidden = !cap.tts || allDone;
+  $("runMicWarn").hidden = !!cap.dict || dictLoading;
   $("ttsBtn").disabled = recording;
   $("status").classList.toggle("on", recording);
-  $("statusText").textContent = recording ? "録音中" : (stopping ? "保存中…" : "待機中");
+  renderStatus();
   $("answerBox").classList.toggle("on", recording);
   $("answerBox").hidden = allDone;
   const ta = $("answer");
@@ -499,11 +503,23 @@ $("bigBtn").onclick = onBig;
 document.addEventListener("keydown", e => {
   if ($("vRun").hidden || e.code !== "Space" || e.repeat) return;
   const tag = document.activeElement?.tagName;
+  if (tag === "BUTTON" || tag === "SELECT" || tag === "LABEL") return;  // ボタンはブラウザ標準のスペース操作に任せる（二重押し防止）
   if ((tag === "TEXTAREA" || tag === "INPUT") && !(recording && $("answer").readOnly)) return;
   e.preventDefault(); onBig();
 });
 
-let base = "", partialText = "";
+let base = "", partialText = "", dictState = "idle";
+const DICT_MSG = {
+  not_granted: "マイクが使えません。ブラウザのアドレスバー左のマイク設定、またはこのページ右上の「Permissions」で音声入力を許可してから、もう一度スタートしてください。",
+  dismissed: "音声入力の確認画面が閉じられました。もう一度スタートして「許可」を押してください。",
+  unavailable: "このアカウント・画面では音声の文字起こしが使えません。Chromeでこのリンクを開くか、Claudeデスクトップアプリのメイン画面で開いてください。",
+  rate_limited: "ほかの画面（Claudeのチャットなど）で音声入力を使用中です。そちらを止めてから、もう一度スタートしてください。",
+  no_gesture: "音声入力を始められませんでした。「スタート」ボタンを直接クリックしてください。",
+  viewer_stopped: "録音が停止されました。「スタート」で続きを追記できます。",
+  hidden: "画面が切り替わったため録音が止まりました。「スタート」で続きを追記できます。",
+  time_limit: "60分の上限で録音が止まりました。「スタート」で続きを追記できます。",
+  upstream_error: "マイクまたは文字起こしサービスでエラーが起きました。もう一度スタートしてください。"
+};
 function updateLive() {
   const on = recording && !!cap.dict;
   const live = $("live"), ta = $("answer");
@@ -514,8 +530,15 @@ function updateLive() {
   if (!on) return;
   live.innerHTML = (txt || partialText)
     ? `${esc(txt)}${partialText ? `<span class="pt">${esc(partialText)}</span>` : ""}<span class="caret"></span>`
-    : `<span class="wait">聞き取っています… お話しください</span><span class="caret"></span>`;
+    : `<span class="wait">${dictState === "listening" ? "聞き取っています… お話しください" : "マイクを準備しています… 確認画面が出たら「許可」を押してください"}</span><span class="caret"></span>`;
   live.scrollTop = live.scrollHeight;
+}
+function renderStatus() {
+  const st = $("statusText");
+  if (stopping) st.textContent = "最後の言葉を文字にしています…";
+  else if (!recording) st.textContent = cap.dict ? "待機中" : "手入力モード";
+  else if (!cap.dict) st.textContent = "入力中";
+  else st.textContent = dictState === "listening" ? "録音中（聞き取り中）" : dictState === "starting" ? "マイク準備中…" : "録音中";
 }
 function startQ() {
   commitEdit();
@@ -525,11 +548,11 @@ function startQ() {
   if (cap.tts) cap.tts.stop?.();
   if (cap.dict) {
     // must be called synchronously from the click
-    cap.dict.start({ language: "ja" }).catch(e => {
+    // 言語は指定しない（ブラウザの言語＝日本語で文字起こしされる）
+    cap.dict.start().catch(e => {
       if (e?.code === "stopped") return;
       recording = false;
-      $("runNote").textContent = e?.code === "not_granted" ? "マイクが許可されませんでした。手入力で進めてください。" : "音声入力を始められませんでした。もう一度スタートするか、手入力してください。";
-      if (e?.code === "not_granted") { cap.dict = null; $("micWarn").hidden = false; }
+      $("runNote").textContent = (DICT_MSG[e?.code] || DICT_MSG.upstream_error) + (e?.code ? `（${e.code}）` : "");
       renderRun();
     });
   } else {
@@ -578,12 +601,20 @@ function setupDictation() {
     updateLive();
   });
   cap.dict.onState(({ state, reason }) => {
+    dictState = state;
+    if (recording) { renderStatus(); updateLive(); }
+    if (state === "idle" && recording && !stopping && (reason === "not_granted" || reason === "dismissed" || reason === "unavailable" || reason === "rate_limited" || reason === "no_gesture")) {
+      // 開始できなかった（start の catch でも同じ表示をする）
+      recording = false; partialText = "";
+      $("runNote").textContent = (DICT_MSG[reason] || DICT_MSG.upstream_error) + `（${reason}）`;
+      renderRun(); return;
+    }
     if (state === "idle" && recording && !stopping) {
       // stopped by the platform (hidden tab, viewer's stop, error): keep what we have on this question
       recording = false;
       const it = S.qa[S.cur]; it.a = $("answer").value.trim(); if (it.a) it.state = "done";
       partialText = "";
-      $("runNote").textContent = reason === "hidden" ? "画面が切り替わったため録音が止まりました。「スタート」で続きを追記できます。" : "録音が止まりました。「スタート」で続きを追記できます。";
+      $("runNote").textContent = DICT_MSG[reason] || DICT_MSG.upstream_error;
       save(); renderRun();
     }
   });
