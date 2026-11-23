@@ -130,6 +130,16 @@ ul.tight{margin:0;padding-left:1.2em}
 .qa b{display:block;font-size:13.5px}
 .qa p{margin:2px 0 0;white-space:pre-wrap;font-size:14px}
 details summary{cursor:pointer;color:var(--accent)}
+/* photos */
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+.ph{position:relative;aspect-ratio:1/1;max-width:100%;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--accent-soft);margin:0}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .del{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);font-size:15px;line-height:1;cursor:pointer;opacity:.9}
+.ph.add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px dashed var(--accent);color:var(--accent);background:transparent;cursor:pointer;font-size:12px;text-align:center}
+.ph.add b{font-size:24px;line-height:1}
+.ph.add:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.ph.add input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ph.busy{display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -176,6 +186,7 @@ details summary{cursor:pointer;color:var(--accent)}
         <div class="row" style="justify-content:space-between"><span class="lbl" style="margin:0">質問一覧</span><span class="note" id="runCount"></span></div>
         <ol id="agenda"></ol>
         <form class="addq" id="addForm"><input type="text" id="addInput" placeholder="質問を追加"><button class="btn ghost sm" type="submit">追加</button></form>
+        <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:10px"><span class="lbl" style="margin:0">写真（社長・現場・セミナー風景など）</span><div id="runPhotos"></div></div>
       </aside>
       <div class="stage">
         <div class="qhead">
@@ -207,6 +218,8 @@ details summary{cursor:pointer;color:var(--accent)}
       <p class="lead" id="doneLead"></p>
     </div>
     <p class="warn" id="cwNote" style="color:var(--accent);background:var(--accent-soft)"></p>
+    <div class="stack" style="gap:6px"><span class="lbl">写真</span><div id="donePhotos"></div>
+      <div class="row" id="donePhotoSend" hidden><button class="btn ghost sm" id="donePhotoBtn">追加した写真をChatworkに送る</button><span class="note" id="donePhotoNote"></span></div></div>
     <div id="doneReport"></div>
     <div id="doneCopy" class="stack" hidden>
       <p class="warn">この画面では回答を自動保存できませんでした。下のボタンでコピーして保管してください。</p>
@@ -270,6 +283,68 @@ const TYPES = {
     "いただいた感想を、チラシやホームページに掲載してもよろしいですか？（実名／イニシャル／匿名なら可／掲載不可）"
   ]}
 };
+
+// ---------- photos ----------
+let ASSETS;  // undefined = not asked yet
+async function getAssets() {
+  if (ASSETS !== undefined) return ASSETS;
+  ASSETS = window.claude?.use ? await window.claude.use("assets").catch(() => null) : null;
+  return ASSETS;
+}
+async function shrink(file) {
+  // 長辺2048pxのJPEGにして容量を抑える（スマホ写真の向きも補正）
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const k = Math.min(1, 2048 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close?.();
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.86));
+    if (blob) return blob;
+  } catch {}
+  if (/^image\/(jpeg|png|webp|gif)$/.test(file.type) && file.size < 15e6) return file;
+  throw { code: "decode" };
+}
+const photoUrl = (id) => "/_blob/" + id;
+// el: container / get(): current list / set(list): persist (Promise) / onAdd(): after an upload
+async function photoPanel(el, { get, set, onAdd }) {
+  const assets = await getAssets();
+  let busy = 0, msg = "";
+  const draw = () => {
+    const list = get() || [];
+    el.innerHTML = `<div class="photos">${list.map((p, i) => `<figure class="ph"><img src="${photoUrl(esc(p.id))}" alt="写真${i + 1}" loading="lazy">${assets ? `<button class="del" data-i="${i}" aria-label="写真${i + 1}を削除">×</button>` : ""}</figure>`).join("")}
+      ${Array.from({ length: busy }, () => `<div class="ph busy">保存中…</div>`).join("")}
+      ${assets ? `<label class="ph add"><b>＋</b>写真を追加<input type="file" accept="image/*" multiple></label>` : ""}</div>
+      ${msg ? `<p class="note err" style="margin:6px 0 0">${esc(msg)}</p>` : ""}
+      ${!assets && !list.length ? `<p class="note" style="margin:0">この画面では写真を追加できません（編集権限のある方が開くと追加できます）。</p>` : ""}`;
+    el.querySelectorAll(".del").forEach(b => b.onclick = async () => {
+      const l = (get() || []).slice(); const [gone] = l.splice(+b.dataset.i, 1);
+      await set(l); draw();
+      if (gone) assets.delete(gone.id).catch(() => {});
+    });
+    const inp = el.querySelector("input[type=file]");
+    if (inp) inp.onchange = async () => {
+      const files = Array.from(inp.files || []); inp.value = ""; msg = "";
+      for (const f of files) {
+        busy++; draw();
+        try {
+          const blob = await shrink(f);
+          const up = await assets.upload(blob, { type: blob.type || "image/jpeg" });
+          const l = (get() || []).slice(); l.push({ id: up.id, at: Date.now() });
+          await set(l);
+          onAdd?.();
+        } catch (e) {
+          msg = e?.code === "decode" ? `「${f.name}」は読み込めない形式です。JPEGかPNGで追加してください。`
+            : e?.code === "quota_exceeded" ? "写真の保存容量がいっぱいです。不要な写真を削除してください。"
+            : e?.code === "too_large" ? `「${f.name}」は大きすぎます。`
+            : `「${f.name}」を保存できませんでした。もう一度お試しください。`;
+        } finally { busy--; draw(); }
+      }
+    };
+  };
+  draw();
+}
 
 // Chatwork「SNS・インタビュー投稿案」への投稿依頼先（Claude Code の呼び出し口）
 const CW_SERVER = "Claude Code Remote";
@@ -353,6 +428,7 @@ $("startBtn").onclick = () => {
     qa: t.script.map(q => ({ q, a: "", state: "pending" })), cur: 0, report: null
   };
   recording = false;
+  photoPanel($("runPhotos"), { get: () => S.photos, set: (l) => { S.photos = l; return save(); } });
   renderRun(); show("vRun");
   save();
 };
@@ -530,6 +606,9 @@ async function finish() {
   S.status = "done"; S.finishedAt = Date.now();
   $("doneReport").innerHTML = cap.sample ? `<p class="note">回答をまとめています…（30秒ほど）</p>` : "";
   $("cwNote").textContent = "";
+  $("donePhotoSend").hidden = true; $("donePhotoNote").textContent = "";
+  const sess = S;
+  photoPanel($("donePhotos"), { get: () => sess.photos, set: (l) => { sess.photos = l; return save(); }, onAdd: () => { if (cap.db && sess.savedOk) $("donePhotoSend").hidden = false; } });
   $("doneLead").textContent = `${answered()}問の回答を記録しました。`;
   show("vDone");
   await save();
@@ -594,6 +673,12 @@ function renderDone() {
   $("doneCopy").hidden = saved;
   if (!saved) $("copyArea").value = reportText(S);
 }
+$("donePhotoBtn").onclick = async () => {
+  const b = $("donePhotoBtn"); b.disabled = true;
+  await save();
+  const r = await requestChatwork(S);
+  $("donePhotoNote").textContent = r.ok ? "写真の送信を依頼しました。" : r.msg; b.disabled = false;
+};
 $("copyBtn").onclick = () => {
   const ta = $("copyArea");
   navigator.clipboard?.writeText(ta.value).then(() => { $("copyNote").textContent = "コピーしました"; })
@@ -658,7 +743,7 @@ function renderList() {
     const hot = r?.opportunities?.length ? `<span class="chip hot">提案機会 ${r.opportunities.length}</span>` : "";
     const st = s.status === "done" ? (s.chatwork?.postedAt ? `<span class="chip ok">Chatwork投稿済み</span>` : `<span class="chip">Chatwork未投稿</span>`) : `<span class="chip rec">途中</span>`;
     b.innerHTML = `<span class="t">${esc(s.company || "（会社名なし）")} ${esc(s.name ? s.name + "様" : "")}</span>
-      <span class="row" style="gap:6px">${st}${pub}${hot}<span class="chip">${esc(TYPES[s.type]?.label || "")}</span></span>
+      <span class="row" style="gap:6px">${st}${pub}${hot}${s.photos?.length ? `<span class="chip">写真${s.photos.length}</span>` : ""}<span class="chip">${esc(TYPES[s.type]?.label || "")}</span></span>
       <span class="s">${fmt(s.startedAt)} ・ ${countAns(s)}問回答 ${r?.headline ? "・ " + esc(r.headline) : ""}</span>`;
     b.onclick = () => { openKey = s.id; renderDetail(it); show("vDetail"); };
     $("list").append(b);
@@ -674,6 +759,7 @@ function reportText(s) {
 }
 function renderDetail(it) {
   const s = it.s, r = s.report;
+  const unsent = (s.photos || []).filter(p => !(s.chatwork?.photoIds || []).includes(p.id));
   const qaHTML = s.qa
     ? s.qa.map((x, i) => `<div><b>Q${i + 1}. ${esc(x.q)}</b><p>${x.a ? esc(x.a) : '<span class="note">（未回答）</span>'}</p></div>`).join("")
     : (s.turns || []).map(m => `<div><b>${m.role === "assistant" ? "秘書" : "回答"}</b><p>${esc(m.content)}</p></div>`).join("");
@@ -681,22 +767,28 @@ function renderDetail(it) {
     <div><span class="lbl">${esc(TYPES[s.type]?.label)} ・ ${fmt(s.startedAt)}</span>
       <h2>${esc(s.company || "（会社名なし）")} ${esc(s.name ? s.name + "様" : "")}</h2>
       <p class="note" style="margin:0">${esc([s.industry, s.theme].filter(Boolean).join("／"))}</p></div>
+    <div class="stack" style="gap:6px"><span class="lbl">写真</span><div id="detPhotos"></div></div>
     ${r ? reportHTML(r) : `<div class="empty">${s.status === "done" ? "レポートはまだ作られていません。" : "インタビュー途中です。ここまでの回答からレポートを作れます。"}</div>`}
     <div class="row">
       ${cap.sample ? `<button class="btn sm" id="regen">${r ? "レポートを作り直す" : "レポートを作る"}</button>` : ""}
       ${s.status === "done" ? `<button class="btn ghost sm" id="cwBtn">${s.chatwork?.postedAt ? "Chatworkに再投稿を依頼" : "Chatworkに投稿"}</button>` : ""}
+      ${s.status === "done" && s.chatwork?.postedAt && unsent.length ? `<button class="btn sm" id="cwPhotoBtn">未送信の写真${unsent.length}枚をChatworkに送る</button>` : ""}
       <button class="btn ghost sm" id="copyRep">テキストでコピー</button>
       <span class="note" id="detNote"></span>
     </div>
     <details open><summary>質問と回答（文字起こし）</summary><div class="qa">${qaHTML}</div></details>
   </div>`;
   $("copyRep").onclick = () => navigator.clipboard?.writeText(reportText(s)).then(() => $("detNote").textContent = "コピーしました").catch(() => $("detNote").textContent = "コピーできませんでした");
+  const ownerRef = () => cap.db.doc("interviews/" + it.owner);
+  photoPanel($("detPhotos"), { get: () => s.photos, set: (l) => { s.photos = l; return ownerRef().update({ sessions: { [s.id]: { photos: l } } }); } });
+  const cwp = $("cwPhotoBtn");
+  if (cwp) cwp.onclick = async () => { cwp.disabled = true; const r = await requestChatwork(s); $("detNote").textContent = r.ok ? "写真の送信を依頼しました。" : r.msg; cwp.disabled = false; };
   const cw = $("cwBtn");
   if (cw) cw.onclick = async () => {
     cw.disabled = true; $("detNote").textContent = "依頼しています…";
     if (s.chatwork?.postedAt) {
       // 再投稿: 投稿済みの印を外してから依頼
-      try { await cap.db.doc("interviews/" + it.owner).update({ sessions: { [s.id]: { chatwork: { postedAt: null } } } }); } catch {}
+      try { await cap.db.doc("interviews/" + it.owner).update({ sessions: { [s.id]: { chatwork: { postedAt: null, photoIds: [] } } } }); } catch {}
     }
     const r = await requestChatwork(s);
     $("detNote").textContent = r.msg; cw.disabled = false;
