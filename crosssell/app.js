@@ -43,6 +43,8 @@
       if (s) c.advisoryFee = s.advisoryFee;
     }
     c.id = String(c.id || '');
+    if (!/^[A-Za-z0-9_-]{1,40}$/.test(c.id)) c.id = '';  // 画面のURL・属性に使うため安全な文字のみ
+    if (!usedIds && !c.id) c.id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     if (usedIds) {
       while (!c.id || usedIds.has(c.id)) c.id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
       usedIds.add(c.id);
@@ -58,8 +60,28 @@
     store.set(DIRTY_KEY, new Date().toISOString());
   }
   function markBackup() { store.set(BACKUP_KEY, new Date().toISOString()); }
-  let assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, store.get(ASSUME_KEY, {}));
-  assumptions.firms = Object.assign({}, assumptions.firms);
+  // 前提条件はすべて数値に揃える（復元ファイル経由の不正値対策も兼ねる）
+  function normalizeAssumptions(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    const out = { firms: {} };
+    Object.keys(DEFAULT_ASSUMPTIONS).forEach((k) => {
+      if (k === 'firms') return;
+      const v = Number(src[k]);
+      out[k] = Number.isFinite(v) ? Math.max(0, v) : DEFAULT_ASSUMPTIONS[k];
+    });
+    out.years = Math.round(Math.max(1, Math.min(20, out.years || DEFAULT_ASSUMPTIONS.years)));
+    ['churn', 'advisoryMargin', 'probHigh', 'probMid', 'probLow', 'probProposing', 'maShare', 'reShare'].forEach((k) => (out[k] = Math.min(100, out[k])));
+    if (src.firms && typeof src.firms === 'object') {
+      Object.keys(src.firms).forEach((name) => {
+        const f = src.firms[name] || {};
+        const o = {};
+        ['price', 'integrationCost'].forEach((k) => { const v = Number(f[k]); if (f[k] != null && Number.isFinite(v)) o[k] = Math.max(0, v); });
+        out.firms[name] = o;
+      });
+    }
+    return out;
+  }
+  let assumptions = normalizeAssumptions(store.get(ASSUME_KEY, {}));
   const saveAssumptions = () => store.set(ASSUME_KEY, assumptions);
   const findClient = (id) => clients.find((c) => c.id === id);
 
@@ -123,7 +145,17 @@
     return clients.map((c) => { const a = analyze(c); return { c, a, f: clientFees(c, a, assumptions) }; });
   }
 
+  // 該当する選択肢が無くなった絞込み条件は解除する（事務所名の変更・削除・復元後など）
+  function pruneFilters() {
+    let changed = false;
+    ['firm', 'industry', 'staff'].forEach((k) => {
+      if (filters[k] && !clients.some((c) => c[k] === filters[k])) { filters[k] = ''; changed = true; }
+    });
+    if (changed) store.set(FILTER_KEY, filters);
+  }
+
   function applyFilters(list) {
+    pruneFilters();
     const q = filters.q.trim().toLowerCase();
     const minScore = filters.minLevel === '高' ? 70 : filters.minLevel === '中' ? 40 : 0;
     return list.filter(({ c, a }) => {
@@ -154,7 +186,7 @@
     const firms = uniq(clients.map((c) => c.firm));
     const inds = uniq(clients.map((c) => c.industry));
     const staffs = uniq(clients.map((c) => c.staff));
-    const opt = (list, val, label) => `<option value="">${label}</option>` + list.map((v) => `<option ${v === val ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    const opt = (list, val, label) => `<option value="">${label}</option>` + list.map((v) => `<option value="${esc(v)}" ${v === val ? 'selected' : ''}>${esc(v)}</option>`).join('');
     return `
       <div class="filters" id="filters">
         <input type="search" name="q" placeholder="会社名・代表者・メモで検索" value="${esc(filters.q)}" />
@@ -173,12 +205,14 @@
   function bindFilters(rerender) {
     const box = $('#filters');
     if (!box) return;
-    box.addEventListener('input', (e) => {
+    const apply = (e) => {
       if (!e.target.name) return;
       filters[e.target.name] = e.target.value;
       store.set(FILTER_KEY, filters);
       rerender(e.target.name === 'q');
-    });
+    };
+    box.addEventListener('input', (e) => { if (!e.isComposing) apply(e); }); // 日本語変換中は再描画しない
+    box.addEventListener('compositionend', apply);
     $('#clearFilters').addEventListener('click', () => {
       filters = { q: '', firm: '', industry: '', staff: '', minLevel: '' };
       store.set(FILTER_KEY, filters);
@@ -449,7 +483,11 @@
     document.querySelectorAll('[data-status]').forEach((sel) => sel.addEventListener('change', () => {
       c.status[sel.getAttribute('data-status')] = sel.value;
       if (!c.lastContact) c.lastContact = today();
+      c.notes = $('#notes').value; // 入力中のメモを失わない
       save();
+      const y = window.scrollY;
+      renderDetail(c.id);
+      window.scrollTo(0, y);
       toast('進捗を更新しました');
     }));
     $('#saveNotes').addEventListener('click', () => {
@@ -540,6 +578,7 @@
         else c[f.key] = String(fd.get(f.key) || '').trim();
       });
       NONLIFE_ITEMS.forEach((i) => (c.nonlife[i.key] = fd.has('nl_' + i.key)));
+      if (!c.company) { toast('会社名を入力してください'); e.target.company.focus(); return; }
       if (c.office !== '賃貸') c.rentMonthly = 0;
       if (existing) Object.assign(existing, c); else clients.push(c);
       save();
@@ -608,13 +647,17 @@
   ];
   const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
   const setPath = (o, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((x, k) => (x[k] = x[k] || {}), o)[last] = v; };
-  const csvCell = (v) => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csvCell = (v, text) => {
+    let s = String(v ?? '');
+    if (text && /^[=+\-@\t\r]/.test(s)) s = "'" + s; // Excelでの数式実行を防ぐ
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
 
   function toCsv(list) {
     const head = CSV_COLS.map((c) => csvCell(c.label)).join(',');
     const body = list.map((cl) => CSV_COLS.map((col) => {
       const v = getPath(cl, col.key);
-      return csvCell(col.type === 'check' ? (v ? '1' : '0') : v);
+      return csvCell(col.type === 'check' ? (v ? '1' : '0') : v, col.type === 'text' || col.type === 'select');
     }).join(','));
     return [head, ...body].join('\r\n');
   }
@@ -667,9 +710,11 @@
       if (!existing) c.id = id || 'i' + Date.now().toString(36) + n;
       CSV_COLS.forEach((col, j) => {
         if (idx[j] < 0 || col.key === 'id') return;
-        const raw = String(r[idx[j]] ?? '').trim();
+        let raw = String(r[idx[j]] ?? '').trim();
+        if (existing && raw === '') return; // 空欄は既存値を残す
+        if (/^'[=+\-@]/.test(raw)) raw = raw.slice(1); // 出力時に付けた数式よけの記号を外す
         let v = raw;
-        if (col.type === 'number') v = Number(raw.replace(/[,，]/g, '')) || 0;
+        if (col.type === 'number') { const a = FI.parseAmount(raw.replace(/万円?$/, '')); v = a == null ? (existing ? getPath(existing, col.key) : 0) : a; }
         if (col.type === 'check') v = ['1', 'true', 'TRUE', '○', 'あり', '有'].includes(raw);
         if (col.key.startsWith('status.') && !STATUSES.includes(raw)) v = existing ? getPath(existing, col.key) : '未着手';
         setPath(c, col.key, v);
@@ -750,12 +795,10 @@
     $('#csvImport').addEventListener('click', () => {
       const f = $('#csvFile').files[0];
       if (!f) { toast('CSVファイルを選択してください'); return; }
-      const reader = new FileReader();
-      reader.onload = () => {
-        try { const n = importCsv(reader.result, $('#csvMode').value); toast(`${n}社を取り込みました`); }
+      f.arrayBuffer().then((buf) => {
+        try { const n = importCsv(FI.decode(buf).text, $('#csvMode').value); toast(`${n}社を取り込みました`); }
         catch (err) { alert('取り込みに失敗しました：' + err.message); }
-      };
-      reader.readAsText(f, 'utf-8');
+      });
     });
     $('#jsonOut').addEventListener('click', () => {
       download(`crosssell_backup_${today()}.json`, JSON.stringify({ app: 'crosssell', version: 1, exportedAt: new Date().toISOString(), clients, assumptions }, null, 2), 'application/json');
@@ -764,23 +807,22 @@
     $('#jsonIn').addEventListener('change', (e) => {
       const f = e.target.files[0];
       if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
+      f.arrayBuffer().then((buf) => {
         try {
-          const data = JSON.parse(reader.result);
+          const data = JSON.parse(FI.decode(buf).text);
           const list = Array.isArray(data) ? data : data && Array.isArray(data.clients) ? data.clients : null;
           if (!list) throw new Error('形式が正しくありません');
           if (!confirm(`現在のデータを、バックアップの${list.length}社で置き換えますか？`)) return;
           clients = normalizeAll(list);
-          if (data.assumptions) { assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, data.assumptions); assumptions.firms = Object.assign({}, assumptions.firms); saveAssumptions(); }
+          if (data.assumptions) { assumptions = normalizeAssumptions(data.assumptions); saveAssumptions(); }
           save(); toast(`${clients.length}社を復元しました`);
         } catch (err) { alert('復元に失敗しました：' + err.message); }
-      };
-      reader.readAsText(f, 'utf-8');
+        e.target.value = '';
+      });
     });
     $('#resetSample').addEventListener('click', () => {
       if (!confirm('現在のデータを破棄してサンプルデータに戻しますか？')) return;
-      clients = JSON.parse(JSON.stringify(window.SAMPLE_CLIENTS)); save(); toast('サンプルデータに戻しました');
+      clients = normalizeAll(JSON.parse(JSON.stringify(window.SAMPLE_CLIENTS))); save(); toast('サンプルデータに戻しました');
     });
     $('#clearAll').addEventListener('click', () => {
       if (!confirm('全クライアントを削除しますか？（元に戻せません）')) return;
@@ -965,7 +1007,7 @@
     $('#view').innerHTML = `
       <div class="page-head">
         <div><h1>買収価格の回収シミュレーション</h1><p>承継した顧問料の粗利に、クロスセル手数料の期待値（成約確率込み）を加えて、買収価格を何年で回収できるかを試算します。単位：万円</p></div>
-        <select id="roiScope"><option value="">全事務所の合計</option>${firms.map((f) => `<option ${f === roiScope ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>
+        <select id="roiScope"><option value="">全事務所の合計</option>${firms.map((f) => `<option value="${esc(f)}" ${f === roiScope ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>
       </div>
       <div class="grid grid-kpi">
         <div class="card kpi"><div class="kpi-label">買収価格＋統合コスト</div><div class="kpi-value">${num(sim.price + sim.integration)}<small>万円</small></div><div class="kpi-note">承継顧問料 年${num(sim.advisory)}万円</div></div>
@@ -1018,7 +1060,7 @@
     $('#roiScope').addEventListener('change', (e) => { roiScope = e.target.value; renderROI(); });
     document.querySelectorAll('[data-scope]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); roiScope = a.getAttribute('data-scope'); renderROI(); }));
     document.querySelectorAll('[data-a]').forEach((el) => el.addEventListener('change', () => {
-      assumptions[el.getAttribute('data-a')] = Number(el.value) || 0;
+      assumptions = normalizeAssumptions(Object.assign({}, assumptions, { [el.getAttribute('data-a')]: el.value }));
       saveAssumptions(); renderROI();
     }));
     document.querySelectorAll('[data-firm]').forEach((el) => el.addEventListener('change', () => {
@@ -1028,7 +1070,7 @@
     }));
     $('#resetAssume').addEventListener('click', () => {
       if (!confirm('前提条件を初期値に戻しますか？（事務所別の買収価格は残ります）')) return;
-      assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, { firms: assumptions.firms });
+      assumptions = normalizeAssumptions(Object.assign({}, DEFAULT_ASSUMPTIONS, { firms: assumptions.firms }));
       saveAssumptions(); renderROI();
     });
     document.querySelectorAll('[data-go]').forEach((el) => el.addEventListener('click', () => (location.hash = '#/client/' + el.getAttribute('data-go'))));
@@ -1037,6 +1079,7 @@
   // ---------- 会計データ取込 ----------
   let finResults = [];
   function renderFinance() {
+    finResults.forEach((r) => { if (r.target && r.target !== '__new' && !findClient(r.target)) r.target = ''; });
     const clientOpts = (sel) => `<option value="">（反映しない）</option><option value="__new" ${sel === '__new' ? 'selected' : ''}>＋ 新規クライアントとして追加</option>` +
       clients.slice().sort((a, b) => a.company.localeCompare(b.company, 'ja')).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.company)}</option>`).join('');
 
@@ -1112,6 +1155,7 @@
       finResults.forEach((r) => {
         if (!r.target) return;
         let c = findClient(r.target);
+        if (r.target !== '__new' && !c) return;
         if (r.target === '__new') {
           c = blankClient();
           c.company = r.file.replace(/\.[^.]+$/, '').replace(/[_\-\s].*$/, '') || '新規クライアント';

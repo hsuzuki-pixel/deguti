@@ -106,6 +106,86 @@ const ok = (cond, msg) => { console.log(`${cond ? '  ✓' : '  ✗'} ${msg}`); i
   for (const r of ['dashboard', 'clients', 'pipeline', 'roi', 'client/' + data[0].id]) { await go(r); }
   ok(errors.length === 0, '復元データで全画面が表示できる');
 
+
+  console.log('安全性・堅牢性（レビュー指摘の再発防止）');
+  await page.evaluate(() => localStorage.clear());
+  await go('settings'); await page.reload(); await page.waitForTimeout(100);
+  // 不正なIDを含むCSV（属性へのスクリプト注入・URL破損）
+  await page.setInputFiles('#csvFile', { name: 'x.csv', mimeType: 'text/csv', buffer: Buffer.from('会社名,引継ぎ元事務所,ID\r\nXSS社,旧A,"x"" onmouseover=""window.__x=1"\r\nスラッシュ社,旧A,a/b\r\n') });
+  await page.selectOption('#csvMode', 'merge');
+  await page.click('#csvImport'); await page.waitForTimeout(200);
+  data = await stored();
+  ok(data.every((c) => /^[A-Za-z0-9_-]+$/.test(c.id)), '取込IDは安全な文字だけに置き換わる');
+  await go('clients');
+  await page.hover('text=XSS社');
+  ok(!(await page.evaluate(() => window.__x)), 'IDからのスクリプト注入が起きない');
+  const slash = data.find((c) => c.company === 'スラッシュ社');
+  await go('client/' + slash.id);
+  ok((await page.textContent('h1')) === 'スラッシュ社', '「/」を含むIDでも詳細画面が開ける');
+
+  // 前提条件への注入（バックアップ復元）
+  await go('settings');
+  await page.setInputFiles('#jsonIn', { name: 'a.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ clients: [{ company: 'J社', firm: '旧Z' }], assumptions: { churn: '<img src=x onerror="window.__y=1">', years: 50, firms: { '旧Z': { price: '1"><img src=x onerror="window.__z=1">' } } } })) });
+  await page.waitForTimeout(200);
+  await go('roi'); await page.waitForTimeout(100);
+  ok(!(await page.evaluate(() => window.__y || window.__z)), '前提条件からのスクリプト注入が起きない');
+  ok((await page.$$eval('tbody tr', (r) => r.length)) > 0 && (await page.textContent('body')).includes('20年間のクロスセル収益'), '試算期間は最大20年に補正され、表示と一致');
+
+  // Shift_JIS の顧客CSV（Excel保存）と、上書き時の空欄
+  await go('settings');
+  await page.setInputFiles('#csvFile', { name: 's.csv', mimeType: 'text/csv', buffer: fs.readFileSync(path.join(__dirname, 'fixtures', 'clients_sjis.csv')) });
+  await page.selectOption('#csvMode', 'merge');
+  await page.click('#csvImport'); await page.waitForTimeout(200);
+  data = await stored();
+  const sj = data.find((c) => c.company === 'エクセル商事株式会社');
+  ok(sj && sj.sales === 12000 && sj.cash === 3000 && sj.debt === -100, 'Shift_JISのCSVを取込（△・万円表記も数値化）');
+  await page.setInputFiles('#csvFile', { name: 'p.csv', mimeType: 'text/csv', buffer: Buffer.from('会社名,年商,現預金\r\nエクセル商事株式会社,15000,\r\n') });
+  await page.click('#csvImport'); await page.waitForTimeout(200);
+  data = await stored();
+  const sj2 = data.find((c) => c.company === 'エクセル商事株式会社');
+  ok(sj2.sales === 15000 && sj2.cash === 3000, '追加・上書きで空欄は既存値を残す');
+
+  // 存在しない絞込み条件が残っても全件が消えない
+  await page.evaluate(() => localStorage.setItem('crosssell.filters', JSON.stringify({ firm: '存在しない事務所' })));
+  await page.reload(); await go('clients');
+  const nRows = await page.$$eval('tbody tr[data-go]', (r) => r.length); ok(nRows === data.length, `無効になった絞込み条件は自動で解除（${nRows}/${data.length}）`);
+
+  // 会計取込：反映先を削除した後に反映してもエラーにならない
+  await go('finance');
+  await page.setInputFiles('#finFiles', { name: 'エクセル商事_試算表.csv', mimeType: 'text/csv', buffer: fs.readFileSync(path.join(__dirname, 'fixtures', 'hokuto_trial_balance_sjis.csv')) });
+  await page.waitForTimeout(300);
+  await page.evaluate((id) => { const l = JSON.parse(localStorage.getItem('crosssell.clients.v1')); }, null);
+  await go('client/' + sj2.id); await page.click('#delBtn'); await page.waitForTimeout(100);
+  await go('finance'); await page.click('#finApply'); await page.waitForTimeout(100);
+  ok(errors.length === 0, '反映先が削除されていてもエラーなし');
+
+  // 試算表パーサーの書式バリエーション
+  const parsed = await page.evaluate(() => {
+    const A = (t) => FinanceImport.analyzeText(t).found;
+    return {
+      oneYear: A('勘定科目,残高\n短期借入金,100\n1年内返済予定の長期借入金,50\n長期借入金,200\n').debt,
+      banks: A('勘定科目,残高\n長期借入金,100\n長期借入金,200\n').debt,
+      bankTotal: A('勘定科目,残高\n長期借入金,100\n長期借入金,200\n長期借入金,300\n').debt,
+      split: A('勘定科目,借方残高,貸方残高\n現金,"1,000",0\n売上高,0,"50,000,000"\n').sales,
+      minus: [FinanceImport.parseAmount('−1,000'), FinanceImport.parseAmount('￥1,000'), FinanceImport.parseAmount('1,000-'), FinanceImport.parseAmount('△500')],
+      noFallback: A('勘定科目,当期残高,貸方金額\n売上高,N/A,999\n').sales,
+      match: FinanceImport.matchClient('山田(株)_試算表.csv', [{ id: 'y', company: '山田(株)' }]),
+    };
+  });
+  ok(parsed.oneYear === 350, `「1年内返済予定の長期借入金」を合算（${parsed.oneYear}）`);
+  ok(parsed.banks === 300 && parsed.bankTotal === 300, `銀行別の同名科目は合算、合計行があれば合計を採用（${parsed.banks}/${parsed.bankTotal}）`);
+  ok(parsed.split === 50000000, '借方残高・貸方残高に分かれた形式');
+  ok(JSON.stringify(parsed.minus) === '[-1000,1000,-1000,-500]', `マイナス・円記号の各種表記 ${JSON.stringify(parsed.minus)}`);
+  ok(parsed.noFallback === undefined, '読めない金額は別の列で代用しない');
+  ok(parsed.match === 'y', '「(株)」付きの社名でも自動照合');
+
+  // CSV出力の数式注入対策
+  const csvOut = await page.evaluate(() => { localStorage.setItem('crosssell.clients.v1', JSON.stringify([{ id: 'f1', company: '=HYPERLINK("x")', opProfit: -5 }])); return true; });
+  await page.reload(); await go('clients');
+  const [dl2] = await Promise.all([page.waitForEvent('download'), page.click('#exportCsv')]);
+  const out2 = fs.readFileSync(await dl2.path(), 'utf8');
+  ok(out2.includes(`"'=HYPERLINK(""x"")"`) && out2.includes(',-5,'), 'CSV出力で数式は無害化・負の数値はそのまま');
+
   console.log('空データ・スマホ表示');
   await page.evaluate(() => localStorage.setItem('crosssell.clients.v1', '[]'));
   await go('dashboard');

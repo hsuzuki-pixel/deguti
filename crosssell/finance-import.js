@@ -51,10 +51,11 @@
   // 「1,234」「△1,234」「▲1,234」「-1,234」「(1,234)」「1234円」に対応
   function parseAmount(raw) {
     if (raw == null) return null;
-    let s = toHalf(raw).replace(/[\s　,円¥\\]/g, '');
+    let s = toHalf(raw).replace(/[\s\u3000,円¥￥\\]/g, '').replace(/[\u2212\u2012\u2013\u2014\u30fc]/g, '-');
     if (!s) return null;
     let neg = false;
     if (/^[△▲-]/.test(s)) { neg = true; s = s.slice(1); }
+    if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
     if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
     if (!/^\d+(\.\d+)?$/.test(s)) return null;
     const v = Number(s);
@@ -73,7 +74,7 @@
     netAssets: [/^純資産(の部)?(合計|計)$/, /^純資産$/],
     cash: [/^現金(及び|および|・)?預金(合計|計)?$/, /^現預金(合計|計)?$/],
     cashParts: [/^(現金|小口現金|当座預金|普通預金|定期預金|定期積金|通知預金|外貨預金|別段預金|その他の?預金)$/],
-    debt: [/^短期借入金$/, /^長期借入金$/, /^(1|一)年以内(に)?(返済(予定)?の?)?長期借入金$/],
+    debt: [/^短期借入金$/, /^長期借入金$/, /^(1|一)年(以)?内(に)?(返済(予定)?の?)?長期借入金$/],
     execPay: [/^役員報酬$/],
     rent: [/^地代家賃$/],
     insuranceReserve: [/^保険積立金$/],
@@ -92,13 +93,18 @@
         if (nameIdx >= 0) break;
       }
       if (nameIdx < 0) continue;
+      // 「借方残高」「貸方残高」に分かれた形式
+      const drIdx = cells.findIndex((h) => /借方.*残高|残高.*借方/.test(h));
+      const crIdx = cells.findIndex((h) => /貸方.*残高|残高.*貸方/.test(h));
+      const plainIdx = cells.findIndex((h, j) => j !== nameIdx && /^(期末|当期|当月)?残高$/.test(h));
+      if (drIdx >= 0 && crIdx >= 0 && plainIdx < 0) return { headerRow: i, nameIdx, amtIdx: -1, drIdx, crIdx, amtHeader: `${rows[i][drIdx]}／${rows[i][crIdx]}` };
       for (const re of AMOUNT_HEADERS) {
-        const amtIdx = cells.findIndex((h, j) => j !== nameIdx && re.test(h) && !/前期|前月|比/.test(h));
-        if (amtIdx >= 0) return { headerRow: i, nameIdx, amtIdx, amtHeader: rows[i][amtIdx] };
+        const amtIdx = cells.findIndex((h, j) => j !== nameIdx && re.test(h) && !/前期|前月|比|借方|貸方/.test(h));
+        if (amtIdx >= 0) return { headerRow: i, nameIdx, amtIdx, drIdx: -1, amtHeader: rows[i][amtIdx] };
       }
-      return { headerRow: i, nameIdx, amtIdx: -1, amtHeader: '' };
+      return { headerRow: i, nameIdx, amtIdx: -1, drIdx: -1, amtHeader: '' };
     }
-    return { headerRow: -1, nameIdx: -1, amtIdx: -1, amtHeader: '' };
+    return { headerRow: -1, nameIdx: -1, amtIdx: -1, drIdx: -1, crIdx: -1, amtHeader: '' };
   }
 
   function extract(text) {
@@ -115,8 +121,17 @@
       } else {
         name = normName(r.find((x) => normName(x) && parseAmount(x) == null) || '');
       }
-      if (col.amtIdx >= 0) amount = parseAmount(r[col.amtIdx]);
-      if (amount == null) {
+      let explicitCell = false;
+      if (col.drIdx >= 0) {
+        // 借方・貸方の残高のうち、値の入っている側を採用（貸方科目もプラスで扱う）
+        const dr = parseAmount(r[col.drIdx]), cr = parseAmount(r[col.crIdx]);
+        amount = dr && !cr ? dr : cr && !dr ? cr : dr != null || cr != null ? (dr || 0) - (cr || 0) : null;
+        explicitCell = true;
+      } else if (col.amtIdx >= 0) {
+        amount = parseAmount(r[col.amtIdx]);
+        explicitCell = String(r[col.amtIdx] ?? '').trim() !== '';
+      }
+      if (amount == null && !explicitCell) {
         // 見出しが無い・空欄の場合は行の最後の数値
         for (let j = r.length - 1; j >= 0; j--) { const v = parseAmount(r[j]); if (v != null) { amount = v; break; } }
       }
@@ -165,10 +180,16 @@
 
     const debts = all(items, RULES.debt);
     if (debts.length) {
-      // 同名科目の重複（明細＋合計）を避ける
-      const seen = new Set();
-      const uniq = debts.filter((d) => (seen.has(d.name) ? false : seen.add(d.name)));
-      set('debt', uniq.reduce((t, d) => t + d.amount, 0), uniq.map((d) => d.name).join('＋'));
+      // 同名科目が複数行ある場合：どれかが他の合計なら合計行を採用、そうでなければ（銀行別など）合算
+      const groups = {};
+      debts.forEach((d) => (groups[d.name] = groups[d.name] || []).push(d.amount));
+      let total = 0;
+      Object.values(groups).forEach((vals) => {
+        const sumAll = vals.reduce((t, v) => t + v, 0);
+        const totalRow = vals.length > 1 ? vals.find((v) => Math.abs(v * 2 - sumAll) < 1) : undefined;
+        total += totalRow !== undefined ? totalRow : sumAll;
+      });
+      set('debt', total, Object.keys(groups).join('＋'));
     }
 
     const ep = first(items, RULES.execPay); if (ep) set('execPayAnnual', ep.amount, ep.name);
@@ -180,9 +201,10 @@
 
   // 円→万円の単位を推定（年商または最大値から）
   function guessUnit(found) {
+    // 会計ソフトのCSVは円単位がほとんどのため円を優先。確認画面で変更可能
     const ref = Math.abs(found.sales || Math.max(0, ...Object.values(found).map(Math.abs)));
-    if (ref >= 1e7) return 'yen';       // 1,000万円以上の円表記
-    if (ref >= 1e4) return 'thousand';  // 千円表記
+    if (ref >= 1e6) return 'yen';       // 100万以上 → 円
+    if (ref >= 1e3) return 'thousand';  // 千円表記の決算書
     return 'man';
   }
 
@@ -216,7 +238,7 @@
   };
 
   // ファイル名から会社を推定
-  const stripCorp = (s) => normName(s).replace(/株式会社|有限会社|合同会社|医療法人社団|医療法人|社会福祉法人|一般社団法人|\(株\)|\(有\)|㈱|㈲/g, '');
+  const stripCorp = (s) => normName(toHalf(s).replace(/株式会社|有限会社|合同会社|医療法人社団|医療法人|社会福祉法人|一般社団法人|\(株\)|\(有\)|㈱|㈲/g, ''));
   function matchClient(fileName, clients) {
     const f = stripCorp(fileName.replace(/\.[^.]+$/, ''));
     let best = null;
