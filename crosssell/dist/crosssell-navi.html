@@ -1,0 +1,2427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <!-- クロスセル・ナビ 配布版（2026-11-24 ビルド） -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>クロスセル・ナビ</title>
+  <meta name="description" content="承継クライアントの保険・M&A・不動産ニーズ分析" />
+  <style>
+:root {
+  color-scheme: light;
+  --bg: #f5f5f3;
+  --surface: #fcfcfb;
+  --surface-2: #f0efec;
+  --border: #e2e1dc;
+  --text: #0b0b0b;
+  --text-2: #52514e;
+  --muted: #7a7974;
+  --accent: #1c5cab;
+  --accent-soft: #cde2fb;
+
+  /* カテゴリ色（固定順：生保・損保・M&A・不動産） */
+  --cat-life: #2a78d6;
+  --cat-nonlife: #eb6834;
+  --cat-ma: #1baf7a;
+  --cat-re: #eda100;
+
+  /* ヒートマップ（青の単色ランプ） */
+  --heat-0: #f0efec;
+  --heat-1: #cde2fb;
+  --heat-2: #9ec5f4;
+  --heat-3: #5598e7;
+  --heat-4: #1c5cab;
+  --heat-ink-dark: #0b0b0b;
+  --heat-ink-light: #ffffff;
+
+  --good: #0a7d32;
+  --warn: #a86400;
+  --bad: #c2312f;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111110;
+    --surface: #1a1a19;
+    --surface-2: #242422;
+    --border: #33332f;
+    --text: #f0efec;
+    --text-2: #c3c2b7;
+    --muted: #8f8e86;
+    --accent: #6da7ec;
+    --accent-soft: #1c3557;
+    --cat-life: #3987e5;
+    --cat-nonlife: #d95926;
+    --cat-ma: #199e70;
+    --cat-re: #c98500;
+    --heat-0: #242422;
+    --heat-1: #184f95;
+    --heat-2: #256abf;
+    --heat-3: #3987e5;
+    --heat-4: #86b6ef;
+    --heat-ink-dark: #0b0b0b;
+    --heat-ink-light: #f0efec;
+    --good: #4cc26f;
+    --warn: #e0a640;
+    --bad: #ef7472;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #111110;
+  --surface: #1a1a19;
+  --surface-2: #242422;
+  --border: #33332f;
+  --text: #f0efec;
+  --text-2: #c3c2b7;
+  --muted: #8f8e86;
+  --accent: #6da7ec;
+  --accent-soft: #1c3557;
+  --cat-life: #3987e5;
+  --cat-nonlife: #d95926;
+  --cat-ma: #199e70;
+  --cat-re: #c98500;
+  --heat-0: #242422;
+  --heat-1: #184f95;
+  --heat-2: #256abf;
+  --heat-3: #3987e5;
+  --heat-4: #86b6ef;
+  --heat-ink-dark: #0b0b0b;
+  --heat-ink-light: #f0efec;
+  --good: #4cc26f;
+  --warn: #e0a640;
+  --bad: #ef7472;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3 { margin: 0; line-height: 1.35; }
+h1 { font-size: 20px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+
+/* ---------- レイアウト ---------- */
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 20px 12px;
+  position: sticky; top: 0; height: 100vh;
+}
+.brand { padding: 0 10px 20px; }
+.brand-title { font-weight: 700; font-size: 15px; }
+.brand-sub { color: var(--muted); font-size: 11px; }
+.nav a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px;
+  color: var(--text-2); font-weight: 500;
+}
+.nav a:hover { background: var(--surface-2); text-decoration: none; }
+.nav a.active { background: var(--accent-soft); color: var(--text); font-weight: 700; }
+.nav svg { width: 18px; height: 18px; flex: none; }
+.sidebar-foot { position: absolute; bottom: 16px; left: 12px; right: 12px; }
+
+.main { padding: 24px 28px 60px; min-width: 0; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.page-head p { margin: 4px 0 0; color: var(--text-2); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+.card + .card { margin-top: 16px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; gap: 12px; flex-wrap: wrap; }
+.card-head .sub { color: var(--muted); font-size: 12px; }
+
+.grid { display: grid; gap: 16px; }
+.grid-kpi { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px; }
+.grid-2 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); margin-bottom: 16px; }
+
+/* ---------- KPI ---------- */
+.kpi { padding: 14px 16px; }
+.kpi-label { color: var(--text-2); font-size: 12px; display: flex; align-items: center; gap: 6px; }
+.kpi-value { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.kpi-value small { font-size: 13px; font-weight: 500; color: var(--text-2); margin-left: 4px; }
+.kpi-note { color: var(--muted); font-size: 12px; }
+.dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.dot.life { background: var(--cat-life); }
+.dot.nonlife { background: var(--cat-nonlife); }
+.dot.ma { background: var(--cat-ma); }
+.dot.re { background: var(--cat-re); }
+
+/* ---------- フィルタ ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.filters input, .filters select { min-width: 140px; }
+input, select, textarea {
+  font: inherit; color: var(--text);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px;
+}
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+textarea { width: 100%; min-height: 90px; resize: vertical; }
+
+.btn {
+  font: inherit; font-weight: 600; cursor: pointer;
+  border-radius: 8px; padding: 7px 14px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover { background: var(--surface-2); text-decoration: none; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn.primary { color: #0b0b0b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary { color: #0b0b0b; } }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--bad); }
+.btn.small { padding: 4px 10px; font-size: 12px; }
+
+/* ---------- テーブル / ヒートマップ ---------- */
+.table-wrap { overflow-x: auto; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { font-size: 12px; color: var(--text-2); font-weight: 600; background: var(--surface); position: sticky; top: 0; }
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { color: var(--text); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover td { background: var(--surface-2); }
+tbody tr { cursor: pointer; }
+.company { font-weight: 600; }
+.subline { color: var(--muted); font-size: 12px; }
+
+.heat {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 74px; height: 44px; border-radius: 6px; margin: 1px;
+  font-variant-numeric: tabular-nums;
+}
+.heat .v { font-weight: 700; font-size: 15px; line-height: 1.1; }
+.heat .s { font-size: 10px; line-height: 1.2; opacity: 0.9; }
+td.heat-cell { padding: 2px; }
+
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--text-2); font-size: 12px; }
+.legend .item { display: inline-flex; align-items: center; gap: 6px; }
+.legend .sw { width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* ---------- バッジ ---------- */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--border); color: var(--text-2); background: var(--surface);
+}
+.lv-高 { color: var(--bad); border-color: currentColor; }
+.lv-中 { color: var(--warn); border-color: currentColor; }
+.lv-低 { color: var(--muted); }
+.st-成約 { color: var(--good); border-color: currentColor; }
+.st-提案中 { color: var(--accent); border-color: currentColor; }
+.st-提案準備 { color: var(--text-2); }
+.st-見送り { color: var(--muted); text-decoration: line-through; }
+
+/* ---------- 棒グラフ ---------- */
+.bars { display: flex; flex-direction: column; gap: 12px; }
+.bar-row { display: grid; grid-template-columns: 96px 1fr 70px; align-items: center; gap: 10px; }
+.bar-label { color: var(--text-2); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.bar-track { display: flex; height: 22px; gap: 2px; background: transparent; }
+.bar-seg { height: 100%; border-radius: 0; position: relative; }
+.bar-seg:last-child { border-radius: 0 4px 4px 0; }
+.bar-seg.hi { opacity: 1; }
+.bar-seg.mid { opacity: 0.45; }
+.bar-val { font-variant-numeric: tabular-nums; color: var(--text-2); font-size: 12px; text-align: right; }
+
+/* ---------- トップアクション ---------- */
+.actions { list-style: none; margin: 0; padding: 0; }
+.actions li { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: center; padding: 9px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.actions li:last-child { border-bottom: 0; }
+.actions li:hover { background: var(--surface-2); }
+.rank { width: 24px; height: 24px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--text-2); }
+.actions .what { font-size: 12px; color: var(--text-2); }
+
+/* ---------- 詳細 ---------- */
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.need-card { border-top: 4px solid var(--border); }
+.need-card.life { border-top-color: var(--cat-life); }
+.need-card.nonlife { border-top-color: var(--cat-nonlife); }
+.need-card.ma { border-top-color: var(--cat-ma); }
+.need-card.re { border-top-color: var(--cat-re); }
+.score-line { display: flex; align-items: center; gap: 12px; margin: 6px 0 10px; }
+.score-big { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.meter { flex: 1; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.meter > span { display: block; height: 100%; border-radius: 0 4px 4px 0; }
+.need-card ul { margin: 6px 0 0; padding-left: 18px; }
+.need-card li { margin: 3px 0; }
+.label-sm { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 10px; }
+.metric { display: inline-block; background: var(--surface-2); border-radius: 6px; padding: 2px 8px; font-size: 12px; margin: 6px 6px 0 0; }
+
+.profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 20px; }
+.profile dt { color: var(--muted); font-size: 12px; }
+.profile dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---------- フォーム ---------- */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 16px; }
+.field label { display: block; font-size: 12px; color: var(--text-2); font-weight: 600; margin-bottom: 4px; }
+.field input, .field select { width: 100%; }
+.field .hint { font-size: 11px; color: var(--muted); }
+.checks { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text); font-size: 13px; }
+fieldset { border: 0; padding: 0; margin: 0; }
+.form-section + .form-section { margin-top: 16px; }
+
+/* ---------- パイプライン ---------- */
+.kanban { display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 12px; overflow-x: auto; }
+.col { background: var(--surface-2); border-radius: var(--radius); padding: 10px; min-height: 200px; }
+.col-head { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 8px; padding: 0 4px; }
+.col-head span { color: var(--muted); font-weight: 500; }
+.kcard { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; cursor: pointer; }
+.kcard.life { border-left-color: var(--cat-life); }
+.kcard.nonlife { border-left-color: var(--cat-nonlife); }
+.kcard.ma { border-left-color: var(--cat-ma); }
+.kcard.re { border-left-color: var(--cat-re); }
+.kcard .t { font-weight: 600; font-size: 13px; }
+.kcard .m { font-size: 12px; color: var(--text-2); display: flex; justify-content: space-between; gap: 8px; }
+
+.tooltip {
+  position: fixed; pointer-events: none; z-index: 50;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.16);
+  border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: 340px;
+  display: none; white-space: normal;
+}
+.tooltip b { display: block; margin-bottom: 2px; }
+.tooltip ul { margin: 4px 0 0; padding-left: 16px; }
+
+.notice { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; color: var(--text-2); font-size: 12px; }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+.toast { position: fixed; bottom: 20px; right: 20px; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-weight: 600; display: none; z-index: 60; }
+.mobile-nav { display: none; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { display: none; }
+  .mobile-nav { display: flex; gap: 4px; overflow-x: auto; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 16px; position: sticky; top: 0; z-index: 10; }
+  .mobile-nav a { padding: 6px 10px; border-radius: 6px; color: var(--text-2); white-space: nowrap; font-weight: 600; }
+  .mobile-nav a.active { background: var(--accent-soft); color: var(--text); }
+  .main { padding: 16px; }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
+  .bar-row { grid-template-columns: 76px 1fr 56px; }
+}
+@media print {
+  .sidebar, .mobile-nav, .filters, .btn { display: none !important; }
+  .app { grid-template-columns: 1fr; }
+  .card { box-shadow: none; break-inside: avoid; }
+}
+
+/* ヒートマップの段階ごとの文字色（明暗それぞれ） */
+.h0 { background: var(--heat-0); color: var(--muted); }
+.h1 { background: var(--heat-1); color: #0b0b0b; }
+.h2 { background: var(--heat-2); color: #0b0b0b; }
+.h3 { background: var(--heat-3); color: #ffffff; }
+.h4 { background: var(--heat-4); color: #ffffff; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .h1,
+  :root:not([data-theme="light"]) .h2,
+  :root:not([data-theme="light"]) .h3 { color: #f0efec; }
+  :root:not([data-theme="light"]) .h4 { color: #0b0b0b; }
+}
+:root[data-theme="dark"] .h1, :root[data-theme="dark"] .h2, :root[data-theme="dark"] .h3 { color: #f0efec; }
+:root[data-theme="dark"] .h4 { color: #0b0b0b; }
+
+/* グリッド内のカードは縦マージンを付けない */
+.grid > .card + .card, .detail-grid > .card + .card { margin-top: 0; }
+.grid-2 { align-items: start; }
+
+tr.sel td { background: var(--accent-soft); }
+#lineChart, #stackChart { width: 100%; min-height: 260px; }
+#lineChart svg, #stackChart svg { display: block; }
+a.card.kpi:hover { border-color: var(--accent); }
+
+.warn-box { border: 1px solid var(--warn); color: var(--text); }
+.help ol, .help ul { padding-left: 20px; margin: 8px 0 0; }
+.help li { margin: 8px 0; }
+.help h2 { margin-bottom: 8px; }
+.help td { white-space: normal; vertical-align: top; }
+.help dt { font-weight: 700; margin-top: 10px; }
+.help dd { margin: 2px 0 0; color: var(--text-2); }
+.help code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+a.card.kpi { text-decoration: none; }
+a.card.kpi h2 { margin-bottom: 4px; }
+.help tbody tr { cursor: default; }
+
+</style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">クロスセル・ナビ</div>
+        <div class="brand-sub">承継クライアント ニーズ分析</div>
+      </div>
+      <nav class="nav" id="nav">
+        <a href="#/dashboard" data-route="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          ダッシュボード
+        </a>
+        <a href="#/clients" data-route="clients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          クライアント一覧
+        </a>
+        <a href="#/pipeline" data-route="pipeline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>
+          提案パイプライン
+        </a>
+        <a href="#/roi" data-route="roi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/></svg>
+          回収シミュレーション
+        </a>
+        <a href="#/finance" data-route="finance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 15l3 3 3-3M12 11v7"/></svg>
+          会計データ取込
+        </a>
+        <a href="#/new" data-route="new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+          クライアント追加
+        </a>
+        <a href="#/settings" data-route="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          データ取込・出力
+        </a>
+        <a href="#/help" data-route="help">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5v.01"/></svg>
+          操作ガイド
+        </a>
+      </nav>
+      <div class="sidebar-foot">
+        <button class="btn small" id="themeBtn" type="button">表示: 自動</button>
+      </div>
+    </aside>
+
+    <nav class="mobile-nav" id="mnav">
+      <a href="#/dashboard" data-route="dashboard">ダッシュボード</a>
+      <a href="#/clients" data-route="clients">一覧</a>
+      <a href="#/pipeline" data-route="pipeline">パイプライン</a>
+      <a href="#/roi" data-route="roi">回収試算</a>
+      <a href="#/finance" data-route="finance">会計取込</a>
+      <a href="#/new" data-route="new">追加</a>
+      <a href="#/settings" data-route="settings">データ</a>
+      <a href="#/help" data-route="help">ガイド</a>
+    </nav>
+
+    <main class="main" id="view"></main>
+  </div>
+
+  <div class="tooltip" id="tip"></div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+/* scoring.js */
+/*
+ * ニーズ判定エンジン
+ * 金額単位はすべて「万円」。
+ * 各カテゴリは { score(0-100), level, reasons[], proposals[], metrics{} } を返す。
+ */
+(function (global) {
+  'use strict';
+
+  const CATEGORIES = [
+    { key: 'life', label: '生命保険', short: '生保' },
+    { key: 'nonlife', label: '損害保険', short: '損保' },
+    { key: 'ma', label: 'M&A・事業承継', short: 'M&A' },
+    { key: 're', label: '不動産購入', short: '不動産' },
+  ];
+
+  const STATUSES = ['未着手', '提案準備', '提案中', '成約', '見送り'];
+
+  const INDUSTRIES = [
+    '建設業', '製造業', '運送業', '飲食業', '小売業', '卸売業',
+    '医療・介護', '整骨・治療院', 'IT・ソフトウェア', 'サービス業', '不動産業', 'その他',
+  ];
+
+  // 業種別の損害保険リスク重み（0-3）と具体的な商品名
+  const NONLIFE_ITEMS = [
+    { key: 'liability', label: '賠償責任保険' },
+    { key: 'property', label: '財物・休業補償' },
+    { key: 'auto', label: '自動車（フリート）' },
+    { key: 'workers', label: '労災上乗せ' },
+    { key: 'cyber', label: 'サイバー保険' },
+  ];
+
+  const INDUSTRY_RISK = {
+    '建設業': { w: { liability: 3, property: 3, auto: 2, workers: 3, cyber: 1 }, names: { liability: '請負業者賠償責任保険', property: '建設工事保険・組立保険', workers: '労災上乗せ（使用者賠償含む）' } },
+    '製造業': { w: { liability: 3, property: 3, auto: 1, workers: 2, cyber: 2 }, names: { liability: 'PL（生産物賠償）保険', property: '火災・機械保険・休業損害' } },
+    '運送業': { w: { liability: 2, property: 1, auto: 3, workers: 3, cyber: 1 }, names: { liability: '運送業者貨物賠償', auto: 'フリート自動車保険' } },
+    '飲食業': { w: { liability: 3, property: 3, auto: 0, workers: 1, cyber: 1 }, names: { liability: '施設・生産物賠償（食中毒）', property: '店舗総合・休業補償' } },
+    '小売業': { w: { liability: 2, property: 3, auto: 1, workers: 1, cyber: 2 }, names: { property: '店舗総合・商品在庫' } },
+    '卸売業': { w: { liability: 2, property: 3, auto: 2, workers: 1, cyber: 1 }, names: { property: '動産総合・在庫補償' } },
+    '医療・介護': { w: { liability: 3, property: 2, auto: 2, workers: 2, cyber: 3 }, names: { liability: '医師・介護事業者賠償', cyber: 'サイバー保険（患者情報）', auto: '送迎車両の自動車保険' } },
+    '整骨・治療院': { w: { liability: 3, property: 2, auto: 1, workers: 1, cyber: 2 }, names: { liability: '柔道整復師賠償責任保険' } },
+    'IT・ソフトウェア': { w: { liability: 3, property: 1, auto: 0, workers: 1, cyber: 3 }, names: { liability: 'IT業務賠償（受託開発）', cyber: 'サイバー保険' } },
+    'サービス業': { w: { liability: 2, property: 2, auto: 1, workers: 1, cyber: 2 }, names: {} },
+    '不動産業': { w: { liability: 2, property: 3, auto: 1, workers: 1, cyber: 1 }, names: { liability: '宅建業者賠償・施設賠償', property: '賃貸物件の火災・地震' } },
+    'その他': { w: { liability: 2, property: 2, auto: 1, workers: 1, cyber: 1 }, names: {} },
+  };
+
+  const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
+  const level = (s) => (s >= 70 ? '高' : s >= 40 ? '中' : '低');
+  const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const man = (v) => `${Math.round(v).toLocaleString('ja-JP')}万円`;
+
+  function result(score, reasons, proposals, metrics) {
+    const s = Math.round(clamp(score));
+    return { score: s, level: level(s), reasons, proposals, metrics: metrics || {} };
+  }
+
+  // ---------- 生命保険 ----------
+  function scoreLife(c) {
+    const reasons = [];
+    const proposals = [];
+    let score = 0;
+
+    // 1) 事業保障：社長に万一があった時に必要な資金
+    const fixedCostHalfYear = n(c.sales) * 0.15; // 年商15% ≒ 固定費半年分の目安
+    const need = Math.max(0, n(c.debt) + fixedCostHalfYear - n(c.cash) * 0.5);
+    const gap = Math.max(0, need - n(c.deathCover));
+    if (need > 0) {
+      const ratio = gap / need;
+      score += 45 * ratio;
+      if (ratio >= 0.3) {
+        reasons.push(`事業保障の不足 約${man(gap)}（必要額 ${man(need)}／現加入 ${man(n(c.deathCover))}）`);
+        proposals.push('定期保険・収入保障保険で借入金返済と運転資金を確保');
+      }
+    }
+
+    // 2) 役員退職金の準備
+    const yearsToRetire = Math.max(0, 65 - n(c.repAge));
+    const tenureAtRetire = n(c.tenureYears) + yearsToRetire;
+    const retireTarget = n(c.execPayMonthly) * tenureAtRetire * 3; // 最終報酬月額×在任年数×功績倍率3.0
+    const retireGap = Math.max(0, retireTarget - n(c.retireReserve));
+    if (retireTarget > 0) {
+      const ratio = retireGap / retireTarget;
+      score += 35 * ratio;
+      if (ratio >= 0.3) {
+        reasons.push(`役員退職金の準備不足 約${man(retireGap)}（目安 ${man(retireTarget)}：月額報酬×在任${tenureAtRetire}年×3.0）`);
+        proposals.push('退職金原資の計画的積立（法人契約の長期保険・経営セーフティ共済との組合せ）');
+      }
+    }
+
+    // 3) 利益水準：積立余力
+    if (n(c.ordinaryProfit) >= 1000) {
+      score += 10;
+      reasons.push(`経常利益 ${man(n(c.ordinaryProfit))}：保険料の負担余力あり`);
+    }
+
+    // 4) 相続・納税資金
+    if (n(c.repAge) >= 60 && n(c.netAssets) >= 10000) {
+      score += 15;
+      reasons.push(`社長${c.repAge}歳・純資産 ${man(n(c.netAssets))}：自社株を含む相続税の納税資金が論点`);
+      proposals.push('個人契約の終身保険で納税資金・代償分割資金を準備');
+    }
+
+    if (!reasons.length) reasons.push('現時点で大きな保障不足は見当たりません');
+    return result(score, reasons, proposals, { need, gap, retireTarget, retireGap });
+  }
+
+  // ---------- 損害保険 ----------
+  function scoreNonlife(c) {
+    const risk = INDUSTRY_RISK[c.industry] || INDUSTRY_RISK['その他'];
+    const nl = c.nonlife || {};
+    const reasons = [];
+    const proposals = [];
+    let totalW = 0;
+    let missingW = 0;
+    const missing = [];
+
+    NONLIFE_ITEMS.forEach((item) => {
+      let w = risk.w[item.key] || 0;
+      if (item.key === 'auto' && n(c.vehicles) >= 10) w = Math.max(w, 3);
+      if (item.key === 'auto' && n(c.vehicles) === 0) w = 0;
+      if (item.key === 'workers' && n(c.employees) >= 20) w = Math.max(w, 3);
+      totalW += w;
+      if (!nl[item.key] && w > 0) {
+        missingW += w;
+        const name = risk.names[item.key] || item.label;
+        missing.push({ name, w });
+      }
+    });
+
+    let score = totalW ? (missingW / totalW) * 85 : 0;
+    missing
+      .sort((a, b) => b.w - a.w)
+      .forEach((m) => {
+        if (m.w >= 2) reasons.push(`${c.industry}で重要度の高い「${m.name}」が未加入`);
+        proposals.push(`${m.name}の見積り・補償内容の比較`);
+      });
+
+    if (n(c.employees) >= 20) {
+      score += 10;
+      reasons.push(`従業員${c.employees}名：労務事故・使用者賠償の備えが必要な規模`);
+    }
+    if (n(c.vehicles) >= 10) {
+      score += 5;
+      reasons.push(`車両${c.vehicles}台：フリート契約での保険料最適化の余地`);
+    }
+    const insuredCount = NONLIFE_ITEMS.filter((i) => nl[i.key]).length;
+    if (insuredCount >= 3) proposals.push('既存契約の一括見直し（重複補償・保険料の適正化）');
+
+    if (!reasons.length) reasons.push('業種上の主要リスクはおおむねカバーされています');
+    return result(score, reasons, proposals, { missingCount: missing.length });
+  }
+
+  // ---------- M&A・事業承継 ----------
+  function scoreMA(c) {
+    const reasons = [];
+    const proposals = [];
+    const age = n(c.repAge);
+    const op = n(c.opProfit);
+
+    // 譲渡・承継ニーズ
+    let sell = 0;
+    if (age >= 65) sell = 55;
+    else if (age >= 60) sell = 40;
+    else if (age >= 55) sell = 20;
+    if (c.successor === 'なし') sell *= 1;
+    else if (c.successor === '候補あり') sell *= 0.6;
+    else sell *= 0.25;
+    if (sell > 0 && op > 0) sell += 15;
+    if (sell > 0 && c.successor === 'なし') sell += 15;
+
+    // 買収（成長）ニーズ
+    let buy = 0;
+    if (c.growth) {
+      buy = 30;
+      if (op >= 2000) buy += 20;
+      else if (op >= 1000) buy += 10;
+      if (n(c.cash) >= 10000) buy += 20;
+      else if (n(c.cash) >= 5000) buy += 10;
+      if (age < 55) buy += 10;
+    }
+
+    // 簡易企業価値（年買法：時価純資産＋営業利益×3年）
+    const value = Math.max(0, n(c.netAssets) + Math.max(0, op) * 3);
+
+    let type = '—';
+    if (sell >= buy && sell > 0) {
+      type = c.successor === '候補あり' ? '親族・社内承継' : '第三者承継（譲渡）';
+      reasons.push(`社長${age}歳・後継者「${c.successor || '未確認'}」`);
+      if (c.successor === 'なし') proposals.push('第三者承継（M&A）の選択肢を含めた出口戦略の整理');
+      if (c.successor === '候補あり') proposals.push('事業承継税制・自社株対策を含む承継計画の策定');
+      if (op > 0) reasons.push(`営業利益 ${man(op)}：譲渡市場で評価されやすい黒字体質`);
+      if (n(c.netAssets) < 0) {
+        reasons.push('債務超過：譲渡前の磨き上げ（財務改善）が必要');
+        proposals.push('磨き上げ（不採算整理・役員借入金の処理）');
+      }
+      proposals.push(`簡易株価・企業価値算定（目安 ${man(value)}）`);
+    }
+    if (buy > sell) {
+      type = '買収（成長戦略）';
+      reasons.push(`拡大志向あり・現預金 ${man(n(c.cash))}・営業利益 ${man(op)}`);
+      proposals.push('同業・隣接業種の買収候補リストアップ（引継ぎ事務所の譲渡ニーズとマッチング）');
+    }
+
+    const score = Math.max(sell, buy);
+    if (!reasons.length) reasons.push('承継・M&Aの緊急性は現時点で低い');
+    return result(score, reasons, proposals, { value, type, sell: Math.round(sell), buy: Math.round(buy) });
+  }
+
+  // ---------- 不動産購入 ----------
+  function scoreRE(c) {
+    const reasons = [];
+    const proposals = [];
+    let score = 0;
+    const rent = n(c.rentMonthly);
+    const monthlySales = n(c.sales) / 12;
+    let budget = 0;
+
+    // 1) 自社ビル・事務所購入
+    if (c.office === '賃貸' && rent >= 20) {
+      let s = rent >= 80 ? 40 : rent >= 40 ? 30 : 20;
+      if (n(c.netAssets) >= 5000) s += 10;
+      score += s;
+      budget = Math.max(budget, rent * 12 * 15);
+      reasons.push(`賃貸 月額家賃 ${man(rent)}（年 ${man(rent * 12)}）：購入とのコスト比較の価値あり`);
+      proposals.push(`自社ビル・事務所の購入シミュレーション（予算目安 ${man(rent * 12 * 15)}＝家賃15年分）`);
+    }
+
+    // 2) 余剰資金の運用（収益不動産）
+    const excessCash = n(c.cash) - monthlySales * 3;
+    if (excessCash >= 5000) {
+      score += excessCash >= 20000 ? 35 : excessCash >= 10000 ? 25 : 15;
+      budget = Math.max(budget, excessCash * 2);
+      reasons.push(`月商3ヶ月分を超える現預金 約${man(excessCash)}：資金の置き場所として検討余地`);
+      proposals.push('法人での収益不動産取得（借入併用・利回りと減価償却の確認）');
+    }
+
+    // 3) 社長個人の相続対策
+    if (n(c.repAge) >= 65 && n(c.netAssets) >= 10000) {
+      score += 20;
+      reasons.push(`社長${c.repAge}歳・純資産 ${man(n(c.netAssets))}：相続財産の組換え検討時期`);
+      proposals.push('個人資産の組換え検討（※評価通達6項の否認リスクに留意し、経済合理性を確保）');
+    }
+
+    // 4) 利益水準
+    if (n(c.ordinaryProfit) >= 3000) {
+      score += 10;
+      reasons.push(`経常利益 ${man(n(c.ordinaryProfit))}：取得・借入の与信が得やすい`);
+    }
+
+    if (!reasons.length) reasons.push('不動産購入の優先度は現時点で低い');
+    return result(score, reasons, proposals, { budget });
+  }
+
+  function analyze(c) {
+    const life = scoreLife(c);
+    const nonlife = scoreNonlife(c);
+    const ma = scoreMA(c);
+    const re = scoreRE(c);
+    const total = Math.round((life.score + nonlife.score + ma.score + re.score) / 4);
+    return { life, nonlife, ma, re, total };
+  }
+
+  global.Scoring = { CATEGORIES, STATUSES, INDUSTRIES, NONLIFE_ITEMS, analyze, level, man };
+})(window);
+
+</script>
+  <script>
+/* sample-data.js */
+/*
+ * デモ用サンプルデータ（すべて架空）。金額単位は万円。
+ * 「設定・データ」画面から削除・CSV取込で差し替えできます。
+ */
+(function (global) {
+  'use strict';
+
+  // 再現性のある疑似乱数
+  let seed = 20261124;
+  const rnd = () => ((seed = (seed * 1664525 + 1013904223) % 4294967296) / 4294967296);
+  const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  const between = (lo, hi) => Math.round(lo + rnd() * (hi - lo));
+
+  const base = [
+    ['山田建設株式会社', '山田 一郎', '建設業', '旧さくら会計事務所'],
+    ['株式会社北斗工務店', '北村 健二', '建設業', '旧さくら会計事務所'],
+    ['東和土木株式会社', '東 和夫', '建設業', '旧みなと税理士事務所'],
+    ['有限会社佐藤設備', '佐藤 誠', '建設業', '旧みなと税理士事務所'],
+    ['株式会社丸信電工', '丸山 信也', '建設業', '旧さくら会計事務所'],
+    ['株式会社青葉精機', '青木 正', '製造業', '旧さくら会計事務所'],
+    ['中央プレス工業株式会社', '中田 浩', '製造業', '旧みなと税理士事務所'],
+    ['株式会社ミツワ食品', '三輪 洋子', '製造業', '旧みなと税理士事務所'],
+    ['関東ロジ株式会社', '関 隆', '運送業', '旧さくら会計事務所'],
+    ['株式会社はやて運輸', '早川 修', '運送業', '旧みなと税理士事務所'],
+    ['株式会社炭火やまと', '大和 拓也', '飲食業', '旧さくら会計事務所'],
+    ['有限会社そば処いしかわ', '石川 茂', '飲食業', '旧みなと税理士事務所'],
+    ['株式会社グランキッチン', '倉田 美咲', '飲食業', '旧さくら会計事務所'],
+    ['株式会社さくら介護サービス', '桜井 恵子', '医療・介護', '旧さくら会計事務所'],
+    ['医療法人社団 健幸会', '健田 昭', '医療・介護', '旧みなと税理士事務所'],
+    ['株式会社ひまわり訪問看護', '日野 真理', '医療・介護', '旧みなと税理士事務所'],
+    ['みどり整骨院グループ株式会社', '緑川 大輔', '整骨・治療院', '旧さくら会計事務所'],
+    ['株式会社ほぐし堂', '保坂 亮', '整骨・治療院', '旧みなと税理士事務所'],
+    ['株式会社ネクストシステムズ', '根岸 翔', 'IT・ソフトウェア', '旧さくら会計事務所'],
+    ['株式会社クラウドリンク', '倉本 悠', 'IT・ソフトウェア', '旧みなと税理士事務所'],
+    ['株式会社田中商店', '田中 義男', '小売業', '旧さくら会計事務所'],
+    ['株式会社フジ薬局', '藤井 和子', '小売業', '旧みなと税理士事務所'],
+    ['日本資材販売株式会社', '日高 稔', '卸売業', '旧さくら会計事務所'],
+    ['株式会社マルキ水産', '木村 勝', '卸売業', '旧みなと税理士事務所'],
+    ['株式会社クリーンワークス', '清水 剛', 'サービス業', '旧さくら会計事務所'],
+    ['株式会社ブライトスタッフ', '明石 彩', 'サービス業', '旧みなと税理士事務所'],
+    ['株式会社いろは不動産', '井口 達也', '不動産業', '旧さくら会計事務所'],
+    ['株式会社ホームライフ管理', '堀 順一', '不動産業', '旧みなと税理士事務所'],
+    ['株式会社杉本鉄工所', '杉本 孝', '製造業', '旧さくら会計事務所'],
+    ['有限会社大野塗装', '大野 武', '建設業', '旧みなと税理士事務所'],
+  ];
+
+  const staffs = ['鈴木', '高橋', '伊藤', '渡辺'];
+
+  const clients = base.map(([company, rep, industry, firm], i) => {
+    const repAge = between(38, 76);
+    const sales = pick([8000, 12000, 18000, 25000, 35000, 50000, 70000, 95000]) + between(-1500, 1500);
+    const margin = rnd() * 0.12 - 0.02;
+    const opProfit = Math.round(sales * margin);
+    const ordinaryProfit = opProfit + between(-200, 300);
+    const employees = Math.max(3, Math.round(sales / between(1500, 3500)));
+    const cash = Math.round(sales * (0.08 + rnd() * 0.45));
+    const debt = Math.round(sales * rnd() * 0.5);
+    const netAssets = Math.round(sales * (rnd() * 0.6 - 0.05));
+    const tenureYears = Math.max(2, Math.min(repAge - 28, between(3, 35)));
+    const execPayMonthly = pick([60, 80, 100, 120, 150, 200]);
+    const successor = repAge >= 55 ? pick(['なし', 'なし', '候補あり', 'あり']) : pick(['未定', 'なし', '候補あり']);
+    const office = rnd() < 0.6 ? '賃貸' : '自社所有';
+    const rentMonthly = office === '賃貸' ? pick([15, 25, 35, 50, 80, 120]) : 0;
+    const vehicles = ['運送業', '建設業'].includes(industry) ? between(4, 40) : between(0, 6);
+
+    return {
+      id: 'c' + String(i + 1).padStart(3, '0'),
+      company, rep, repAge, industry, firm,
+      staff: staffs[i % staffs.length],
+      sales, opProfit, ordinaryProfit, employees, cash, debt, netAssets,
+      execPayMonthly, tenureYears, successor,
+      growth: rnd() < 0.3,
+      deathCover: pick([0, 0, 1000, 3000, 5000, 10000]),
+      retireReserve: pick([0, 0, 500, 1500, 3000, 6000]),
+      nonlife: {
+        liability: rnd() < 0.5,
+        property: rnd() < 0.6,
+        auto: vehicles > 0 && rnd() < 0.7,
+        workers: rnd() < 0.35,
+        cyber: rnd() < 0.1,
+      },
+      vehicles, office, rentMonthly,
+      status: { life: '未着手', nonlife: '未着手', ma: '未着手', re: '未着手' },
+      advisoryFee: Math.round(Math.max(30, Math.min(240, sales / 300 + between(-10, 20)))),
+      notes: '',
+      lastContact: '',
+    };
+  });
+
+  // 典型ケースを数件だけ確定値に調整（デモで説明しやすいように）
+  Object.assign(clients[0], { repAge: 68, successor: 'なし', opProfit: 4200, ordinaryProfit: 4300, sales: 52000, cash: 18000, netAssets: 21000, deathCover: 3000, retireReserve: 500, execPayMonthly: 150, tenureYears: 32, growth: false });
+  Object.assign(clients[18], { repAge: 41, successor: '未定', growth: true, opProfit: 3500, ordinaryProfit: 3600, cash: 15000, office: '賃貸', rentMonthly: 120 });
+  Object.assign(clients[14], { repAge: 71, successor: '候補あり', netAssets: 38000, cash: 26000, sales: 60000 });
+  clients[0].status = { life: '提案中', nonlife: '提案準備', ma: '提案中', re: '未着手' };
+  clients[18].status = { life: '未着手', nonlife: '成約', ma: '提案準備', re: '提案中' };
+
+  global.SAMPLE_CLIENTS = clients;
+})(window);
+
+</script>
+  <script>
+/* economics.js */
+/*
+ * 収益・回収シミュレーション
+ * クロスセルの想定手数料（期待値）と、事務所買収価格の回収年数を試算する。
+ * 金額単位は万円。前提条件はすべて画面から変更でき、localStorage に保存される。
+ */
+(function (global) {
+  'use strict';
+
+  const DEFAULT_ASSUMPTIONS = {
+    years: 10,
+    // 成約確率（ニーズ度別）
+    probHigh: 30, probMid: 15, probLow: 3,
+    // 進捗による上書き（％）
+    probProposing: 50,
+    // 生命保険
+    lifeFirstRate: 20,      // 初年度手数料率（年払保険料に対する％）
+    lifeRenewRate: 3,       // 次年度以降の手数料率（％／年）
+    lifeTermRate: 0.5,      // 事業保障の定期保険料率（保障額に対する％）
+    // 損害保険
+    nlPremiumPerItem: 25,   // 未加入補償1件あたりの想定年間保険料
+    nlRate: 15,             // 代理店手数料率（％／年）
+    // M&A
+    maShare: 50,            // 当事務所の取り分（％）：紹介のみなら低め、自社FAなら100
+    maMinFee: 500,          // 最低報酬
+    // 不動産
+    reShare: 30,            // 仲介手数料のうち当事務所の取り分（紹介料）（％）
+    // 顧問料
+    churn: 8,               // 顧問先の年間解約率（％）
+    advisoryMargin: 40,     // 顧問料の粗利率（％）
+    // 一時収益の実現時期（1〜3年目の配分％）
+    ramp1: 40, ramp2: 40, ramp3: 20,
+    firms: {},              // { 事務所名: { price, integrationCost } }
+  };
+
+  const pct = (v) => (Number(v) || 0) / 100;
+
+  // レーマン方式（企業価値ベースの簡易版）
+  function lehman(value) {
+    const tiers = [[50000, 0.05], [50000, 0.04], [400000, 0.03], [500000, 0.02], [Infinity, 0.01]];
+    let rest = Math.max(0, value);
+    let fee = 0;
+    for (const [size, rate] of tiers) {
+      const part = Math.min(rest, size);
+      fee += part * rate;
+      rest -= part;
+      if (rest <= 0) break;
+    }
+    return fee;
+  }
+
+  function probability(level, status, A) {
+    if (status === '成約') return 1;
+    if (status === '見送り') return 0;
+    if (status === '提案中') return Math.max(pct(A.probProposing), level === '高' ? pct(A.probHigh) : 0);
+    return level === '高' ? pct(A.probHigh) : level === '中' ? pct(A.probMid) : pct(A.probLow);
+  }
+
+  /*
+   * 1社あたりの想定手数料。
+   * once = 一時収益（成約年に1回）、recurring = 継続収益（毎年）
+   * expected = 成約確率を掛けた期待値
+   */
+  function clientFees(c, a, A) {
+    const n = (v) => Number(v) || 0;
+    const st = c.status || {};
+    const out = {};
+
+    // 生命保険
+    const yearsToRetire = Math.max(5, 65 - n(c.repAge));
+    let savingPremium = a.life.metrics.retireGap / yearsToRetire;
+    const profitCap = Math.max(0, n(c.ordinaryProfit)) * 0.4; // 利益の4割を上限
+    savingPremium = Math.min(savingPremium, profitCap);
+    const termPremium = a.life.metrics.gap * pct(A.lifeTermRate);
+    const lifePremium = savingPremium + termPremium;
+    out.life = {
+      premium: lifePremium,
+      once: lifePremium * pct(A.lifeFirstRate),
+      recurring: lifePremium * pct(A.lifeRenewRate),
+      basis: `想定年払保険料 ${Math.round(lifePremium)}万円（退職金積立 ${Math.round(savingPremium)}＋事業保障 ${Math.round(termPremium)}）`,
+    };
+
+    // 損害保険
+    const nlPremium = a.nonlife.metrics.missingCount * n(A.nlPremiumPerItem);
+    out.nonlife = {
+      premium: nlPremium,
+      once: 0,
+      recurring: nlPremium * pct(A.nlRate),
+      basis: `未加入補償 ${a.nonlife.metrics.missingCount}件 × 年間保険料 ${A.nlPremiumPerItem}万円`,
+    };
+
+    // M&A
+    const value = a.ma.metrics.value;
+    const maFee = a.ma.score > 0 ? Math.max(n(A.maMinFee), lehman(value)) * pct(A.maShare) : 0;
+    out.ma = {
+      once: maFee,
+      recurring: 0,
+      basis: `企業価値 ${Math.round(value)}万円のレーマン報酬（最低${A.maMinFee}万円）× 取り分${A.maShare}%`,
+    };
+
+    // 不動産
+    const budget = a.re.metrics.budget || 0;
+    const brokerage = budget > 0 ? budget * 0.03 + 6 : 0;
+    out.re = {
+      once: brokerage * pct(A.reShare),
+      recurring: 0,
+      basis: budget ? `取得予算 ${Math.round(budget)}万円 ×（3%＋6万円）× 取り分${A.reShare}%` : '取得予算の目安なし',
+    };
+
+    ['life', 'nonlife', 'ma', 're'].forEach((k) => {
+      const p = probability(a[k].level, st[k], A);
+      out[k].prob = p;
+      out[k].expOnce = out[k].once * p;
+      out[k].expRecurring = out[k].recurring * p;
+    });
+    out.expOnce = ['life', 'nonlife', 'ma', 're'].reduce((s, k) => s + out[k].expOnce, 0);
+    out.expRecurring = ['life', 'nonlife', 'ma', 're'].reduce((s, k) => s + out[k].expRecurring, 0);
+    out.expTotal = out.expOnce + out.expRecurring * 5; // 一覧表示用：継続収益は5年分で換算
+    return out;
+  }
+
+  /*
+   * 事務所単位の回収シミュレーション
+   * list: [{ c, a, f }]（f = clientFees の結果）
+   */
+  function simulate(list, firm, A) {
+    const years = Math.max(1, Math.min(20, Number(A.years) || 10));
+    const ramp = [pct(A.ramp1), pct(A.ramp2), pct(A.ramp3)];
+    const rampSum = ramp.reduce((s, v) => s + v, 0) || 1;
+    const share = (t) => (t >= 1 && t <= 3 ? ramp[t - 1] / rampSum : 0);
+    const cumShare = (t) => { let s = 0; for (let i = 1; i <= Math.min(t, 3); i++) s += share(i); return s; };
+
+    const price = Number(firm.price) || 0;
+    const integration = Number(firm.integrationCost) || 0;
+    const advisory = list.reduce((s, { c }) => s + (Number(c.advisoryFee) || 0), 0);
+    const sum = (fn) => list.reduce((s, x) => s + fn(x.f), 0);
+    const once = { life: sum((f) => f.life.expOnce), ma: sum((f) => f.ma.expOnce), re: sum((f) => f.re.expOnce) };
+    const rec = { life: sum((f) => f.life.expRecurring), nonlife: sum((f) => f.nonlife.expRecurring) };
+
+    const rows = [];
+    let cumBase = -price - integration;
+    let cumAll = -price - integration;
+    for (let t = 1; t <= years; t++) {
+      const retention = Math.pow(1 - pct(A.churn), t - 1);
+      const r = {
+        year: t,
+        advisory: advisory * pct(A.advisoryMargin) * retention,
+        life: once.life * share(t) + rec.life * cumShare(t - 1) * retention,
+        nonlife: rec.nonlife * cumShare(t) * retention,
+        ma: once.ma * share(t),
+        re: once.re * share(t),
+      };
+      r.cross = r.life + r.nonlife + r.ma + r.re;
+      cumBase += r.advisory;
+      cumAll += r.advisory + r.cross;
+      r.cumBase = cumBase;
+      r.cumAll = cumAll;
+      rows.push(r);
+    }
+
+    const payback = (key) => {
+      let prev = -price - integration;
+      for (const r of rows) {
+        if (r[key] >= 0) {
+          const gain = r[key] - prev;
+          return gain > 0 ? r.year - 1 + (0 - prev) / gain : r.year;
+        }
+        prev = r[key];
+      }
+      return null;
+    };
+
+    return {
+      price, integration, advisory, once, rec, rows,
+      paybackBase: payback('cumBase'),
+      paybackAll: payback('cumAll'),
+      crossTotal: rows.reduce((s, r) => s + r.cross, 0),
+      advisoryTotal: rows.reduce((s, r) => s + r.advisory, 0),
+    };
+  }
+
+  global.Economics = { DEFAULT_ASSUMPTIONS, clientFees, simulate, lehman };
+})(window);
+
+</script>
+  <script>
+/* finance-import.js */
+/*
+ * 会計ソフトの試算表・決算書CSVから財務数値を読み取る。
+ * 弥生会計／freee／マネーフォワード／勘定奉行／JDL 等の「残高試算表」「決算書（貸借対照表・損益計算書）」の
+ * CSV出力を想定し、勘定科目名で判定する（ソフト固有の列配置には依存しない）。
+ */
+(function (global) {
+  'use strict';
+
+  // ---------- 文字コード ----------
+  function decode(buffer) {
+    const bytes = new Uint8Array(buffer);
+    try {
+      return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^﻿/, ''), encoding: 'UTF-8' };
+    } catch (e) {
+      return { text: new TextDecoder('shift_jis').decode(bytes), encoding: 'Shift_JIS' };
+    }
+  }
+
+  // ---------- CSV/TSV 分解 ----------
+  function splitRows(text) {
+    const firstLine = text.split(/\r?\n/).find((l) => l.trim()) || '';
+    const delim = (firstLine.match(/\t/g) || []).length > (firstLine.match(/,/g) || []).length ? '\t' : ',';
+    const out = [];
+    let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') q = false;
+        else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === delim) { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); out.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); out.push(row); }
+    return out.filter((r) => r.some((x) => String(x).trim() !== ''));
+  }
+
+  // ---------- 正規化 ----------
+  const toHalf = (s) => String(s).replace(/[０-９Ａ-Ｚａ-ｚ，．－（）]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0));
+  const normName = (s) => toHalf(s)
+    .replace(/[\s　]/g, '')
+    .replace(/^[【\[〔<＜(（]+|[】\]〕>＞)）]+$/g, '')
+    .replace(/^\d{3,}[.\-:]?|^\d+[.:\-]/, '') // 科目コード（「1年以内〜」は残す）
+    .replace(/^[ⅠⅡⅢⅣⅤⅥ]+\.?/, '')
+    .replace(/[<>＜＞【】]/g, '');
+
+  // 「1,234」「△1,234」「▲1,234」「-1,234」「(1,234)」「1234円」に対応
+  function parseAmount(raw) {
+    if (raw == null) return null;
+    let s = toHalf(raw).replace(/[\s　,円¥\\]/g, '');
+    if (!s) return null;
+    let neg = false;
+    if (/^[△▲-]/.test(s)) { neg = true; s = s.slice(1); }
+    if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+    if (!/^\d+(\.\d+)?$/.test(s)) return null;
+    const v = Number(s);
+    return neg ? -v : v;
+  }
+
+  // ---------- 勘定科目の対応表 ----------
+  const RULES = {
+    sales: [/^(純)?売上高(合計|計)?$/, /^売上(合計|計)$/, /^完成工事高(合計)?$/, /^営業収益(合計)?$/, /^(医業|介護事業)収益(合計)?$/, /^売上収益$/],
+    grossProfit: [/^売上総(利益|損益)(金額)?$/, /^完成工事総利益$/],
+    sga: [/^販売費(及び|および)?一般管理費(合計|計)?$/, /^販管費(合計|計)?$/],
+    opProfit: [/^営業(利益|損益)(金額)?$/],
+    opLoss: [/^営業損失(金額)?$/],
+    ordinaryProfit: [/^経常(利益|損益)(金額)?$/],
+    ordinaryLoss: [/^経常損失(金額)?$/],
+    netAssets: [/^純資産(の部)?(合計|計)$/, /^純資産$/],
+    cash: [/^現金(及び|および|・)?預金(合計|計)?$/, /^現預金(合計|計)?$/],
+    cashParts: [/^(現金|小口現金|当座預金|普通預金|定期預金|定期積金|通知預金|外貨預金|別段預金|その他の?預金)$/],
+    debt: [/^短期借入金$/, /^長期借入金$/, /^(1|一)年以内(に)?(返済(予定)?の?)?長期借入金$/],
+    execPay: [/^役員報酬$/],
+    rent: [/^地代家賃$/],
+    insuranceReserve: [/^保険積立金$/],
+  };
+
+  const AMOUNT_HEADERS = [/期末残高/, /当期残高/, /当月残高/, /残高/, /当期累計/, /当期金額/, /^金額$/, /当期/, /期末/];
+  const NAME_HEADERS = [/勘定科目/, /科目名?/, /^項目$/];
+
+  function detectColumns(rows) {
+    // 見出し行を探す
+    for (let i = 0; i < Math.min(rows.length, 15); i++) {
+      const cells = rows[i].map((x) => normName(x));
+      let nameIdx = -1;
+      for (const re of NAME_HEADERS) {
+        nameIdx = cells.findIndex((h) => re.test(h) && !/コード|番号|No/i.test(h));
+        if (nameIdx >= 0) break;
+      }
+      if (nameIdx < 0) continue;
+      for (const re of AMOUNT_HEADERS) {
+        const amtIdx = cells.findIndex((h, j) => j !== nameIdx && re.test(h) && !/前期|前月|比/.test(h));
+        if (amtIdx >= 0) return { headerRow: i, nameIdx, amtIdx, amtHeader: rows[i][amtIdx] };
+      }
+      return { headerRow: i, nameIdx, amtIdx: -1, amtHeader: '' };
+    }
+    return { headerRow: -1, nameIdx: -1, amtIdx: -1, amtHeader: '' };
+  }
+
+  function extract(text) {
+    const rows = splitRows(text);
+    const col = detectColumns(rows);
+    const items = [];
+    rows.forEach((r, i) => {
+      if (i <= col.headerRow) return;
+      let name = '';
+      let amount = null;
+      if (col.nameIdx >= 0) {
+        name = normName(r[col.nameIdx] || '');
+        if (!name) name = normName(r.find((x) => normName(x) && parseAmount(x) == null) || '');
+      } else {
+        name = normName(r.find((x) => normName(x) && parseAmount(x) == null) || '');
+      }
+      if (col.amtIdx >= 0) amount = parseAmount(r[col.amtIdx]);
+      if (amount == null) {
+        // 見出しが無い・空欄の場合は行の最後の数値
+        for (let j = r.length - 1; j >= 0; j--) { const v = parseAmount(r[j]); if (v != null) { amount = v; break; } }
+      }
+      if (name && amount != null) items.push({ name, amount });
+    });
+    return { items, col };
+  }
+
+  const first = (items, rules) => items.find((it) => rules.some((re) => re.test(it.name)));
+  const all = (items, rules) => items.filter((it) => rules.some((re) => re.test(it.name)));
+
+  /*
+   * 結果は「円」単位のまま返す（unit で万円換算は呼び出し側）
+   */
+  function analyzeText(text) {
+    const { items, col } = extract(text);
+    const found = {};
+    const src = {};
+    const set = (key, val, from) => { if (val != null && Number.isFinite(val)) { found[key] = val; src[key] = from; } };
+
+    const s = first(items, RULES.sales); if (s) set('sales', s.amount, s.name);
+
+    const op = first(items, RULES.opProfit);
+    const opl = first(items, RULES.opLoss);
+    if (op) set('opProfit', op.amount, op.name);
+    else if (opl) set('opProfit', -Math.abs(opl.amount), opl.name);
+    else {
+      const gp = first(items, RULES.grossProfit);
+      const sga = first(items, RULES.sga);
+      if (gp && sga) set('opProfit', gp.amount - sga.amount, `${gp.name}−${sga.name}`);
+    }
+
+    const ord = first(items, RULES.ordinaryProfit);
+    const ordl = first(items, RULES.ordinaryLoss);
+    if (ord) set('ordinaryProfit', ord.amount, ord.name);
+    else if (ordl) set('ordinaryProfit', -Math.abs(ordl.amount), ordl.name);
+
+    const na = first(items, RULES.netAssets); if (na) set('netAssets', na.amount, na.name);
+
+    const cash = first(items, RULES.cash);
+    if (cash) set('cash', cash.amount, cash.name);
+    else {
+      const parts = all(items, RULES.cashParts);
+      if (parts.length) set('cash', parts.reduce((t, p) => t + p.amount, 0), parts.map((p) => p.name).join('＋'));
+    }
+
+    const debts = all(items, RULES.debt);
+    if (debts.length) {
+      // 同名科目の重複（明細＋合計）を避ける
+      const seen = new Set();
+      const uniq = debts.filter((d) => (seen.has(d.name) ? false : seen.add(d.name)));
+      set('debt', uniq.reduce((t, d) => t + d.amount, 0), uniq.map((d) => d.name).join('＋'));
+    }
+
+    const ep = first(items, RULES.execPay); if (ep) set('execPayAnnual', ep.amount, ep.name);
+    const rent = first(items, RULES.rent); if (rent) set('rentAnnual', rent.amount, rent.name);
+    const ins = first(items, RULES.insuranceReserve); if (ins) set('insuranceReserve', ins.amount, ins.name);
+
+    return { found, src, itemCount: items.length, amountHeader: col.amtHeader };
+  }
+
+  // 円→万円の単位を推定（年商または最大値から）
+  function guessUnit(found) {
+    const ref = Math.abs(found.sales || Math.max(0, ...Object.values(found).map(Math.abs)));
+    if (ref >= 1e7) return 'yen';       // 1,000万円以上の円表記
+    if (ref >= 1e4) return 'thousand';  // 千円表記
+    return 'man';
+  }
+
+  const UNIT_DIV = { yen: 10000, thousand: 10, man: 1 };
+
+  /*
+   * クライアント項目への変換（万円）
+   * 年額の役員報酬・地代家賃は月額へ。期中の試算表の場合は months で年換算する。
+   */
+  function toClientFields(found, unit, months) {
+    const d = UNIT_DIV[unit] || 1;
+    const m = Math.max(1, Math.min(12, Number(months) || 12));
+    const annualize = 12 / m;
+    const r = (v) => Math.round(v / d);
+    const out = {};
+    if (found.sales != null) out.sales = Math.round((found.sales / d) * annualize);
+    if (found.opProfit != null) out.opProfit = Math.round((found.opProfit / d) * annualize);
+    if (found.ordinaryProfit != null) out.ordinaryProfit = Math.round((found.ordinaryProfit / d) * annualize);
+    if (found.netAssets != null) out.netAssets = r(found.netAssets);
+    if (found.cash != null) out.cash = r(found.cash);
+    if (found.debt != null) out.debt = r(found.debt);
+    if (found.execPayAnnual != null) out.execPayMonthly = Math.round(found.execPayAnnual / d / m);
+    if (found.rentAnnual != null) out.rentMonthly = Math.round(found.rentAnnual / d / m);
+    if (found.insuranceReserve != null) out.retireReserve = r(found.insuranceReserve);
+    return out;
+  }
+
+  const FIELD_LABELS = {
+    sales: '年商', opProfit: '営業利益', ordinaryProfit: '経常利益', netAssets: '純資産',
+    cash: '現預金', debt: '借入金残高', execPayMonthly: '役員報酬（月額）', rentMonthly: '月額家賃', retireReserve: '退職金準備額（保険積立金）',
+  };
+
+  // ファイル名から会社を推定
+  const stripCorp = (s) => normName(s).replace(/株式会社|有限会社|合同会社|医療法人社団|医療法人|社会福祉法人|一般社団法人|\(株\)|\(有\)|㈱|㈲/g, '');
+  function matchClient(fileName, clients) {
+    const f = stripCorp(fileName.replace(/\.[^.]+$/, ''));
+    let best = null;
+    clients.forEach((c) => {
+      const key = stripCorp(c.company);
+      if (key.length >= 2 && f.includes(key) && (!best || key.length > best.len)) best = { id: c.id, len: key.length };
+    });
+    return best ? best.id : '';
+  }
+
+  global.FinanceImport = { decode, analyzeText, guessUnit, toClientFields, matchClient, FIELD_LABELS, parseAmount };
+})(window);
+
+</script>
+  <script>
+/* app.js */
+(function () {
+  'use strict';
+
+  const { CATEGORIES, STATUSES, INDUSTRIES, NONLIFE_ITEMS, analyze, man } = window.Scoring;
+  const { DEFAULT_ASSUMPTIONS, clientFees, simulate } = window.Economics;
+  const FI = window.FinanceImport;
+  const STORE_KEY = 'crosssell.clients.v1';
+  const ASSUME_KEY = 'crosssell.assumptions';
+  const THEME_KEY = 'crosssell.theme';
+  const FILTER_KEY = 'crosssell.filters';
+
+  // ---------- 永続化 ----------
+  const store = {
+    get(key, fallback) {
+      try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+    },
+    set(key, value) {
+      try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
+    },
+  };
+
+  const BACKUP_KEY = 'crosssell.lastBackup';
+  const DIRTY_KEY = 'crosssell.lastSaved';
+  const NUM_KEYS = ['repAge', 'sales', 'opProfit', 'ordinaryProfit', 'netAssets', 'cash', 'debt', 'employees', 'execPayMonthly',
+    'tenureYears', 'deathCover', 'retireReserve', 'vehicles', 'rentMonthly', 'advisoryFee'];
+
+  // 取込・復元・旧バージョンのデータを、欠けた項目を補って正しい形に揃える
+  function normalizeClient(raw, usedIds) {
+    const base = blankClient();
+    const c = Object.assign(base, raw && typeof raw === 'object' ? raw : {});
+    NUM_KEYS.forEach((k) => { const v = Number(c[k]); c[k] = Number.isFinite(v) ? v : 0; });
+    ['company', 'rep', 'industry', 'firm', 'staff', 'successor', 'office', 'notes', 'lastContact'].forEach((k) => { c[k] = c[k] == null ? '' : String(c[k]); });
+    if (!INDUSTRIES.includes(c.industry)) c.industry = c.industry ? 'その他' : '建設業';
+    if (!['あり', '候補あり', 'なし', '未定'].includes(c.successor)) c.successor = '未定';
+    if (!['賃貸', '自社所有'].includes(c.office)) c.office = '賃貸';
+    c.growth = !!c.growth;
+    c.nonlife = Object.assign(blankClient().nonlife, c.nonlife && typeof c.nonlife === 'object' ? c.nonlife : {});
+    Object.keys(c.nonlife).forEach((k) => (c.nonlife[k] = !!c.nonlife[k]));
+    c.status = Object.assign(blankClient().status, c.status && typeof c.status === 'object' ? c.status : {});
+    Object.keys(c.status).forEach((k) => { if (!STATUSES.includes(c.status[k])) c.status[k] = '未着手'; });
+    if (raw && raw.advisoryFee == null) {
+      const s = window.SAMPLE_CLIENTS.find((x) => x.id === c.id && x.company === c.company);
+      if (s) c.advisoryFee = s.advisoryFee;
+    }
+    c.id = String(c.id || '');
+    if (usedIds) {
+      while (!c.id || usedIds.has(c.id)) c.id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      usedIds.add(c.id);
+    }
+    return c;
+  }
+  const normalizeAll = (list) => { const ids = new Set(); return (Array.isArray(list) ? list : []).filter((x) => x && typeof x === 'object').map((x) => normalizeClient(x, ids)); };
+
+  let clients = normalizeAll(store.get(STORE_KEY, null) || JSON.parse(JSON.stringify(window.SAMPLE_CLIENTS)));
+  function save() {
+    const ok = store.set(STORE_KEY, clients);
+    if (!ok) { toast('⚠ ブラウザに保存できませんでした。容量不足か保存禁止の設定です。バックアップを出力してください'); return; }
+    store.set(DIRTY_KEY, new Date().toISOString());
+  }
+  function markBackup() { store.set(BACKUP_KEY, new Date().toISOString()); }
+  let assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, store.get(ASSUME_KEY, {}));
+  assumptions.firms = Object.assign({}, assumptions.firms);
+  const saveAssumptions = () => store.set(ASSUME_KEY, assumptions);
+  const findClient = (id) => clients.find((c) => c.id === id);
+
+  let filters = Object.assign({ q: '', firm: '', industry: '', staff: '', minLevel: '' }, store.get(FILTER_KEY, {}));
+  let sort = { key: 'total', dir: -1 };
+
+  // ---------- ユーティリティ ----------
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const num = (v) => Math.round(Number(v) || 0).toLocaleString('ja-JP');
+  const heatClass = (s) => (s >= 80 ? 'h4' : s >= 60 ? 'h3' : s >= 40 ? 'h2' : s >= 20 ? 'h1' : 'h0');
+  const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+  const today = () => new Date().toISOString().slice(0, 10);
+
+  function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => (t.style.display = 'none'), 2200);
+  }
+
+  // ツールチップ
+  const tip = $('#tip');
+  document.addEventListener('mouseover', (e) => {
+    const el = e.target.closest('[data-tip]');
+    if (!el) { tip.style.display = 'none'; return; }
+    tip.innerHTML = el.getAttribute('data-tip');
+    tip.style.display = 'block';
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (tip.style.display !== 'block') return;
+    const pad = 14;
+    let x = e.clientX + pad;
+    let y = e.clientY + pad;
+    const r = tip.getBoundingClientRect();
+    if (x + r.width > window.innerWidth - 8) x = e.clientX - r.width - pad;
+    if (y + r.height > window.innerHeight - 8) y = e.clientY - r.height - pad;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  });
+
+  // ---------- テーマ ----------
+  const themeBtn = $('#themeBtn');
+  const themeLabels = { auto: '表示: 自動', light: '表示: ライト', dark: '表示: ダーク' };
+  function applyTheme(mode) {
+    if (mode === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', mode);
+    themeBtn.textContent = themeLabels[mode];
+  }
+  let theme = store.get(THEME_KEY, 'auto');
+  applyTheme(theme);
+  themeBtn.addEventListener('click', () => {
+    theme = theme === 'auto' ? 'light' : theme === 'light' ? 'dark' : 'auto';
+    store.set(THEME_KEY, theme);
+    applyTheme(theme);
+  });
+
+  // ---------- 分析結果のキャッシュ ----------
+  function rows() {
+    return clients.map((c) => { const a = analyze(c); return { c, a, f: clientFees(c, a, assumptions) }; });
+  }
+
+  function applyFilters(list) {
+    const q = filters.q.trim().toLowerCase();
+    const minScore = filters.minLevel === '高' ? 70 : filters.minLevel === '中' ? 40 : 0;
+    return list.filter(({ c, a }) => {
+      if (q && !(`${c.company} ${c.rep} ${c.notes}`.toLowerCase().includes(q))) return false;
+      if (filters.firm && c.firm !== filters.firm) return false;
+      if (filters.industry && c.industry !== filters.industry) return false;
+      if (filters.staff && c.staff !== filters.staff) return false;
+      if (minScore && !CATEGORIES.some((k) => a[k.key].score >= minScore)) return false;
+      return true;
+    });
+  }
+
+  function sortRows(list) {
+    const get = ({ c, a, f }) => {
+      if (sort.key === 'total') return a.total;
+      if (sort.key === 'expected') return f.expTotal;
+      if (a[sort.key]) return a[sort.key].score;
+      return c[sort.key];
+    };
+    return list.slice().sort((x, y) => {
+      const vx = get(x), vy = get(y);
+      if (typeof vx === 'string' || typeof vy === 'string') return String(vx ?? '').localeCompare(String(vy ?? ''), 'ja') * sort.dir;
+      return ((vx || 0) - (vy || 0)) * sort.dir;
+    });
+  }
+
+  function filterBar() {
+    const firms = uniq(clients.map((c) => c.firm));
+    const inds = uniq(clients.map((c) => c.industry));
+    const staffs = uniq(clients.map((c) => c.staff));
+    const opt = (list, val, label) => `<option value="">${label}</option>` + list.map((v) => `<option ${v === val ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    return `
+      <div class="filters" id="filters">
+        <input type="search" name="q" placeholder="会社名・代表者・メモで検索" value="${esc(filters.q)}" />
+        <select name="firm">${opt(firms, filters.firm, '引継ぎ元：すべて')}</select>
+        <select name="industry">${opt(inds, filters.industry, '業種：すべて')}</select>
+        <select name="staff">${opt(staffs, filters.staff, '担当：すべて')}</select>
+        <select name="minLevel">
+          <option value="">ニーズ：すべて</option>
+          <option value="中" ${filters.minLevel === '中' ? 'selected' : ''}>中以上が1つ以上</option>
+          <option value="高" ${filters.minLevel === '高' ? 'selected' : ''}>高が1つ以上</option>
+        </select>
+        <button class="btn small" type="button" id="clearFilters">条件クリア</button>
+      </div>`;
+  }
+
+  function bindFilters(rerender) {
+    const box = $('#filters');
+    if (!box) return;
+    box.addEventListener('input', (e) => {
+      if (!e.target.name) return;
+      filters[e.target.name] = e.target.value;
+      store.set(FILTER_KEY, filters);
+      rerender(e.target.name === 'q');
+    });
+    $('#clearFilters').addEventListener('click', () => {
+      filters = { q: '', firm: '', industry: '', staff: '', minLevel: '' };
+      store.set(FILTER_KEY, filters);
+      rerender(false);
+    });
+  }
+
+  function tipFor(c, cat, r) {
+    return `<b>${esc(c.company)}｜${esc(cat.label)} ${r.score}点（${r.level}）</b><ul>${r.reasons.slice(0, 4).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  }
+
+  // ---------- ダッシュボード ----------
+  function emptyState() {
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>ようこそ</h1><p>クライアントがまだ登録されていません。次のいずれかから始めてください。</p></div></div>
+      <div class="grid grid-kpi">
+        <a class="card kpi" href="#/settings" style="color:inherit"><h2>① 顧問先リストを一括登録</h2><p class="subline">引継ぎ元事務所の顧問先一覧をCSVで取り込みます</p></a>
+        <a class="card kpi" href="#/finance" style="color:inherit"><h2>② 試算表から登録</h2><p class="subline">会計ソフトのCSVから財務数値ごと登録します</p></a>
+        <a class="card kpi" href="#/new" style="color:inherit"><h2>③ 1社ずつ入力</h2><p class="subline">決算書を見ながら手入力します</p></a>
+        <a class="card kpi" href="#/settings" style="color:inherit"><h2>サンプルで試す</h2><p class="subline">「データ取込・出力」→「サンプルデータに戻す」</p></a>
+      </div>
+      <p class="subline">使い方は <a href="#/help">操作ガイド</a> をご覧ください。</p>`;
+  }
+
+  function renderDashboard(keepFocus) {
+    if (!clients.length) { emptyState(); return; }
+    const all = rows();
+    const list = sortRows(applyFilters(all));
+    const view = $('#view');
+
+    const count = (key, lv) => list.filter(({ a }) => a[key].level === lv).length;
+    const active = list.reduce((s, { c }) => s + CATEGORIES.filter((k) => ['提案準備', '提案中'].includes(c.status[k.key])).length, 0);
+    const won = list.reduce((s, { c }) => s + CATEGORIES.filter((k) => c.status[k.key] === '成約').length, 0);
+    const maValue = list.filter(({ a }) => a.ma.level === '高').reduce((s, { a }) => s + a.ma.metrics.value, 0);
+    const expOnce = list.reduce((s, { f }) => s + f.expOnce, 0);
+    const expRec = list.reduce((s, { f }) => s + f.expRecurring, 0);
+
+    const kpis = `
+      <div class="grid grid-kpi">
+        <div class="card kpi"><div class="kpi-label">対象クライアント</div><div class="kpi-value">${list.length}<small>社</small></div><div class="kpi-note">全${clients.length}社中</div></div>
+        ${CATEGORIES.map((k) => `
+          <div class="card kpi"><div class="kpi-label"><span class="dot ${k.key}"></span>${k.label}：高ニーズ</div>
+          <div class="kpi-value">${count(k.key, '高')}<small>社</small></div>
+          <div class="kpi-note">中ニーズ ${count(k.key, '中')}社</div></div>`).join('')}
+        <div class="card kpi"><div class="kpi-label">進行中 / 成約</div><div class="kpi-value">${active}<small>件</small> / ${won}<small>件</small></div><div class="kpi-note">提案準備＋提案中 / 成約</div></div>
+        <a class="card kpi" href="#/roi" style="color:inherit;text-decoration:none"><div class="kpi-label">クロスセル期待収益</div><div class="kpi-value">${num(expOnce)}<small>万円</small></div><div class="kpi-note">一時収益の期待値＋継続 年${num(expRec)}万円 →回収試算</div></a>
+      </div>`;
+
+    // カテゴリ別ニーズ分布（高＝濃色、中＝淡色）
+    const maxTotal = Math.max(1, list.length);
+    const bars = CATEGORIES.map((k) => {
+      const hi = count(k.key, '高');
+      const mid = count(k.key, '中');
+      const color = `var(--cat-${k.key})`;
+      return `
+        <div class="bar-row">
+          <div class="bar-label"><span class="dot ${k.key}"></span>${k.short}</div>
+          <div class="bar-track">
+            ${hi ? `<div class="bar-seg hi" style="width:${(hi / maxTotal) * 100}%;background:${color}" data-tip="<b>${k.label}：高ニーズ</b>${hi}社"></div>` : ''}
+            ${mid ? `<div class="bar-seg mid" style="width:${(mid / maxTotal) * 100}%;background:${color}" data-tip="<b>${k.label}：中ニーズ</b>${mid}社"></div>` : ''}
+          </div>
+          <div class="bar-val">高${hi}・中${mid}</div>
+        </div>`;
+    }).join('');
+
+    // 優先アクション（未着手・提案準備のうちスコアが高い順）
+    const actions = [];
+    list.forEach(({ c, a }) => CATEGORIES.forEach((k) => {
+      if (['未着手', '提案準備'].includes(c.status[k.key]) && a[k.key].score >= 40) {
+        actions.push({ c, k, r: a[k.key] });
+      }
+    }));
+    actions.sort((x, y) => y.r.score - x.r.score);
+    const top = actions.slice(0, 10).map(({ c, k, r }, i) => `
+      <li data-go="${c.id}" data-tip="${esc(tipFor(c, k, r))}">
+        <span class="rank">${i + 1}</span>
+        <div><div class="company">${esc(c.company)}</div>
+          <div class="what"><span class="dot ${k.key}"></span> ${k.label}：${esc(r.proposals[0] || r.reasons[0])}</div></div>
+        <div style="text-align:right"><span class="badge lv-${r.level}">${r.level} ${r.score}</span><div class="subline">${esc(c.status[k.key])}</div></div>
+      </li>`).join('') || '<li class="empty">該当する提案候補はありません</li>';
+
+    // ニーズ・マトリクス
+    const th = (key, label, cls = '') => `<th class="sortable ${cls}" data-sort="${key}">${label}${sort.key === key ? (sort.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`;
+    const matrix = list.map(({ c, a }) => `
+      <tr data-go="${c.id}">
+        <td><div class="company">${esc(c.company)}</div><div class="subline">${esc(c.rep)}（${c.repAge}歳）・${esc(c.industry)}</div></td>
+        <td><div>${esc(c.firm)}</div><div class="subline">担当 ${esc(c.staff)}</div></td>
+        <td class="num">${num(c.sales)}</td>
+        ${CATEGORIES.map((k) => {
+          const r = a[k.key];
+          return `<td class="heat-cell"><div class="heat ${heatClass(r.score)}" data-tip="${esc(tipFor(c, k, r))}"><span class="v">${r.score}</span><span class="s">${esc(c.status[k.key])}</span></div></td>`;
+        }).join('')}
+        <td class="heat-cell"><div class="heat ${heatClass(a.total)}"><span class="v">${a.total}</span><span class="s">総合</span></div></td>
+      </tr>`).join('');
+
+    view.innerHTML = `
+      <div class="page-head">
+        <div><h1>ダッシュボード</h1><p>承継したクライアントごとに、生命保険・損害保険・M&A・不動産のニーズを自動判定しています。</p></div>
+        <a class="btn primary" href="#/new">＋ クライアント追加</a>
+      </div>
+      ${backupBanner()}
+      ${filterBar()}
+      ${kpis}
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-head"><h2>カテゴリ別ニーズ分布</h2>
+            <div class="legend"><span class="item"><span class="sw" style="background:var(--text-2)"></span>高（70点〜）</span><span class="item"><span class="sw" style="background:var(--text-2);opacity:.45"></span>中（40〜69点）</span></div>
+          </div>
+          <div class="bars">${bars}</div>
+          ${maValue ? `<p class="notice" style="margin-top:14px">M&A高ニーズ先の簡易企業価値（時価純資産＋営業利益×3年）合計：<b>${man(maValue)}</b></p>` : ''}
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>優先アクション TOP10</h2><span class="sub">未着手・提案準備のうちスコア順</span></div>
+          <ul class="actions">${top}</ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>ニーズ・マトリクス（クライアント × 商品）</h2>
+          <div class="legend">
+            <span>スコア</span>
+            <span class="item"><span class="sw h0"></span>0-19</span>
+            <span class="item"><span class="sw h1"></span>20-39</span>
+            <span class="item"><span class="sw h2"></span>40-59</span>
+            <span class="item"><span class="sw h3"></span>60-79</span>
+            <span class="item"><span class="sw h4"></span>80-100</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              ${th('company', 'クライアント')}${th('firm', '引継ぎ元')}${th('sales', '年商（万円）', 'num')}
+              ${CATEGORIES.map((k) => th(k.key, `<span class="dot ${k.key}"></span> ${k.label}`)).join('')}
+              ${th('total', '総合')}
+            </tr></thead>
+            <tbody>${matrix || '<tr><td colspan="8" class="empty">条件に合うクライアントがいません</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>`;
+
+    bindCommon(renderDashboard);
+    if (keepFocus) { const q = $('#filters input[name=q]'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  }
+
+  // ---------- クライアント一覧 ----------
+  function renderClients(keepFocus) {
+    const list = sortRows(applyFilters(rows()));
+    const th = (key, label, cls = '') => `<th class="sortable ${cls}" data-sort="${key}">${label}${sort.key === key ? (sort.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`;
+    const body = list.map(({ c, a, f }) => `
+      <tr data-go="${c.id}">
+        <td><div class="company">${esc(c.company)}</div><div class="subline">${esc(c.firm)}</div></td>
+        <td>${esc(c.rep)}<div class="subline">${c.repAge}歳・後継者 ${esc(c.successor)}</div></td>
+        <td>${esc(c.industry)}</td>
+        <td>${esc(c.staff)}</td>
+        <td class="num">${num(c.sales)}</td>
+        <td class="num">${num(c.opProfit)}</td>
+        <td class="num">${num(c.cash)}</td>
+        <td class="num">${num(c.debt)}</td>
+        ${CATEGORIES.map((k) => `<td><span class="badge lv-${a[k.key].level}" data-tip="${esc(tipFor(c, k, a[k.key]))}">${a[k.key].level} ${a[k.key].score}</span></td>`).join('')}
+        <td class="num"><b>${a.total}</b></td>
+        <td class="num" data-tip="${esc(`<b>期待収益（万円）</b>一時 ${num(f.expOnce)}＋継続 年${num(f.expRecurring)}×5年`)}">${num(f.expTotal)}</td>
+        <td><a class="btn small" href="#/edit/${c.id}" data-stop>編集</a></td>
+      </tr>`).join('');
+
+    $('#view').innerHTML = `
+      <div class="page-head">
+        <div><h1>クライアント一覧</h1><p>${list.length}社表示（全${clients.length}社）。金額単位は万円。行をクリックすると詳細・提案メモを表示します。</p></div>
+        <div style="display:flex;gap:8px"><button class="btn" id="exportCsv" type="button">CSV出力</button><a class="btn primary" href="#/new">＋ 追加</a></div>
+      </div>
+      ${filterBar()}
+      <div class="card"><div class="table-wrap"><table>
+        <thead><tr>
+          ${th('company', '会社名')}${th('repAge', '代表者')}${th('industry', '業種')}${th('staff', '担当')}
+          ${th('sales', '年商', 'num')}${th('opProfit', '営業利益', 'num')}${th('cash', '現預金', 'num')}${th('debt', '借入金', 'num')}
+          ${CATEGORIES.map((k) => th(k.key, k.short)).join('')}${th('total', '総合', 'num')}${th('expected', '期待収益', 'num')}<th></th>
+        </tr></thead>
+        <tbody>${body || '<tr><td colspan="15" class="empty">条件に合うクライアントがいません</td></tr>'}</tbody>
+      </table></div></div>`;
+
+    $('#exportCsv').addEventListener('click', () => downloadCsv(list.map((r) => r.c)));
+    bindCommon(renderClients);
+    if (keepFocus) { const q = $('#filters input[name=q]'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  }
+
+  function bindCommon(rerender) {
+    bindFilters(rerender);
+    document.querySelectorAll('[data-sort]').forEach((el) => el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const key = el.getAttribute('data-sort');
+      sort = sort.key === key ? { key, dir: -sort.dir } : { key, dir: ['company', 'firm', 'industry', 'staff'].includes(key) ? 1 : -1 };
+      rerender(false);
+    }));
+    document.querySelectorAll('[data-go]').forEach((el) => el.addEventListener('click', (e) => {
+      if (e.target.closest('[data-stop]')) return;
+      location.hash = '#/client/' + el.getAttribute('data-go');
+    }));
+  }
+
+  // ---------- クライアント詳細 ----------
+  function renderDetail(id) {
+    const c = findClient(id);
+    if (!c) { $('#view').innerHTML = '<div class="empty">クライアントが見つかりません。<a href="#/clients">一覧へ戻る</a></div>'; return; }
+    const a = analyze(c);
+    const f = clientFees(c, a, assumptions);
+
+    const metricText = (k, r) => {
+      const m = r.metrics;
+      if (k === 'life') return [`事業保障の必要額 ${man(m.need)}`, `不足 ${man(m.gap)}`, `退職金目安 ${man(m.retireTarget)}`, `準備不足 ${man(m.retireGap)}`];
+      if (k === 'nonlife') return [`未加入の重要補償 ${m.missingCount}件`];
+      if (k === 'ma') return [`方向性：${m.type}`, `簡易企業価値 ${man(m.value)}`, `譲渡ニーズ ${m.sell}点`, `買収ニーズ ${m.buy}点`];
+      if (k === 're') return m.budget ? [`取得予算の目安 ${man(m.budget)}`] : [];
+      return [];
+    };
+
+    const cards = CATEGORIES.map((k) => {
+      const r = a[k.key];
+      return `
+        <div class="card need-card ${k.key}">
+          <div class="card-head"><h2>${k.label}</h2><span class="badge lv-${r.level}">ニーズ ${r.level}</span></div>
+          <div class="score-line"><span class="score-big">${r.score}</span><div class="meter"><span style="width:${r.score}%;background:var(--cat-${k.key})"></span></div></div>
+          <div>${metricText(k.key, r).map((t) => `<span class="metric">${esc(t)}</span>`).join('')}</div>
+          <div class="label-sm">判定理由</div>
+          <ul>${r.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+          <div class="label-sm">想定手数料</div>
+          <div class="subline">${f[k.key].once ? `一時 ${num(f[k.key].once)}万円` : ''}${f[k.key].once && f[k.key].recurring ? '・' : ''}${f[k.key].recurring ? `継続 年${num(f[k.key].recurring)}万円` : ''}${!f[k.key].once && !f[k.key].recurring ? '—' : ''}　成約確率 ${Math.round(f[k.key].prob * 100)}%<br>${esc(f[k.key].basis)}</div>
+          ${r.proposals.length ? `<div class="label-sm">提案メニュー</div><ul>${r.proposals.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+          <div class="label-sm">進捗</div>
+          <select data-status="${k.key}">${STATUSES.map((s) => `<option ${c.status[k.key] === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        </div>`;
+    }).join('');
+
+    const nl = NONLIFE_ITEMS.map((i) => `${i.label}${c.nonlife[i.key] ? '○' : '×'}`).join('　');
+
+    $('#view').innerHTML = `
+      <div class="page-head">
+        <div><a href="#/dashboard">← ダッシュボード</a><h1 style="margin-top:6px">${esc(c.company)}</h1>
+          <p>${esc(c.rep)}（${c.repAge}歳）・${esc(c.industry)}・引継ぎ元 ${esc(c.firm)}・担当 ${esc(c.staff)}</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" type="button" onclick="window.print()">提案メモを印刷</button>
+          <a class="btn" href="#/edit/${c.id}">編集</a>
+          <button class="btn danger" type="button" id="delBtn">削除</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>会社プロフィール</h2><span class="sub">金額単位：万円　総合スコア <b>${a.total}</b></span></div>
+        <dl class="profile">
+          <div><dt>年商</dt><dd>${num(c.sales)}</dd></div>
+          <div><dt>営業利益 / 経常利益</dt><dd>${num(c.opProfit)} / ${num(c.ordinaryProfit)}</dd></div>
+          <div><dt>純資産</dt><dd>${num(c.netAssets)}</dd></div>
+          <div><dt>現預金 / 借入金</dt><dd>${num(c.cash)} / ${num(c.debt)}</dd></div>
+          <div><dt>従業員 / 車両</dt><dd>${num(c.employees)}名 / ${num(c.vehicles)}台</dd></div>
+          <div><dt>役員報酬（月額）/ 在任</dt><dd>${num(c.execPayMonthly)} / ${num(c.tenureYears)}年</dd></div>
+          <div><dt>後継者 / 拡大志向</dt><dd>${esc(c.successor)} / ${c.growth ? 'あり' : 'なし'}</dd></div>
+          <div><dt>事務所</dt><dd>${esc(c.office)}${c.office === '賃貸' ? `（家賃 月${num(c.rentMonthly)}）` : ''}</dd></div>
+          <div><dt>死亡保障 / 退職金準備</dt><dd>${num(c.deathCover)} / ${num(c.retireReserve)}</dd></div>
+          <div><dt>顧問料（年額）</dt><dd>${num(c.advisoryFee)}</dd></div>
+        </dl>
+        ${c.finSource ? `<p class="subline">財務数値：${esc(c.finSource.file)}（${esc(c.finSource.date)} 取込）</p>` : ''}
+        <p class="subline" style="margin-top:10px">損保加入状況：${esc(nl)}</p>
+      </div>
+      <div class="detail-grid" style="margin-top:16px">${cards}</div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>面談メモ</h2>
+          <label class="subline">最終接触日 <input type="date" id="lastContact" value="${esc(c.lastContact)}" /></label></div>
+        <textarea id="notes" placeholder="社長の関心事、家族構成、次回アポ予定など">${esc(c.notes)}</textarea>
+        <div style="margin-top:8px"><button class="btn primary" type="button" id="saveNotes">メモを保存</button></div>
+      </div>`;
+
+    document.querySelectorAll('[data-status]').forEach((sel) => sel.addEventListener('change', () => {
+      c.status[sel.getAttribute('data-status')] = sel.value;
+      if (!c.lastContact) c.lastContact = today();
+      save();
+      toast('進捗を更新しました');
+    }));
+    $('#saveNotes').addEventListener('click', () => {
+      c.notes = $('#notes').value;
+      c.lastContact = $('#lastContact').value;
+      save();
+      toast('メモを保存しました');
+    });
+    $('#delBtn').addEventListener('click', () => {
+      if (!confirm(`${c.company} を削除しますか？`)) return;
+      clients = clients.filter((x) => x.id !== c.id);
+      save();
+      location.hash = '#/clients';
+    });
+  }
+
+  // ---------- 追加・編集フォーム ----------
+  const FIELDS = [
+    { sec: '基本情報', key: 'company', label: '会社名', type: 'text', req: true },
+    { sec: '基本情報', key: 'rep', label: '代表者名', type: 'text' },
+    { sec: '基本情報', key: 'repAge', label: '代表者年齢', type: 'number', unit: '歳' },
+    { sec: '基本情報', key: 'industry', label: '業種', type: 'select', options: INDUSTRIES },
+    { sec: '基本情報', key: 'firm', label: '引継ぎ元事務所', type: 'text', hint: 'M&Aで承継した事務所名' },
+    { sec: '基本情報', key: 'staff', label: '担当者', type: 'text' },
+    { sec: '基本情報', key: 'advisoryFee', label: '顧問料（年額・万円）', type: 'number', hint: '決算料込み。回収シミュレーションに使用' },
+    { sec: '財務（万円）', key: 'sales', label: '年商', type: 'number' },
+    { sec: '財務（万円）', key: 'opProfit', label: '営業利益', type: 'number' },
+    { sec: '財務（万円）', key: 'ordinaryProfit', label: '経常利益', type: 'number' },
+    { sec: '財務（万円）', key: 'netAssets', label: '純資産（時価目安）', type: 'number' },
+    { sec: '財務（万円）', key: 'cash', label: '現預金', type: 'number' },
+    { sec: '財務（万円）', key: 'debt', label: '借入金残高', type: 'number' },
+    { sec: '財務（万円）', key: 'employees', label: '従業員数', type: 'number', unit: '名' },
+    { sec: '社長・承継', key: 'execPayMonthly', label: '役員報酬（月額・万円）', type: 'number' },
+    { sec: '社長・承継', key: 'tenureYears', label: '役員在任年数', type: 'number', unit: '年' },
+    { sec: '社長・承継', key: 'successor', label: '後継者', type: 'select', options: ['あり', '候補あり', 'なし', '未定'] },
+    { sec: '社長・承継', key: 'growth', label: '拡大志向（買収・新規出店等に意欲）', type: 'check' },
+    { sec: '生命保険の加入状況（万円）', key: 'deathCover', label: '法人契約の死亡保障額', type: 'number' },
+    { sec: '生命保険の加入状況（万円）', key: 'retireReserve', label: '退職金準備額（解約返戻金等）', type: 'number' },
+    { sec: '損害保険の加入状況', key: 'vehicles', label: '保有車両数', type: 'number', unit: '台' },
+    { sec: '不動産', key: 'office', label: '本社・事務所', type: 'select', options: ['賃貸', '自社所有'] },
+    { sec: '不動産', key: 'rentMonthly', label: '月額家賃（万円）', type: 'number' },
+  ];
+
+  function blankClient() {
+    return {
+      id: 'c' + Date.now().toString(36), company: '', rep: '', repAge: 55, industry: '建設業', firm: '', staff: '',
+      sales: 0, opProfit: 0, ordinaryProfit: 0, netAssets: 0, cash: 0, debt: 0, employees: 0,
+      execPayMonthly: 0, tenureYears: 0, successor: '未定', growth: false, deathCover: 0, retireReserve: 0,
+      nonlife: { liability: false, property: false, auto: false, workers: false, cyber: false },
+      vehicles: 0, office: '賃貸', rentMonthly: 0, advisoryFee: 0,
+      status: { life: '未着手', nonlife: '未着手', ma: '未着手', re: '未着手' }, notes: '', lastContact: '',
+    };
+  }
+
+  function renderForm(id) {
+    const existing = id ? findClient(id) : null;
+    if (id && !existing) { $('#view').innerHTML = '<div class="empty">クライアントが見つかりません。</div>'; return; }
+    const c = existing ? JSON.parse(JSON.stringify(existing)) : blankClient();
+    const secs = [...new Set(FIELDS.map((f) => f.sec))];
+
+    const fieldHtml = (f) => {
+      const v = c[f.key];
+      if (f.type === 'check') return `<div class="field"><label>&nbsp;</label><div class="checks"><label><input type="checkbox" name="${f.key}" ${v ? 'checked' : ''}/> ${f.label}</label></div></div>`;
+      if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select name="${f.key}">${f.options.map((o) => `<option ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+      return `<div class="field"><label>${f.label}${f.unit ? `（${f.unit}）` : ''}${f.req ? ' *' : ''}</label><input type="${f.type}" name="${f.key}" value="${esc(v)}" ${f.req ? 'required' : ''} ${f.type === 'number' ? 'step="any"' : ''}/>${f.hint ? `<div class="hint">${f.hint}</div>` : ''}</div>`;
+    };
+
+    const sections = secs.map((s) => {
+      let inner = `<div class="form-grid">${FIELDS.filter((f) => f.sec === s).map(fieldHtml).join('')}</div>`;
+      if (s === '損害保険の加入状況') {
+        inner = `<div class="checks" style="margin-bottom:12px">${NONLIFE_ITEMS.map((i) => `<label><input type="checkbox" name="nl_${i.key}" ${c.nonlife[i.key] ? 'checked' : ''}/> ${i.label}</label>`).join('')}</div>` + inner;
+      }
+      return `<fieldset class="card form-section"><div class="card-head"><h2>${s}</h2></div>${inner}</fieldset>`;
+    }).join('');
+
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>${existing ? 'クライアント編集' : 'クライアント追加'}</h1><p>決算書・申告書から転記してください。入力内容から各ニーズを自動判定します。</p></div></div>
+      <form id="clientForm">${sections}
+        <div style="margin-top:16px;display:flex;gap:8px"><button class="btn primary" type="submit">保存してニーズを判定</button><a class="btn" href="${existing ? '#/client/' + c.id : '#/clients'}">キャンセル</a></div>
+      </form>`;
+
+    $('#clientForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      FIELDS.forEach((f) => {
+        if (f.type === 'check') c[f.key] = fd.has(f.key);
+        else if (f.type === 'number') c[f.key] = Number(fd.get(f.key)) || 0;
+        else c[f.key] = String(fd.get(f.key) || '').trim();
+      });
+      NONLIFE_ITEMS.forEach((i) => (c.nonlife[i.key] = fd.has('nl_' + i.key)));
+      if (c.office !== '賃貸') c.rentMonthly = 0;
+      if (existing) Object.assign(existing, c); else clients.push(c);
+      save();
+      toast('保存しました');
+      location.hash = '#/client/' + c.id;
+    });
+  }
+
+  // ---------- 提案パイプライン ----------
+  let pipeCat = '';
+  function renderPipeline(keepFocus) {
+    const list = applyFilters(rows());
+    const items = [];
+    list.forEach(({ c, a }) => CATEGORIES.forEach((k) => {
+      if (pipeCat && pipeCat !== k.key) return;
+      const st = c.status[k.key];
+      if (st === '未着手' && a[k.key].score < 40) return; // ニーズ低の未着手は表示しない
+      items.push({ c, k, r: a[k.key], st });
+    }));
+
+    const cols = STATUSES.map((s) => {
+      const its = items.filter((i) => i.st === s).sort((x, y) => y.r.score - x.r.score);
+      return `<div class="col"><div class="col-head">${s}<span>${its.length}件</span></div>
+        ${its.map(({ c, k, r }) => `
+          <div class="kcard ${k.key}" data-go="${c.id}" data-tip="${esc(tipFor(c, k, r))}">
+            <div class="t">${esc(c.company)}</div>
+            <div class="m"><span>${k.label}</span><span class="badge lv-${r.level}">${r.level} ${r.score}</span></div>
+            <select data-stop data-pid="${c.id}" data-pk="${k.key}" style="margin-top:6px;width:100%;padding:3px 6px;font-size:12px">
+              ${STATUSES.map((x) => `<option ${x === s ? 'selected' : ''}>${x}</option>`).join('')}
+            </select>
+          </div>`).join('')}
+      </div>`;
+    }).join('');
+
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>提案パイプライン</h1><p>ニーズ「中」以上の未着手案件と、着手済みの全案件を進捗別に表示します。</p></div>
+        <select id="pipeCat"><option value="">商品：すべて</option>${CATEGORIES.map((k) => `<option value="${k.key}" ${pipeCat === k.key ? 'selected' : ''}>${k.label}</option>`).join('')}</select>
+      </div>
+      ${filterBar()}
+      <div class="kanban">${cols}</div>`;
+
+    $('#pipeCat').addEventListener('change', (e) => { pipeCat = e.target.value; renderPipeline(false); });
+    document.querySelectorAll('select[data-pid]').forEach((sel) => {
+      sel.addEventListener('click', (e) => e.stopPropagation());
+      sel.addEventListener('change', () => {
+        const c = findClient(sel.getAttribute('data-pid'));
+        c.status[sel.getAttribute('data-pk')] = sel.value;
+        if (!c.lastContact) c.lastContact = today();
+        save();
+        toast('進捗を更新しました');
+        renderPipeline(false);
+      });
+    });
+    bindCommon(renderPipeline);
+    if (keepFocus) { const q = $('#filters input[name=q]'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
+  }
+
+  // ---------- CSV ----------
+  const CSV_COLS = [
+    ...FIELDS.map((f) => ({ key: f.key, label: f.label, type: f.type })),
+    ...NONLIFE_ITEMS.map((i) => ({ key: 'nonlife.' + i.key, label: '加入_' + i.label, type: 'check' })),
+    ...CATEGORIES.map((k) => ({ key: 'status.' + k.key, label: '進捗_' + k.label, type: 'text' })),
+    { key: 'lastContact', label: '最終接触日', type: 'text' },
+    { key: 'notes', label: 'メモ', type: 'text' },
+    { key: 'id', label: 'ID', type: 'text' },
+  ];
+  const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o);
+  const setPath = (o, p, v) => { const ks = p.split('.'); const last = ks.pop(); ks.reduce((x, k) => (x[k] = x[k] || {}), o)[last] = v; };
+  const csvCell = (v) => { const s = String(v ?? ''); return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+
+  function toCsv(list) {
+    const head = CSV_COLS.map((c) => csvCell(c.label)).join(',');
+    const body = list.map((cl) => CSV_COLS.map((col) => {
+      const v = getPath(cl, col.key);
+      return csvCell(col.type === 'check' ? (v ? '1' : '0') : v);
+    }).join(','));
+    return [head, ...body].join('\r\n');
+  }
+
+  function download(name, text, type) {
+    const blob = new Blob([type.includes('csv') ? '﻿' + text : text], { type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+  const downloadCsv = (list) => download(`クライアント一覧_${today()}.csv`, toCsv(list), 'text/csv;charset=utf-8');
+
+  function parseCsv(text) {
+    const out = [];
+    let row = [], cell = '', q = false;
+    text = text.replace(/^﻿/, '');
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) {
+        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') q = false;
+        else cell += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); out.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); out.push(row); }
+    return out.filter((r) => r.some((x) => x.trim() !== ''));
+  }
+
+  function importCsv(text, mode) {
+    const data = parseCsv(text);
+    if (data.length < 2) throw new Error('データ行がありません');
+    const head = data[0].map((h) => h.trim());
+    const idx = CSV_COLS.map((col) => head.indexOf(col.label));
+    if (idx[0] < 0) throw new Error('「会社名」列が見つかりません。テンプレートの見出しを使用してください');
+    const cell = (r, key) => { const j = idx[CSV_COLS.findIndex((col) => col.key === key)]; return j >= 0 ? String(r[j] ?? '').trim() : ''; };
+    const imported = data.slice(1).map((r, n) => {
+      // 追加・上書きモードでは既存データを土台にし、CSVに無い列は既存値を残す
+      const id = cell(r, 'id');
+      const company = cell(r, 'company');
+      const existing = mode === 'merge' ? clients.find((x) => (id && x.id === id) || (company && x.company === company)) : null;
+      const c = existing ? JSON.parse(JSON.stringify(existing)) : blankClient();
+      if (!existing) c.id = id || 'i' + Date.now().toString(36) + n;
+      CSV_COLS.forEach((col, j) => {
+        if (idx[j] < 0 || col.key === 'id') return;
+        const raw = String(r[idx[j]] ?? '').trim();
+        let v = raw;
+        if (col.type === 'number') v = Number(raw.replace(/[,，]/g, '')) || 0;
+        if (col.type === 'check') v = ['1', 'true', 'TRUE', '○', 'あり', '有'].includes(raw);
+        if (col.key.startsWith('status.') && !STATUSES.includes(raw)) v = existing ? getPath(existing, col.key) : '未着手';
+        setPath(c, col.key, v);
+      });
+      return { c, existing };
+    }).filter(({ c }) => c.company);
+    if (mode === 'replace') clients = normalizeAll(imported.map((x) => x.c));
+    else {
+      imported.forEach(({ c, existing }) => {
+        const i = existing ? clients.indexOf(existing) : -1;
+        if (i >= 0) clients[i] = c; else clients.push(c);
+      });
+      clients = normalizeAll(clients);
+    }
+    save();
+    return imported.length;
+  }
+
+  // ---------- データ取込・出力 ----------
+  function lastBackupText() {
+    const d = store.get(BACKUP_KEY, null);
+    return d ? d.slice(0, 10) : '未実施';
+  }
+  function backupBanner() {
+    const saved = store.get(DIRTY_KEY, null);
+    if (!saved) return '';
+    const last = store.get(BACKUP_KEY, null);
+    if (last && last >= saved) return '';
+    const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : null;
+    if (last && days < 7) return '';
+    return `<div class="notice warn-box" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <span>⚠ ${last ? `最後のバックアップから${days}日経過しています。` : 'まだバックアップがありません。'}データはこのブラウザの中だけに保存されています。</span>
+      <a class="btn small" href="#/settings">バックアップする</a></div>`;
+  }
+
+  function renderSettings() {
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>データ取込・出力</h1><p>データはこのブラウザ内（localStorage）に保存されます。定期的にバックアップを出力してください。</p></div></div>
+      <div class="card">
+        <div class="card-head"><h2>CSVで取り込む</h2><span class="sub">引継ぎ元事務所の顧問先リストを一括登録</span></div>
+        <p>テンプレートをダウンロードし、Excel等で入力してから取り込んでください（金額は万円、加入状況は 1/0）。同じ会社名・IDの行は上書きされます。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="btn" id="tpl" type="button">テンプレートCSVをダウンロード</button>
+          <input type="file" id="csvFile" accept=".csv,text/csv" />
+          <select id="csvMode"><option value="merge">追加・上書き</option><option value="replace">全件入れ替え</option></select>
+          <button class="btn primary" id="csvImport" type="button">取り込む</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>出力・バックアップ</h2><span class="sub">最終バックアップ：${lastBackupText()}</span></div>
+        <p>バックアップには全クライアントと回収シミュレーションの前提条件が含まれます。別のパソコンへの移行もこのファイルで行えます。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="csvOut" type="button">全件をCSV出力</button>
+          <button class="btn primary" id="jsonOut" type="button">バックアップを保存（JSON）</button>
+          <label class="btn">JSONから復元<input type="file" id="jsonIn" accept=".json,application/json" hidden /></label>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>初期化</h2></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="resetSample" type="button">サンプルデータに戻す</button>
+          <button class="btn danger" id="clearAll" type="button">全データを削除</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>判定ロジックと留意事項</h2></div>
+        <ul>
+          <li><b>生命保険</b>：事業保障必要額（借入金＋年商15%−現預金×50%）と加入保障額の差、役員退職金目安（月額報酬×65歳時の在任年数×功績倍率3.0）と準備額の差、利益水準、相続納税資金。</li>
+          <li><b>損害保険</b>：業種別の重要補償（賠償・財物休業・自動車・労災上乗せ・サイバー）の未加入割合、従業員数・車両台数。</li>
+          <li><b>M&A・事業承継</b>：社長年齢×後継者の有無による譲渡・承継ニーズと、拡大志向×利益×現預金による買収ニーズの高い方。簡易企業価値は時価純資産＋営業利益×3年。</li>
+          <li><b>不動産購入</b>：賃貸事務所の家賃水準（自社ビル）、月商3ヶ月超の余剰資金（収益不動産）、社長年齢×純資産（相続対策）、利益水準。</li>
+        </ul>
+        <p class="notice">本アプリのスコアは提案の優先順位付けのための目安です。保険募集は保険募集人登録、不動産の売買仲介は宅地建物取引業免許、M&A仲介は中小M&Aガイドラインに沿った体制が必要です。税理士としての守秘義務の観点から、クライアント情報を提携先へ共有する際は事前に本人同意を得てください。</p>
+      </div>`;
+
+    $('#tpl').addEventListener('click', () => download('クライアント取込テンプレート.csv', toCsv([Object.assign(blankClient(), { company: '（例）株式会社サンプル', rep: '見本 太郎', firm: '旧〇〇会計事務所', id: '' })]), 'text/csv;charset=utf-8'));
+    $('#csvOut').addEventListener('click', () => downloadCsv(clients));
+    $('#csvImport').addEventListener('click', () => {
+      const f = $('#csvFile').files[0];
+      if (!f) { toast('CSVファイルを選択してください'); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        try { const n = importCsv(reader.result, $('#csvMode').value); toast(`${n}社を取り込みました`); }
+        catch (err) { alert('取り込みに失敗しました：' + err.message); }
+      };
+      reader.readAsText(f, 'utf-8');
+    });
+    $('#jsonOut').addEventListener('click', () => {
+      download(`crosssell_backup_${today()}.json`, JSON.stringify({ app: 'crosssell', version: 1, exportedAt: new Date().toISOString(), clients, assumptions }, null, 2), 'application/json');
+      markBackup();
+    });
+    $('#jsonIn').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          const list = Array.isArray(data) ? data : data && Array.isArray(data.clients) ? data.clients : null;
+          if (!list) throw new Error('形式が正しくありません');
+          if (!confirm(`現在のデータを、バックアップの${list.length}社で置き換えますか？`)) return;
+          clients = normalizeAll(list);
+          if (data.assumptions) { assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, data.assumptions); assumptions.firms = Object.assign({}, assumptions.firms); saveAssumptions(); }
+          save(); toast(`${clients.length}社を復元しました`);
+        } catch (err) { alert('復元に失敗しました：' + err.message); }
+      };
+      reader.readAsText(f, 'utf-8');
+    });
+    $('#resetSample').addEventListener('click', () => {
+      if (!confirm('現在のデータを破棄してサンプルデータに戻しますか？')) return;
+      clients = JSON.parse(JSON.stringify(window.SAMPLE_CLIENTS)); save(); toast('サンプルデータに戻しました');
+    });
+    $('#clearAll').addEventListener('click', () => {
+      if (!confirm('全クライアントを削除しますか？（元に戻せません）')) return;
+      clients = []; save(); toast('全データを削除しました');
+    });
+  }
+
+  // ---------- グラフ部品（SVG） ----------
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  function niceTicks(min, max, count = 5) {
+    if (min === max) { min -= 1; max += 1; }
+    const span = max - min;
+    const step0 = span / count;
+    const mag = Math.pow(10, Math.floor(Math.log10(step0)));
+    const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => span / s <= count) || mag * 10;
+    const lo = Math.floor(min / step) * step;
+    const hi = Math.ceil(max / step) * step;
+    const ticks = [];
+    for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Math.round(v));
+    return ticks;
+  }
+  const svgEl = (tag, attrs) => { const e = document.createElementNS(SVGNS, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); return e; };
+
+  function showTip(html, ev) {
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    const r = tip.getBoundingClientRect();
+    let x = ev.clientX + 14, y = ev.clientY + 14;
+    if (x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - 14;
+    if (y + r.height > window.innerHeight - 8) y = ev.clientY - r.height - 14;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+
+  function drawFrame(el, H, yTicks, xs, xLabel) {
+    const W = Math.max(320, el.clientWidth);
+    const m = { l: 64, r: 70, t: 26, b: 30 };
+    const svg = svgEl('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img' });
+    const y0 = yTicks[0], y1 = yTicks[yTicks.length - 1];
+    const Y = (v) => m.t + (H - m.t - m.b) * (1 - (v - y0) / (y1 - y0));
+    yTicks.forEach((t) => {
+      svg.appendChild(svgEl('line', { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), stroke: t === 0 ? 'var(--text-2)' : 'var(--border)', 'stroke-width': t === 0 ? 1.5 : 1 }));
+      const tx = svgEl('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' });
+      tx.textContent = t.toLocaleString('ja-JP');
+      svg.appendChild(tx);
+    });
+    const unit = svgEl('text', { x: m.l - 8, y: 11, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--muted)' });
+    unit.textContent = '万円';
+    svg.appendChild(unit);
+    xs.forEach(({ x, label }) => {
+      const tx = svgEl('text', { x, y: H - 10, 'text-anchor': 'middle', 'font-size': 11, fill: 'var(--muted)' });
+      tx.textContent = label;
+      svg.appendChild(tx);
+    });
+    el.innerHTML = '';
+    el.appendChild(svg);
+    return { svg, W, H, m, Y };
+  }
+
+  // 累計キャッシュフローの折れ線（買収価格を0年目にマイナス計上）
+  function lineChart(el, sim, series) {
+    const start = -sim.price - sim.integration;
+    const pts = [{ year: 0 }, ...sim.rows].map((r) => {
+      const o = { year: r.year };
+      series.forEach((s) => (o[s.key] = r.year === 0 ? start : r[s.key]));
+      return o;
+    });
+    const vals = pts.flatMap((p) => series.map((s) => p[s.key])).concat([0]);
+    const ticks = niceTicks(Math.min(...vals), Math.max(...vals));
+    const N = sim.rows.length;
+    const W0 = Math.max(320, el.clientWidth);
+    const X = (t) => 64 + (W0 - 64 - 70) * (t / N);
+    const f = drawFrame(el, 280, ticks, pts.map((p) => ({ x: X(p.year), label: p.year === 0 ? '買収時' : `${p.year}年` })));
+    series.forEach((s) => {
+      const d = pts.map((p, i) => `${i ? 'L' : 'M'}${X(p.year)},${f.Y(p[s.key])}`).join(' ');
+      f.svg.appendChild(svgEl('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-dasharray': s.dash || '' }));
+      const last = pts[pts.length - 1];
+      const lab = svgEl('text', { x: X(last.year) + 6, y: f.Y(last[s.key]) + 4, 'font-size': 11, fill: 'var(--text-2)' });
+      lab.textContent = s.short;
+      f.svg.appendChild(lab);
+    });
+    // 回収ポイント
+    series.forEach((s) => {
+      const pb = s.payback;
+      if (pb == null) return;
+      const cx = X(pb), cy = f.Y(0);
+      f.svg.appendChild(svgEl('circle', { cx, cy, r: 5, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 2 }));
+    });
+    // ホバー
+    const guide = svgEl('line', { y1: f.m.t, y2: f.H - f.m.b, stroke: 'var(--text-2)', 'stroke-width': 1, visibility: 'hidden' });
+    f.svg.appendChild(guide);
+    const dots = series.map((s) => { const c = svgEl('circle', { r: 5, fill: s.color, stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }); f.svg.appendChild(c); return c; });
+    const hit = svgEl('rect', { x: f.m.l, y: 0, width: f.W - f.m.l - f.m.r, height: f.H, fill: 'transparent' });
+    f.svg.appendChild(hit);
+    hit.addEventListener('mousemove', (ev) => {
+      const box = f.svg.getBoundingClientRect();
+      const t = Math.max(0, Math.min(N, Math.round(((ev.clientX - box.left - 64) / (f.W - 64 - 70)) * N)));
+      const p = pts[t];
+      guide.setAttribute('x1', X(t)); guide.setAttribute('x2', X(t)); guide.setAttribute('visibility', 'visible');
+      series.forEach((s, i) => { dots[i].setAttribute('cx', X(t)); dots[i].setAttribute('cy', f.Y(p[s.key])); dots[i].setAttribute('visibility', 'visible'); });
+      showTip(`<b>${t === 0 ? '買収時' : t + '年目'}　累計収支</b>` + series.map((s) => `<div><span class="dot" style="background:${s.color}"></span> ${s.label}：${num(p[s.key])}万円</div>`).join(''), ev);
+    });
+    hit.addEventListener('mouseleave', () => { guide.setAttribute('visibility', 'hidden'); dots.forEach((d) => d.setAttribute('visibility', 'hidden')); tip.style.display = 'none'; });
+  }
+
+  // 年度別収益の積み上げ棒
+  function stackChart(el, sim, keys) {
+    const totals = sim.rows.map((r) => keys.reduce((s, k) => s + Math.max(0, r[k.key]), 0));
+    const ticks = niceTicks(0, Math.max(1, ...totals));
+    const N = sim.rows.length;
+    const W0 = Math.max(320, el.clientWidth);
+    const slot = (W0 - 64 - 70) / N;
+    const X = (i) => 64 + slot * i + slot / 2;
+    const f = drawFrame(el, 260, ticks, sim.rows.map((r, i) => ({ x: X(i), label: `${r.year}年` })));
+    const bw = Math.min(36, slot * 0.6);
+    sim.rows.forEach((r, i) => {
+      let acc = 0;
+      const g = svgEl('g', {});
+      keys.forEach((k, j) => {
+        const v = Math.max(0, r[k.key]);
+        if (v <= 0) return;
+        const yTop = f.Y(acc + v), yBot = f.Y(acc);
+        const h = Math.max(0, yBot - yTop - (acc > 0 ? 2 : 0));
+        g.appendChild(svgEl('rect', { x: X(i) - bw / 2, y: yTop, width: bw, height: h, fill: k.color, rx: 0 }));
+        acc += v;
+      });
+      f.svg.appendChild(g);
+      const hit = svgEl('rect', { x: X(i) - slot / 2, y: f.m.t, width: slot, height: f.H - f.m.t - f.m.b, fill: 'transparent' });
+      hit.addEventListener('mousemove', (ev) => showTip(`<b>${r.year}年目の収益（粗利ベース）</b>` + keys.map((k) => `<div><span class="dot" style="background:${k.color}"></span> ${k.label}：${num(r[k.key])}万円</div>`).join('') + `<div style="margin-top:4px">合計：<b>${num(totals[i])}万円</b></div>`, ev));
+      hit.addEventListener('mouseleave', () => (tip.style.display = 'none'));
+      f.svg.appendChild(hit);
+    });
+  }
+
+  // ---------- 回収シミュレーション ----------
+  let roiScope = '';
+  function firmSetting(name, list) {
+    const s = assumptions.firms[name] || {};
+    const advisory = list.reduce((t, { c }) => t + (Number(c.advisoryFee) || 0), 0);
+    return {
+      price: s.price != null ? s.price : Math.round(advisory * 1.2),
+      integrationCost: s.integrationCost != null ? s.integrationCost : 0,
+    };
+  }
+
+  function renderROI() {
+    const all = rows();
+    const firms = uniq(clients.map((c) => c.firm));
+    if (roiScope && !firms.includes(roiScope)) roiScope = '';
+    const byFirm = firms.map((name) => {
+      const list = all.filter(({ c }) => c.firm === name);
+      const fs = firmSetting(name, list);
+      return { name, list, fs, sim: simulate(list, fs, assumptions) };
+    });
+    const scopeList = roiScope ? all.filter(({ c }) => c.firm === roiScope) : all.filter(({ c }) => firms.includes(c.firm));
+    const scopeFirm = roiScope ? byFirm.find((b) => b.name === roiScope).fs
+      : byFirm.reduce((t, b) => ({ price: t.price + b.fs.price, integrationCost: t.integrationCost + b.fs.integrationCost }), { price: 0, integrationCost: 0 });
+    const sim = simulate(scopeList, scopeFirm, assumptions);
+    const yrs = (v) => (v == null ? `${assumptions.years}年で未回収` : `${v.toFixed(1)}年`);
+    const shorten = sim.paybackBase != null && sim.paybackAll != null ? sim.paybackBase - sim.paybackAll : null;
+
+    const A = assumptions;
+    const inp = (key, label, unit, step = 1) => `<div class="field"><label>${label}</label><div style="display:flex;align-items:center;gap:6px"><input type="number" step="${step}" data-a="${key}" value="${esc(A[key])}" style="width:100%"/><span class="subline">${unit}</span></div></div>`;
+
+    const firmRows = byFirm.map((b) => `
+      <tr class="${roiScope === b.name ? 'sel' : ''}">
+        <td><a href="#" data-scope="${esc(b.name)}" class="company">${esc(b.name)}</a><div class="subline">${b.list.length}社</div></td>
+        <td class="num">${num(b.sim.advisory)}</td>
+        <td class="num"><input type="number" data-firm="${esc(b.name)}" data-fk="price" value="${b.fs.price}" style="width:110px;text-align:right"/></td>
+        <td class="num"><input type="number" data-firm="${esc(b.name)}" data-fk="integrationCost" value="${b.fs.integrationCost}" style="width:90px;text-align:right"/></td>
+        <td class="num">${b.sim.advisory ? (b.fs.price / b.sim.advisory).toFixed(2) + '倍' : '—'}</td>
+        <td class="num">${yrs(b.sim.paybackBase)}</td>
+        <td class="num"><b>${yrs(b.sim.paybackAll)}</b></td>
+      </tr>`).join('');
+
+    const top = scopeList.slice().sort((x, y) => y.f.expTotal - x.f.expTotal).slice(0, 8).map(({ c, f }) => `
+      <tr data-go="${c.id}"><td class="company">${esc(c.company)}</td>
+        ${CATEGORIES.map((k) => `<td class="num">${num(f[k.key].expOnce + f[k.key].expRecurring * 5)}</td>`).join('')}
+        <td class="num"><b>${num(f.expTotal)}</b></td></tr>`).join('');
+
+    const yearRows = sim.rows.map((r) => `<tr><td>${r.year}年目</td><td class="num">${num(r.advisory)}</td><td class="num">${num(r.life)}</td><td class="num">${num(r.nonlife)}</td><td class="num">${num(r.ma)}</td><td class="num">${num(r.re)}</td><td class="num">${num(r.cumBase)}</td><td class="num"><b>${num(r.cumAll)}</b></td></tr>`).join('');
+
+    $('#view').innerHTML = `
+      <div class="page-head">
+        <div><h1>買収価格の回収シミュレーション</h1><p>承継した顧問料の粗利に、クロスセル手数料の期待値（成約確率込み）を加えて、買収価格を何年で回収できるかを試算します。単位：万円</p></div>
+        <select id="roiScope"><option value="">全事務所の合計</option>${firms.map((f) => `<option ${f === roiScope ? 'selected' : ''}>${esc(f)}</option>`).join('')}</select>
+      </div>
+      <div class="grid grid-kpi">
+        <div class="card kpi"><div class="kpi-label">買収価格＋統合コスト</div><div class="kpi-value">${num(sim.price + sim.integration)}<small>万円</small></div><div class="kpi-note">承継顧問料 年${num(sim.advisory)}万円</div></div>
+        <div class="card kpi"><div class="kpi-label">回収年数：顧問料のみ</div><div class="kpi-value">${sim.paybackBase == null ? '未回収' : sim.paybackBase.toFixed(1) + '<small>年</small>'}</div><div class="kpi-note">粗利率${A.advisoryMargin}%・解約率${A.churn}%/年</div></div>
+        <div class="card kpi"><div class="kpi-label">回収年数：＋クロスセル</div><div class="kpi-value">${sim.paybackAll == null ? '未回収' : sim.paybackAll.toFixed(1) + '<small>年</small>'}</div><div class="kpi-note">${shorten != null ? `${shorten.toFixed(1)}年短縮` : '　'}</div></div>
+        <div class="card kpi"><div class="kpi-label">${A.years}年間のクロスセル収益</div><div class="kpi-value">${num(sim.crossTotal)}<small>万円</small></div><div class="kpi-note">顧問料粗利 ${num(sim.advisoryTotal)}万円</div></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card"><div class="card-head"><h2>累計収支の推移</h2>
+          <div class="legend"><span class="item"><span class="sw" style="background:var(--muted)"></span>顧問料のみ</span><span class="item"><span class="sw" style="background:var(--accent)"></span>顧問料＋クロスセル</span><span class="item">● 回収時点</span></div></div>
+          <div id="lineChart"></div></div>
+        <div class="card"><div class="card-head"><h2>年度別の収益内訳</h2>
+          <div class="legend"><span class="item"><span class="sw" style="background:var(--muted)"></span>顧問料粗利</span>${CATEGORIES.map((k) => `<span class="item"><span class="sw" style="background:var(--cat-${k.key})"></span>${k.short}</span>`).join('')}</div></div>
+          <div id="stackChart"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>事務所別の前提と結果</h2><span class="sub">買収価格は未入力時「顧問料年額×1.2倍」を仮置き。事務所名をクリックすると個別表示</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>引継ぎ元事務所</th><th class="num">顧問料（年）</th><th class="num">買収価格</th><th class="num">統合コスト</th><th class="num">顧問料倍率</th><th class="num">回収：顧問料のみ</th><th class="num">回収：＋クロスセル</th></tr></thead>
+          <tbody>${firmRows || '<tr><td colspan="7" class="empty">クライアントに引継ぎ元事務所が設定されていません</td></tr>'}</tbody>
+        </table></div>
+      </div>
+      <div class="grid grid-2" style="margin-top:16px">
+        <div class="card"><div class="card-head"><h2>収益貢献の大きいクライアント</h2><span class="sub">期待値（継続収益は5年分）</span></div>
+          <div class="table-wrap"><table><thead><tr><th>クライアント</th>${CATEGORIES.map((k) => `<th class="num">${k.short}</th>`).join('')}<th class="num">合計</th></tr></thead><tbody>${top}</tbody></table></div></div>
+        <div class="card"><div class="card-head"><h2>前提条件</h2><button class="btn small" id="resetAssume" type="button">初期値に戻す</button></div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
+            ${inp('years', '試算期間', '年')}${inp('churn', '顧問先の解約率', '%/年', 0.5)}${inp('advisoryMargin', '顧問料の粗利率', '%')}
+            ${inp('probHigh', '成約確率：ニーズ高', '%')}${inp('probMid', '成約確率：ニーズ中', '%')}${inp('probLow', '成約確率：ニーズ低', '%')}${inp('probProposing', '成約確率：提案中', '%')}
+            ${inp('lifeFirstRate', '生保 初年度手数料率', '%')}${inp('lifeRenewRate', '生保 次年度以降', '%/年', 0.5)}${inp('lifeTermRate', '定期保険料率（保障額比）', '%', 0.1)}
+            ${inp('nlPremiumPerItem', '損保 1補償あたり保険料', '万円/年')}${inp('nlRate', '損保 代理店手数料率', '%')}
+            ${inp('maShare', 'M&A 報酬の取り分', '%')}${inp('maMinFee', 'M&A 最低報酬', '万円')}${inp('reShare', '不動産 仲介手数料の取り分', '%')}
+            ${inp('ramp1', '一時収益の実現 1年目', '%')}${inp('ramp2', '同 2年目', '%')}${inp('ramp3', '同 3年目', '%')}
+          </div>
+          <p class="notice" style="margin-top:12px">生保・損保の手数料は保険会社・商品・代理店の格付により大きく異なります。M&A報酬はレーマン方式（企業価値ベースの簡易計算）、不動産は宅建業法の上限（3%＋6万円）を基準に、提携先との配分を「取り分」で調整してください。</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px"><div class="card-head"><h2>年度別の明細</h2><span class="sub">万円</span></div>
+        <div class="table-wrap"><table><thead><tr><th>年度</th><th class="num">顧問料粗利</th><th class="num">生保</th><th class="num">損保</th><th class="num">M&A</th><th class="num">不動産</th><th class="num">累計：顧問料のみ</th><th class="num">累計：＋クロスセル</th></tr></thead><tbody>${yearRows}</tbody></table></div></div>`;
+
+    lineChart($('#lineChart'), sim, [
+      { key: 'cumBase', label: '顧問料のみ', short: '顧問料のみ', color: 'var(--muted)', dash: '6 4', payback: sim.paybackBase },
+      { key: 'cumAll', label: '顧問料＋クロスセル', short: '＋クロスセル', color: 'var(--accent)', payback: sim.paybackAll },
+    ]);
+    stackChart($('#stackChart'), sim, [
+      { key: 'advisory', label: '顧問料粗利', color: 'var(--muted)' },
+      ...CATEGORIES.map((k) => ({ key: k.key === 're' ? 're' : k.key, label: k.label, color: `var(--cat-${k.key})` })),
+    ]);
+
+    $('#roiScope').addEventListener('change', (e) => { roiScope = e.target.value; renderROI(); });
+    document.querySelectorAll('[data-scope]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); roiScope = a.getAttribute('data-scope'); renderROI(); }));
+    document.querySelectorAll('[data-a]').forEach((el) => el.addEventListener('change', () => {
+      assumptions[el.getAttribute('data-a')] = Number(el.value) || 0;
+      saveAssumptions(); renderROI();
+    }));
+    document.querySelectorAll('[data-firm]').forEach((el) => el.addEventListener('change', () => {
+      const name = el.getAttribute('data-firm');
+      assumptions.firms[name] = Object.assign({}, assumptions.firms[name], { [el.getAttribute('data-fk')]: Number(el.value) || 0 });
+      saveAssumptions(); renderROI();
+    }));
+    $('#resetAssume').addEventListener('click', () => {
+      if (!confirm('前提条件を初期値に戻しますか？（事務所別の買収価格は残ります）')) return;
+      assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, { firms: assumptions.firms });
+      saveAssumptions(); renderROI();
+    });
+    document.querySelectorAll('[data-go]').forEach((el) => el.addEventListener('click', () => (location.hash = '#/client/' + el.getAttribute('data-go'))));
+  }
+
+  // ---------- 会計データ取込 ----------
+  let finResults = [];
+  function renderFinance() {
+    const clientOpts = (sel) => `<option value="">（反映しない）</option><option value="__new" ${sel === '__new' ? 'selected' : ''}>＋ 新規クライアントとして追加</option>` +
+      clients.slice().sort((a, b) => a.company.localeCompare(b.company, 'ja')).map((c) => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.company)}</option>`).join('');
+
+    const cards = finResults.map((r, i) => {
+      const c = findClient(r.target);
+      const fields = FI.toClientFields(r.found, r.unit, r.months);
+      const keys = Object.keys(fields);
+      const rowsHtml = keys.map((k) => {
+        const cur = c ? c[k] : null;
+        const changed = !c || Number(cur) !== fields[k];
+        return `<tr><td><input type="checkbox" data-fi="${i}" data-fk="${k}" ${r.skip[k] ? '' : 'checked'}/></td>
+          <td>${FI.FIELD_LABELS[k]}</td>
+          <td class="num">${c ? num(cur) : '—'}</td>
+          <td class="num" style="${changed ? 'font-weight:700' : ''}">${num(fields[k])}</td>
+          <td class="subline">${esc(r.src[{ execPayMonthly: 'execPayAnnual', rentMonthly: 'rentAnnual', retireReserve: 'insuranceReserve' }[k] || k] || '')}</td></tr>`;
+      }).join('');
+      const officeHint = c && fields.rentMonthly > 0 && c.office !== '賃貸'
+        ? `<label class="subline" style="display:block;margin-top:8px"><input type="checkbox" data-office="${i}" ${r.setRented ? 'checked' : ''}/> 地代家賃があるため、事務所区分を「賃貸」に変更する</label>` : '';
+      return `
+        <div class="card">
+          <div class="card-head"><h2>${esc(r.file)}</h2><span class="sub">${r.encoding}・読取 ${r.itemCount}科目${r.amountHeader ? `・金額列「${esc(r.amountHeader)}」` : ''}</span></div>
+          <div class="filters" style="margin-bottom:10px">
+            <label class="subline">反映先 <select data-target="${i}">${clientOpts(r.target)}</select></label>
+            <label class="subline">金額の単位 <select data-unit="${i}">
+              ${[['yen', '円'], ['thousand', '千円'], ['man', '万円']].map(([v, l]) => `<option value="${v}" ${r.unit === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+            <label class="subline">対象月数 <input type="number" min="1" max="12" data-months="${i}" value="${r.months}" style="width:70px"/>（期中の試算表は年換算）</label>
+          </div>
+          ${keys.length ? `<div class="table-wrap"><table><thead><tr><th></th><th>項目</th><th class="num">現在値</th><th class="num">取込値（万円）</th><th>元の勘定科目</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>` : '<p class="notice">対応する勘定科目が見つかりませんでした。試算表または決算書（BS・PL）のCSVか確認してください。</p>'}
+          ${officeHint}
+        </div>`;
+    }).join('');
+
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>会計データ取込</h1><p>会計ソフトから出力した試算表・決算書のCSVを読み込み、財務数値を自動でクライアントに反映します。</p></div></div>
+      <div class="card">
+        <div class="card-head"><h2>ファイルを選択</h2><span class="sub">複数ファイル可・Shift_JIS／UTF-8 自動判別</span></div>
+        <p>弥生会計・freee・マネーフォワード・勘定奉行・JDL などの<b>残高試算表</b>または<b>決算書（貸借対照表・損益計算書）</b>のCSVに対応します。勘定科目名で判定するため、BSとPLが別ファイルでもそれぞれ取り込めます。ファイル名に会社名が含まれていれば反映先を自動で選びます。</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <input type="file" id="finFiles" accept=".csv,.txt,.tsv,text/csv" multiple />
+          <button class="btn" type="button" id="finSample">サンプル試算表CSVをダウンロード</button>
+        </div>
+        <p class="subline" style="margin-top:10px">読み取る科目：売上高（完成工事高・医業収益等）、営業利益、経常利益、純資産合計、現金及び預金、借入金（短期・長期・1年以内返済）、役員報酬、地代家賃、保険積立金。△・▲表記のマイナスにも対応。</p>
+      </div>
+      ${cards}
+      ${finResults.length ? `<div style="margin-top:16px;display:flex;gap:8px"><button class="btn primary" type="button" id="finApply">チェックした項目を反映</button><button class="btn" type="button" id="finClear">クリア</button></div>` : ''}`;
+
+    $('#finFiles').addEventListener('change', async (e) => {
+      const files = [...e.target.files];
+      for (const file of files) {
+        let text, encoding;
+        try { ({ text, encoding } = FI.decode(await file.arrayBuffer())); }
+        catch (err) { console.error(err); toast(`${file.name} を読み込めませんでした`); continue; }
+        const res = FI.analyzeText(text);
+        finResults.push({ file: file.name, encoding, ...res, unit: FI.guessUnit(res.found), months: 12, target: FI.matchClient(file.name, clients), skip: {}, setRented: true });
+      }
+      renderFinance();
+    });
+    $('#finSample').addEventListener('click', () => {
+      const csv = ['勘定科目,前期末残高,借方金額,貸方金額,期末残高', '現金,0,0,0,"1,250,300"', '普通預金,0,0,0,"176,800,000"', '定期預金,0,0,0,"12,000,000"',
+        '保険積立金,0,0,0,"8,400,000"', '短期借入金,0,0,0,"20,000,000"', '長期借入金,0,0,0,"38,500,000"', '1年以内返済長期借入金,0,0,0,"9,600,000"',
+        '純資産合計,0,0,0,"221,400,000"', '完成工事高,0,0,0,"534,000,000"', '完成工事総利益,0,0,0,"96,120,000"', '役員報酬,0,0,0,"19,200,000"',
+        '地代家賃,0,0,0,"10,800,000"', '販売費及び一般管理費合計,0,0,0,"51,300,000"', '営業利益,0,0,0,"44,820,000"', '経常利益,0,0,0,"45,960,000"'].join('\r\n');
+      download('山田建設_残高試算表_サンプル.csv', csv, 'text/csv;charset=utf-8');
+    });
+    document.querySelectorAll('[data-target]').forEach((el) => el.addEventListener('change', () => { finResults[+el.getAttribute('data-target')].target = el.value; renderFinance(); }));
+    document.querySelectorAll('[data-unit]').forEach((el) => el.addEventListener('change', () => { finResults[+el.getAttribute('data-unit')].unit = el.value; renderFinance(); }));
+    document.querySelectorAll('[data-months]').forEach((el) => el.addEventListener('change', () => { finResults[+el.getAttribute('data-months')].months = Number(el.value) || 12; renderFinance(); }));
+    document.querySelectorAll('[data-fi]').forEach((el) => el.addEventListener('change', () => { finResults[+el.getAttribute('data-fi')].skip[el.getAttribute('data-fk')] = !el.checked; }));
+    document.querySelectorAll('[data-office]').forEach((el) => el.addEventListener('change', () => { finResults[+el.getAttribute('data-office')].setRented = el.checked; }));
+    if ($('#finClear')) $('#finClear').addEventListener('click', () => { finResults = []; renderFinance(); });
+    if ($('#finApply')) $('#finApply').addEventListener('click', () => {
+      let applied = 0;
+      finResults.forEach((r) => {
+        if (!r.target) return;
+        let c = findClient(r.target);
+        if (r.target === '__new') {
+          c = blankClient();
+          c.company = r.file.replace(/\.[^.]+$/, '').replace(/[_\-\s].*$/, '') || '新規クライアント';
+          clients.push(c);
+          r.target = c.id;
+        }
+        const fields = FI.toClientFields(r.found, r.unit, r.months);
+        Object.keys(fields).forEach((k) => { if (!r.skip[k]) c[k] = fields[k]; });
+        if (fields.rentMonthly > 0 && c.office !== '賃貸' && r.setRented) c.office = '賃貸';
+        c.finSource = { file: r.file, date: today() };
+        applied++;
+      });
+      save();
+      if (!applied) { toast('反映先が選択されていません'); return; }
+      toast(`${applied}件を反映しました。ニーズ判定を再計算しました`);
+      finResults = [];
+      renderFinance();
+    });
+  }
+
+
+  // ---------- 操作ガイド ----------
+  function renderHelp() {
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>操作ガイド</h1><p>承継した顧問先へのクロスセル提案を、データ登録から回収管理まで進める手順です。</p></div>
+        <button class="btn" type="button" onclick="window.print()">印刷</button></div>
+      <div class="card help">
+        <h2>基本の流れ</h2>
+        <ol>
+          <li><b>顧問先を登録する</b>（<a href="#/settings">データ取込・出力</a>）<br>テンプレートCSVをダウンロードし、引継ぎ元事務所の顧問先リストを貼り付けて取り込みます。会社名・代表者・年齢・業種・引継ぎ元・担当・顧問料が最低限あれば始められます。</li>
+          <li><b>財務数値を入れる</b>（<a href="#/finance">会計データ取込</a>）<br>会計ソフトから残高試算表（または決算書BS・PL）をCSVで出力し、まとめて選択します。ファイル名に会社名を入れておくと反映先が自動で選ばれます。確認画面で取込値を見て「反映」を押します。</li>
+          <li><b>保険・事務所の状況を補う</b>（各クライアントの「編集」）<br>死亡保障額、損保の加入状況、後継者の有無、拡大志向、車両台数など、決算書に出ない情報を面談で確認して入力します。判定の精度が上がります。</li>
+          <li><b>優先順位を決める</b>（<a href="#/dashboard">ダッシュボード</a>）<br>「優先アクションTOP10」とニーズ・マトリクスで、どの社長に何を提案するかを決めます。セルにマウスを乗せると判定理由が出ます。</li>
+          <li><b>提案して進捗を記録する</b>（クライアント詳細・<a href="#/pipeline">提案パイプライン</a>）<br>詳細画面の判定理由・提案メニューを面談メモとして印刷できます。進捗（提案準備→提案中→成約／見送り）を更新します。</li>
+          <li><b>買収の採算を確認する</b>（<a href="#/roi">回収シミュレーション</a>）<br>事務所ごとの買収価格を入力し、顧問料だけの場合とクロスセル込みの場合の回収年数を比較します。手数料率・成約確率は実績に合わせて調整してください。</li>
+          <li><b>バックアップする</b>（<a href="#/settings">データ取込・出力</a>）<br>データはこのパソコンのこのブラウザの中にだけ保存されます。週1回はバックアップを保存してください。</li>
+        </ol>
+      </div>
+      <div class="card help">
+        <h2>ニーズ判定の考え方</h2>
+        <table>
+          <thead><tr><th>商品</th><th>主な判定材料</th><th>代表的な提案</th></tr></thead>
+          <tbody>
+            <tr><td>生命保険</td><td>借入金・固定費に対する保障不足、役員退職金の準備不足、利益水準、社長年齢と純資産</td><td>定期・収入保障保険、退職金原資の積立、納税資金の終身保険</td></tr>
+            <tr><td>損害保険</td><td>業種ごとの重要補償の未加入、従業員数、車両台数</td><td>請負賠償・工事保険（建設）、PL（製造）、柔整師賠償（整骨院）、サイバー（IT・医療）</td></tr>
+            <tr><td>M&A・事業承継</td><td>社長年齢×後継者の有無（譲渡）、拡大志向×利益×現預金（買収）</td><td>出口戦略の整理、株価算定、事業承継税制、買収候補のマッチング</td></tr>
+            <tr><td>不動産購入</td><td>家賃水準、月商3ヶ月超の余剰資金、社長年齢×純資産、利益水準</td><td>自社ビル購入、収益不動産、個人資産の組換え</td></tr>
+          </tbody>
+        </table>
+        <p class="subline">スコア：70点以上＝高、40〜69点＝中、39点以下＝低。判定ルールは <code>scoring.js</code> で調整できます。</p>
+      </div>
+      <div class="card help">
+        <h2>よくある質問</h2>
+        <dl>
+          <dt>別のパソコンでも使いたい</dt><dd>元のパソコンで「バックアップを保存」し、移行先で「バックアップから復元」してください。</dd>
+          <dt>試算表の取込で数字が1万倍・千分の一になる</dt><dd>確認画面の「金額の単位」を円／千円／万円から正しいものに変更してください。</dd>
+          <dt>期中（例：6ヶ月）の試算表を取り込みたい</dt><dd>「対象月数」に6と入れると、売上・利益・役員報酬・家賃を年額に換算します（BSの残高はそのまま）。</dd>
+          <dt>PDFの決算書は読めますか</dt><dd>読めません。会計ソフトからCSVで出力してください。</dd>
+        </dl>
+      </div>
+      <div class="card help">
+        <h2>コンプライアンス上の注意</h2>
+        <ul>
+          <li>保険募集には保険募集人登録、不動産の売買仲介には宅地建物取引業免許が必要です。登録・免許のない立場では紹介に留め、紹介料の受領条件を確認してください。</li>
+          <li>M&A支援は中小M&Aガイドラインに沿った体制（利益相反の説明、手数料体系の開示など）で行ってください。</li>
+          <li>クライアント情報を提携先（保険会社・不動産会社・M&A会社）に共有する際は、守秘義務の観点から事前に本人の同意を得てください。</li>
+          <li>スコアと試算値は提案の優先順位付けの目安です。個別の提案内容は専門家が確認してください。</li>
+        </ul>
+      </div>`;
+  }
+
+  // ---------- ルーティング ----------
+  function route() {
+    const [, name = 'dashboard', id] = (location.hash || '#/dashboard').split('/');
+    tip.style.display = 'none';
+    document.querySelectorAll('[data-route]').forEach((a) => a.classList.toggle('active', a.getAttribute('data-route') === name || (name === 'client' && a.getAttribute('data-route') === 'clients')));
+    if (name === 'clients') renderClients();
+    else if (name === 'client') renderDetail(id);
+    else if (name === 'edit') renderForm(id);
+    else if (name === 'new') renderForm(null);
+    else if (name === 'pipeline') renderPipeline();
+    else if (name === 'settings') renderSettings();
+    else if (name === 'roi') renderROI();
+    else if (name === 'finance') renderFinance();
+    else if (name === 'help') renderHelp();
+    else renderDashboard();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', route);
+  route();
+})();
+
+</script>
+</body>
+</html>

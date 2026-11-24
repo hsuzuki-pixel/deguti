@@ -15,19 +15,49 @@
       try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
     },
     set(key, value) {
-      try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* 保存不可の環境でも動作は継続 */ }
+      try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch (e) { return false; }
     },
   };
 
-  let clients = store.get(STORE_KEY, null) || JSON.parse(JSON.stringify(window.SAMPLE_CLIENTS));
-  // 旧バージョンのデータに顧問料が無い場合の補完
-  clients.forEach((c) => {
-    if (c.advisoryFee == null) {
+  const BACKUP_KEY = 'crosssell.lastBackup';
+  const DIRTY_KEY = 'crosssell.lastSaved';
+  const NUM_KEYS = ['repAge', 'sales', 'opProfit', 'ordinaryProfit', 'netAssets', 'cash', 'debt', 'employees', 'execPayMonthly',
+    'tenureYears', 'deathCover', 'retireReserve', 'vehicles', 'rentMonthly', 'advisoryFee'];
+
+  // 取込・復元・旧バージョンのデータを、欠けた項目を補って正しい形に揃える
+  function normalizeClient(raw, usedIds) {
+    const base = blankClient();
+    const c = Object.assign(base, raw && typeof raw === 'object' ? raw : {});
+    NUM_KEYS.forEach((k) => { const v = Number(c[k]); c[k] = Number.isFinite(v) ? v : 0; });
+    ['company', 'rep', 'industry', 'firm', 'staff', 'successor', 'office', 'notes', 'lastContact'].forEach((k) => { c[k] = c[k] == null ? '' : String(c[k]); });
+    if (!INDUSTRIES.includes(c.industry)) c.industry = c.industry ? 'その他' : '建設業';
+    if (!['あり', '候補あり', 'なし', '未定'].includes(c.successor)) c.successor = '未定';
+    if (!['賃貸', '自社所有'].includes(c.office)) c.office = '賃貸';
+    c.growth = !!c.growth;
+    c.nonlife = Object.assign(blankClient().nonlife, c.nonlife && typeof c.nonlife === 'object' ? c.nonlife : {});
+    Object.keys(c.nonlife).forEach((k) => (c.nonlife[k] = !!c.nonlife[k]));
+    c.status = Object.assign(blankClient().status, c.status && typeof c.status === 'object' ? c.status : {});
+    Object.keys(c.status).forEach((k) => { if (!STATUSES.includes(c.status[k])) c.status[k] = '未着手'; });
+    if (raw && raw.advisoryFee == null) {
       const s = window.SAMPLE_CLIENTS.find((x) => x.id === c.id && x.company === c.company);
-      c.advisoryFee = s ? s.advisoryFee : 0;
+      if (s) c.advisoryFee = s.advisoryFee;
     }
-  });
-  const save = () => store.set(STORE_KEY, clients);
+    c.id = String(c.id || '');
+    if (usedIds) {
+      while (!c.id || usedIds.has(c.id)) c.id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      usedIds.add(c.id);
+    }
+    return c;
+  }
+  const normalizeAll = (list) => { const ids = new Set(); return (Array.isArray(list) ? list : []).filter((x) => x && typeof x === 'object').map((x) => normalizeClient(x, ids)); };
+
+  let clients = normalizeAll(store.get(STORE_KEY, null) || JSON.parse(JSON.stringify(window.SAMPLE_CLIENTS)));
+  function save() {
+    const ok = store.set(STORE_KEY, clients);
+    if (!ok) { toast('⚠ ブラウザに保存できませんでした。容量不足か保存禁止の設定です。バックアップを出力してください'); return; }
+    store.set(DIRTY_KEY, new Date().toISOString());
+  }
+  function markBackup() { store.set(BACKUP_KEY, new Date().toISOString()); }
   let assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, store.get(ASSUME_KEY, {}));
   assumptions.firms = Object.assign({}, assumptions.firms);
   const saveAssumptions = () => store.set(ASSUME_KEY, assumptions);
@@ -161,7 +191,20 @@
   }
 
   // ---------- ダッシュボード ----------
+  function emptyState() {
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>ようこそ</h1><p>クライアントがまだ登録されていません。次のいずれかから始めてください。</p></div></div>
+      <div class="grid grid-kpi">
+        <a class="card kpi" href="#/settings" style="color:inherit"><h2>① 顧問先リストを一括登録</h2><p class="subline">引継ぎ元事務所の顧問先一覧をCSVで取り込みます</p></a>
+        <a class="card kpi" href="#/finance" style="color:inherit"><h2>② 試算表から登録</h2><p class="subline">会計ソフトのCSVから財務数値ごと登録します</p></a>
+        <a class="card kpi" href="#/new" style="color:inherit"><h2>③ 1社ずつ入力</h2><p class="subline">決算書を見ながら手入力します</p></a>
+        <a class="card kpi" href="#/settings" style="color:inherit"><h2>サンプルで試す</h2><p class="subline">「データ取込・出力」→「サンプルデータに戻す」</p></a>
+      </div>
+      <p class="subline">使い方は <a href="#/help">操作ガイド</a> をご覧ください。</p>`;
+  }
+
   function renderDashboard(keepFocus) {
+    if (!clients.length) { emptyState(); return; }
     const all = rows();
     const list = sortRows(applyFilters(all));
     const view = $('#view');
@@ -236,6 +279,7 @@
         <div><h1>ダッシュボード</h1><p>承継したクライアントごとに、生命保険・損害保険・M&A・不動産のニーズを自動判定しています。</p></div>
         <a class="btn primary" href="#/new">＋ クライアント追加</a>
       </div>
+      ${backupBanner()}
       ${filterBar()}
       ${kpis}
       <div class="grid grid-2">
@@ -613,33 +657,54 @@
     const head = data[0].map((h) => h.trim());
     const idx = CSV_COLS.map((col) => head.indexOf(col.label));
     if (idx[0] < 0) throw new Error('「会社名」列が見つかりません。テンプレートの見出しを使用してください');
+    const cell = (r, key) => { const j = idx[CSV_COLS.findIndex((col) => col.key === key)]; return j >= 0 ? String(r[j] ?? '').trim() : ''; };
     const imported = data.slice(1).map((r, n) => {
-      const c = blankClient();
-      c.id = 'i' + Date.now().toString(36) + n;
+      // 追加・上書きモードでは既存データを土台にし、CSVに無い列は既存値を残す
+      const id = cell(r, 'id');
+      const company = cell(r, 'company');
+      const existing = mode === 'merge' ? clients.find((x) => (id && x.id === id) || (company && x.company === company)) : null;
+      const c = existing ? JSON.parse(JSON.stringify(existing)) : blankClient();
+      if (!existing) c.id = id || 'i' + Date.now().toString(36) + n;
       CSV_COLS.forEach((col, j) => {
-        if (idx[j] < 0) return;
-        const raw = (r[idx[j]] ?? '').trim();
+        if (idx[j] < 0 || col.key === 'id') return;
+        const raw = String(r[idx[j]] ?? '').trim();
         let v = raw;
-        if (col.type === 'number') v = Number(raw.replace(/,/g, '')) || 0;
+        if (col.type === 'number') v = Number(raw.replace(/[,，]/g, '')) || 0;
         if (col.type === 'check') v = ['1', 'true', 'TRUE', '○', 'あり', '有'].includes(raw);
-        if (col.key === 'id' && !raw) return;
-        if (col.key.startsWith('status.') && !STATUSES.includes(raw)) v = '未着手';
+        if (col.key.startsWith('status.') && !STATUSES.includes(raw)) v = existing ? getPath(existing, col.key) : '未着手';
         setPath(c, col.key, v);
       });
-      return c;
-    }).filter((c) => c.company);
-    if (mode === 'replace') clients = imported;
+      return { c, existing };
+    }).filter(({ c }) => c.company);
+    if (mode === 'replace') clients = normalizeAll(imported.map((x) => x.c));
     else {
-      imported.forEach((c) => {
-        const i = clients.findIndex((x) => x.id === c.id || x.company === c.company);
+      imported.forEach(({ c, existing }) => {
+        const i = existing ? clients.indexOf(existing) : -1;
         if (i >= 0) clients[i] = c; else clients.push(c);
       });
+      clients = normalizeAll(clients);
     }
     save();
     return imported.length;
   }
 
   // ---------- データ取込・出力 ----------
+  function lastBackupText() {
+    const d = store.get(BACKUP_KEY, null);
+    return d ? d.slice(0, 10) : '未実施';
+  }
+  function backupBanner() {
+    const saved = store.get(DIRTY_KEY, null);
+    if (!saved) return '';
+    const last = store.get(BACKUP_KEY, null);
+    if (last && last >= saved) return '';
+    const days = last ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000) : null;
+    if (last && days < 7) return '';
+    return `<div class="notice warn-box" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <span>⚠ ${last ? `最後のバックアップから${days}日経過しています。` : 'まだバックアップがありません。'}データはこのブラウザの中だけに保存されています。</span>
+      <a class="btn small" href="#/settings">バックアップする</a></div>`;
+  }
+
   function renderSettings() {
     $('#view').innerHTML = `
       <div class="page-head"><div><h1>データ取込・出力</h1><p>データはこのブラウザ内（localStorage）に保存されます。定期的にバックアップを出力してください。</p></div></div>
@@ -654,10 +719,11 @@
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><h2>出力・バックアップ</h2></div>
+        <div class="card-head"><h2>出力・バックアップ</h2><span class="sub">最終バックアップ：${lastBackupText()}</span></div>
+        <p>バックアップには全クライアントと回収シミュレーションの前提条件が含まれます。別のパソコンへの移行もこのファイルで行えます。</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn" id="csvOut" type="button">全件をCSV出力</button>
-          <button class="btn" id="jsonOut" type="button">JSONバックアップ</button>
+          <button class="btn primary" id="jsonOut" type="button">バックアップを保存（JSON）</button>
           <label class="btn">JSONから復元<input type="file" id="jsonIn" accept=".json,application/json" hidden /></label>
         </div>
       </div>
@@ -691,7 +757,10 @@
       };
       reader.readAsText(f, 'utf-8');
     });
-    $('#jsonOut').addEventListener('click', () => download(`crosssell_backup_${today()}.json`, JSON.stringify(clients, null, 2), 'application/json'));
+    $('#jsonOut').addEventListener('click', () => {
+      download(`crosssell_backup_${today()}.json`, JSON.stringify({ app: 'crosssell', version: 1, exportedAt: new Date().toISOString(), clients, assumptions }, null, 2), 'application/json');
+      markBackup();
+    });
     $('#jsonIn').addEventListener('change', (e) => {
       const f = e.target.files[0];
       if (!f) return;
@@ -699,8 +768,12 @@
       reader.onload = () => {
         try {
           const data = JSON.parse(reader.result);
-          if (!Array.isArray(data)) throw new Error('形式が正しくありません');
-          clients = data; save(); toast(`${data.length}社を復元しました`);
+          const list = Array.isArray(data) ? data : data && Array.isArray(data.clients) ? data.clients : null;
+          if (!list) throw new Error('形式が正しくありません');
+          if (!confirm(`現在のデータを、バックアップの${list.length}社で置き換えますか？`)) return;
+          clients = normalizeAll(list);
+          if (data.assumptions) { assumptions = Object.assign({}, DEFAULT_ASSUMPTIONS, data.assumptions); assumptions.firms = Object.assign({}, assumptions.firms); saveAssumptions(); }
+          save(); toast(`${clients.length}社を復元しました`);
         } catch (err) { alert('復元に失敗しました：' + err.message); }
       };
       reader.readAsText(f, 'utf-8');
@@ -1059,6 +1132,57 @@
     });
   }
 
+
+  // ---------- 操作ガイド ----------
+  function renderHelp() {
+    $('#view').innerHTML = `
+      <div class="page-head"><div><h1>操作ガイド</h1><p>承継した顧問先へのクロスセル提案を、データ登録から回収管理まで進める手順です。</p></div>
+        <button class="btn" type="button" onclick="window.print()">印刷</button></div>
+      <div class="card help">
+        <h2>基本の流れ</h2>
+        <ol>
+          <li><b>顧問先を登録する</b>（<a href="#/settings">データ取込・出力</a>）<br>テンプレートCSVをダウンロードし、引継ぎ元事務所の顧問先リストを貼り付けて取り込みます。会社名・代表者・年齢・業種・引継ぎ元・担当・顧問料が最低限あれば始められます。</li>
+          <li><b>財務数値を入れる</b>（<a href="#/finance">会計データ取込</a>）<br>会計ソフトから残高試算表（または決算書BS・PL）をCSVで出力し、まとめて選択します。ファイル名に会社名を入れておくと反映先が自動で選ばれます。確認画面で取込値を見て「反映」を押します。</li>
+          <li><b>保険・事務所の状況を補う</b>（各クライアントの「編集」）<br>死亡保障額、損保の加入状況、後継者の有無、拡大志向、車両台数など、決算書に出ない情報を面談で確認して入力します。判定の精度が上がります。</li>
+          <li><b>優先順位を決める</b>（<a href="#/dashboard">ダッシュボード</a>）<br>「優先アクションTOP10」とニーズ・マトリクスで、どの社長に何を提案するかを決めます。セルにマウスを乗せると判定理由が出ます。</li>
+          <li><b>提案して進捗を記録する</b>（クライアント詳細・<a href="#/pipeline">提案パイプライン</a>）<br>詳細画面の判定理由・提案メニューを面談メモとして印刷できます。進捗（提案準備→提案中→成約／見送り）を更新します。</li>
+          <li><b>買収の採算を確認する</b>（<a href="#/roi">回収シミュレーション</a>）<br>事務所ごとの買収価格を入力し、顧問料だけの場合とクロスセル込みの場合の回収年数を比較します。手数料率・成約確率は実績に合わせて調整してください。</li>
+          <li><b>バックアップする</b>（<a href="#/settings">データ取込・出力</a>）<br>データはこのパソコンのこのブラウザの中にだけ保存されます。週1回はバックアップを保存してください。</li>
+        </ol>
+      </div>
+      <div class="card help">
+        <h2>ニーズ判定の考え方</h2>
+        <table>
+          <thead><tr><th>商品</th><th>主な判定材料</th><th>代表的な提案</th></tr></thead>
+          <tbody>
+            <tr><td>生命保険</td><td>借入金・固定費に対する保障不足、役員退職金の準備不足、利益水準、社長年齢と純資産</td><td>定期・収入保障保険、退職金原資の積立、納税資金の終身保険</td></tr>
+            <tr><td>損害保険</td><td>業種ごとの重要補償の未加入、従業員数、車両台数</td><td>請負賠償・工事保険（建設）、PL（製造）、柔整師賠償（整骨院）、サイバー（IT・医療）</td></tr>
+            <tr><td>M&A・事業承継</td><td>社長年齢×後継者の有無（譲渡）、拡大志向×利益×現預金（買収）</td><td>出口戦略の整理、株価算定、事業承継税制、買収候補のマッチング</td></tr>
+            <tr><td>不動産購入</td><td>家賃水準、月商3ヶ月超の余剰資金、社長年齢×純資産、利益水準</td><td>自社ビル購入、収益不動産、個人資産の組換え</td></tr>
+          </tbody>
+        </table>
+        <p class="subline">スコア：70点以上＝高、40〜69点＝中、39点以下＝低。判定ルールは <code>scoring.js</code> で調整できます。</p>
+      </div>
+      <div class="card help">
+        <h2>よくある質問</h2>
+        <dl>
+          <dt>別のパソコンでも使いたい</dt><dd>元のパソコンで「バックアップを保存」し、移行先で「バックアップから復元」してください。</dd>
+          <dt>試算表の取込で数字が1万倍・千分の一になる</dt><dd>確認画面の「金額の単位」を円／千円／万円から正しいものに変更してください。</dd>
+          <dt>期中（例：6ヶ月）の試算表を取り込みたい</dt><dd>「対象月数」に6と入れると、売上・利益・役員報酬・家賃を年額に換算します（BSの残高はそのまま）。</dd>
+          <dt>PDFの決算書は読めますか</dt><dd>読めません。会計ソフトからCSVで出力してください。</dd>
+        </dl>
+      </div>
+      <div class="card help">
+        <h2>コンプライアンス上の注意</h2>
+        <ul>
+          <li>保険募集には保険募集人登録、不動産の売買仲介には宅地建物取引業免許が必要です。登録・免許のない立場では紹介に留め、紹介料の受領条件を確認してください。</li>
+          <li>M&A支援は中小M&Aガイドラインに沿った体制（利益相反の説明、手数料体系の開示など）で行ってください。</li>
+          <li>クライアント情報を提携先（保険会社・不動産会社・M&A会社）に共有する際は、守秘義務の観点から事前に本人の同意を得てください。</li>
+          <li>スコアと試算値は提案の優先順位付けの目安です。個別の提案内容は専門家が確認してください。</li>
+        </ul>
+      </div>`;
+  }
+
   // ---------- ルーティング ----------
   function route() {
     const [, name = 'dashboard', id] = (location.hash || '#/dashboard').split('/');
@@ -1072,6 +1196,7 @@
     else if (name === 'settings') renderSettings();
     else if (name === 'roi') renderROI();
     else if (name === 'finance') renderFinance();
+    else if (name === 'help') renderHelp();
     else renderDashboard();
     window.scrollTo(0, 0);
   }

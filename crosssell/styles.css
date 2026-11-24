@@ -336,3 +336,15 @@ tr.sel td { background: var(--accent-soft); }
 #lineChart, #stackChart { width: 100%; min-height: 260px; }
 #lineChart svg, #stackChart svg { display: block; }
 a.card.kpi:hover { border-color: var(--accent); }
+
+.warn-box { border: 1px solid var(--warn); color: var(--text); }
+.help ol, .help ul { padding-left: 20px; margin: 8px 0 0; }
+.help li { margin: 8px 0; }
+.help h2 { margin-bottom: 8px; }
+.help td { white-space: normal; vertical-align: top; }
+.help dt { font-weight: 700; margin-top: 10px; }
+.help dd { margin: 2px 0 0; color: var(--text-2); }
+.help code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+a.card.kpi { text-decoration: none; }
+a.card.kpi h2 { margin-bottom: 4px; }
+.help tbody tr { cursor: default; }
