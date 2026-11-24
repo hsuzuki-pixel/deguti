@@ -81,6 +81,7 @@
       },
       vehicles, office, rentMonthly,
       status: { life: '未着手', nonlife: '未着手', ma: '未着手', re: '未着手' },
+      advisoryFee: Math.round(Math.max(30, Math.min(240, sales / 300 + between(-10, 20)))),
       notes: '',
       lastContact: '',
     };

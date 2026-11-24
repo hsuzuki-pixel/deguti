@@ -298,13 +298,13 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .mobile-nav { display: none; }
 
 @media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; }
+  .app { grid-template-columns: minmax(0, 1fr); }
   .sidebar { display: none; }
   .mobile-nav { display: flex; gap: 4px; overflow-x: auto; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 16px; position: sticky; top: 0; z-index: 10; }
   .mobile-nav a { padding: 6px 10px; border-radius: 6px; color: var(--text-2); white-space: nowrap; font-weight: 600; }
   .mobile-nav a.active { background: var(--accent-soft); color: var(--text); }
   .main { padding: 16px; }
-  .grid-2 { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .bar-row { grid-template-columns: 76px 1fr 56px; }
 }
 @media print {
@@ -331,3 +331,8 @@ fieldset { border: 0; padding: 0; margin: 0; }
 /* グリッド内のカードは縦マージンを付けない */
 .grid > .card + .card, .detail-grid > .card + .card { margin-top: 0; }
 .grid-2 { align-items: start; }
+
+tr.sel td { background: var(--accent-soft); }
+#lineChart, #stackChart { width: 100%; min-height: 260px; }
+#lineChart svg, #stackChart svg { display: block; }
+a.card.kpi:hover { border-color: var(--accent); }

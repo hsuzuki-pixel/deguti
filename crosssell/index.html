@@ -26,6 +26,14 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>
           提案パイプライン
         </a>
+        <a href="#/roi" data-route="roi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/></svg>
+          回収シミュレーション
+        </a>
+        <a href="#/finance" data-route="finance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 15l3 3 3-3M12 11v7"/></svg>
+          会計データ取込
+        </a>
         <a href="#/new" data-route="new">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
           クライアント追加
@@ -44,6 +52,8 @@
       <a href="#/dashboard" data-route="dashboard">ダッシュボード</a>
       <a href="#/clients" data-route="clients">一覧</a>
       <a href="#/pipeline" data-route="pipeline">パイプライン</a>
+      <a href="#/roi" data-route="roi">回収試算</a>
+      <a href="#/finance" data-route="finance">会計取込</a>
       <a href="#/new" data-route="new">追加</a>
       <a href="#/settings" data-route="settings">データ</a>
     </nav>
@@ -56,6 +66,8 @@
 
   <script src="scoring.js"></script>
   <script src="sample-data.js"></script>
+  <script src="economics.js"></script>
+  <script src="finance-import.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
