@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>クロスセル・ナビ</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">クロスセル・ナビ</div>
+        <div class="brand-sub">承継クライアント ニーズ分析</div>
+      </div>
+      <nav class="nav" id="nav">
+        <a href="#/dashboard" data-route="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          ダッシュボード
+        </a>
+        <a href="#/clients" data-route="clients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          クライアント一覧
+        </a>
+        <a href="#/pipeline" data-route="pipeline">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>
+          提案パイプライン
+        </a>
+        <a href="#/new" data-route="new">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+          クライアント追加
+        </a>
+        <a href="#/settings" data-route="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+          データ取込・出力
+        </a>
+      </nav>
+      <div class="sidebar-foot">
+        <button class="btn small" id="themeBtn" type="button">表示: 自動</button>
+      </div>
+    </aside>
+
+    <nav class="mobile-nav" id="mnav">
+      <a href="#/dashboard" data-route="dashboard">ダッシュボード</a>
+      <a href="#/clients" data-route="clients">一覧</a>
+      <a href="#/pipeline" data-route="pipeline">パイプライン</a>
+      <a href="#/new" data-route="new">追加</a>
+      <a href="#/settings" data-route="settings">データ</a>
+    </nav>
+
+    <main class="main" id="view"></main>
+  </div>
+
+  <div class="tooltip" id="tip"></div>
+  <div class="toast" id="toast"></div>
+
+  <script src="scoring.js"></script>
+  <script src="sample-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
